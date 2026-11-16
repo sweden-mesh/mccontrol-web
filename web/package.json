@@ -1,0 +1,9 @@
+{
+  "name": "mccontrol-web",
+  "private": true,
+  "type": "module",
+  "description": "mccontrol in the browser: no build step, no dependencies; this file only tells node the .js files are ES modules",
+  "scripts": {
+    "test": "node --test \"test/**/*.test.js\""
+  }
+}
