@@ -74,3 +74,11 @@ test('the deployable copy: no tests, every file hashed, the version everywhere',
     rmSync(out, { recursive: true, force: true });
   }
 });
+
+test('the service worker keeps the integrity list it checked, and caches nothing at run time (W-12)', () => {
+  const sw = read('sw.js');
+  assert.equal(sw.match(/fetch\('integrity\.json'/g).length, 1, 'one fetch of the list: no second, unchecked copy');
+  const handler = sw.slice(sw.indexOf("addEventListener('fetch'"));
+  assert.ok(!/cache\.put|cache\.add/.test(handler), 'a response from the network is never cached by the fetch handler');
+  assert.match(sw, /if \(got !== sha\) throw/);
+});

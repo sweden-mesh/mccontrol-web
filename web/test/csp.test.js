@@ -21,7 +21,7 @@ test('index.html carries the CSP and nothing inline', () => {
   const html = readFileSync(join(WEB, 'index.html'), 'utf8');
   const csp = html.match(/http-equiv="Content-Security-Policy" content="([^"]+)"/)[1];
   for (const part of ["default-src 'none'", "script-src 'self'", "style-src 'self'", "base-uri 'none'",
-    "object-src 'none'", "require-trusted-types-for 'script'"]) {
+    "object-src 'none'", "require-trusted-types-for 'script'", 'trusted-types mccontrol-sw']) {
     assert.ok(csp.includes(part), part);
   }
   assert.ok(!/unsafe-inline|unsafe-eval|wasm-unsafe-eval/.test(csp));
@@ -57,4 +57,14 @@ test('nothing reaches a third party by URL in our code', () => {
   for (const f of ours) {
     assert.ok(!/https?:\/\//.test(readFileSync(f, 'utf8')), relative(WEB, f));
   }
+});
+
+test('the one Trusted Types policy is the one the CSP names (W-12)', () => {
+  const html = readFileSync(join(WEB, 'index.html'), 'utf8');
+  const csp = html.match(/http-equiv="Content-Security-Policy" content="([^"]+)"/)[1];
+  const allowed = csp.match(/trusted-types ([^;]+)/)[1].trim().split(/\s+/);
+  const made = files(WEB, '.js').filter((f) => !relative(WEB, f).startsWith('test'))
+    .flatMap((f) => [...readFileSync(f, 'utf8').matchAll(/createPolicy\(\s*'([^']+)'/g)].map((m) => m[1]));
+  assert.deepEqual(allowed, ['mccontrol-sw']);
+  assert.deepEqual([...new Set(made)], allowed);
 });

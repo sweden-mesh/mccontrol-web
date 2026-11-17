@@ -96,9 +96,9 @@ for this origin only (`test/shell-deploy.test.js` keeps the two in step):
 
 ```
 default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self';
-connect-src 'self' wss: https://beacon.meshcore-jkp.se https://api.github.com; manifest-src 'self';
+connect-src 'self' wss: https://beacon.meshcoresverige.se https://beacon.meshcore-jkp.se https://api.github.com; manifest-src 'self';
 worker-src 'self';
-base-uri 'none'; form-action 'none'; object-src 'none'; require-trusted-types-for 'script'
+base-uri 'none'; form-action 'none'; object-src 'none'; require-trusted-types-for 'script'; trusted-types mccontrol-sw
 ```
 
 What it means for code:
