@@ -13,6 +13,7 @@
 //   const release = ring.hold()  a running job keeps the key until release()
 //   await ring.exportBackup(pass)    -> { filename, text }; satisfies the backup gate
 //   await ring.confirmSaved()    an imported key: "yes, I have it saved"
+//   await ring.changePassphrase(old, new)   re-encrypt the stored key; old backup files keep the old one
 //   await ring.setAutoLock(min)  5, 15, 60 or null (until the tab closes)
 //   await ring.enableFingerprint(pass) / disableFingerprint()
 //   await ring.requestPersistence()
@@ -149,6 +150,7 @@ export function createKeyring({
         autoLockMinutes: record ? await settings() : DEFAULT_AUTO_LOCK,
         fingerprint: Boolean(record?.wraps?.prf),
         persist: record?.persist ?? null,
+        passphraseChanged: record?.passphraseChanged ?? null,
       };
     },
 
@@ -226,6 +228,22 @@ export function createKeyring({
 
     async confirmSaved() {
       await update((r) => { if (!r.backup) r.backup = { at: nowIso(clock), form: 'confirmed' }; });
+    },
+
+    // The stored copy re-encrypted under `next`. A backup file saved before keeps opening with
+    // the old passphrase only, so the record says when the change was made; the fingerprint
+    // copy is unaffected (it is wrapped by the passkey, not the passphrase).
+    async changePassphrase(passphrase, next) {
+      checkPassphrase(next);
+      const record = await active();
+      if (!record) throw new Error('There is no key in this browser.');
+      const seed = await openSealed(record.wraps.passphrase, passphrase);
+      try {
+        const sealed = await sealSeed(seed, next, { iterations });
+        await update((r) => { r.wraps = { ...r.wraps, passphrase: sealed }; r.passphraseChanged = nowIso(clock); });
+      } finally {
+        seed.fill(0);
+      }
     },
 
     async enableFingerprint(passphrase, options = {}) {

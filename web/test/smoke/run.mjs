@@ -27,7 +27,7 @@ const HERE = fileURLToPath(new URL('.', import.meta.url));
 const WIDTHS = [360, 1280];
 const LOOKS = { light: { 'mccontrol.theme': 'light' }, phosphor: { 'mccontrol.phosphor': 'green' } };
 // Routes that take an argument are also visited with one: a node id from the fixture.
-const SAMPLE_ARGS = { node: '13B58595', stats: '13B58595' };
+const SAMPLE_ARGS = { node: ['13B58595'], stats: ['13B58595'], help: ['signing', 'codes'], unlock: ['replace', 'to/nodes'] };
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
   '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json',
   '.webmanifest': 'application/manifest+json', '.svg': 'image/svg+xml', '.png': 'image/png',
@@ -124,7 +124,7 @@ async function main() {
     await probe.goto(`${origin}/`, { waitUntil: 'networkidle0' });
     const routes = await probe.evaluate(async () => (await import('./ui/screens/index.js')).SCREENS.map((s) => s.route));
     await probe.close();
-    let hashes = routes.flatMap((r) => (SAMPLE_ARGS[r] ? [r, `${r}/${SAMPLE_ARGS[r]}`] : [r]));
+    let hashes = routes.flatMap((r) => [r, ...(SAMPLE_ARGS[r] || []).map((a) => `${r}/${a}`)]);
     hashes.push('no-such-page');
     if (o.only) hashes = hashes.filter((h) => o.only.some((x) => h === x || h.startsWith(`${x}/`)));
 

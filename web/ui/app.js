@@ -9,6 +9,7 @@
 //   navigate(hash)  go to another screen ('#/nodes')
 //   notify(text, { kind: 'info'|'warning'|'error', actions: [{label, run}] }), announce(text)
 //   key             { state(), on(fn) }: { status: 'none'|'locked'|'unlocked', publicKeyHex }
+//                   (the keyring itself, the handle and holds: screens/key-session.js)
 //   prefs           { current(), set(name, value), on(fn) }: the device's display settings
 //   displaySettings()  the display settings form, for the settings screen
 import { pickLanguage, translator, loadStrings } from '../i18n/i18n.js';
@@ -19,6 +20,7 @@ import { keyState, onKeyState, shortKey } from './key-state.js';
 import { notify, announce, useStrings } from './notify.js';
 import { displaySettings } from './appearance.js';
 import { readVersion, startUpdates } from './update.js';
+import { startKeySession } from './screens/key-session.js';
 
 export function routeOf(hash) {
   const path = String(hash || '').replace(/^#\/?/, '');
@@ -138,6 +140,9 @@ async function start() {
     draw(false);
   };
 
+  // The page's one keyring, before the first screen: the header and the screens then know whether
+  // there is a key. A browser that refuses IndexedDB still gets the shell, with "no key".
+  try { await startKeySession(); } catch (err) { console.warn('key store unavailable:', err); }
   await relabel();
   syncNavLayout();
   matchMedia(WIDE).addEventListener('change', syncNavLayout);
