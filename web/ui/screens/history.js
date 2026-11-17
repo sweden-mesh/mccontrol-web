@@ -1,7 +1,7 @@
 // History (W-9): everything sent with this key and what came back, newest first, kept in this
 // browser. Filter by node and by result; export as CSV or JSON; import a JSON export (from
 // another browser, or a backup) -- events already here are skipped, never overwritten.
-// #/history/<node> opens it filtered to that node.
+// #/history/<node> opens it filtered to that node. An event sent over the mesh (W-16) says so.
 import { h } from '../dom.js';
 import { resultKind } from '../../lib/store/index.js';
 import {
@@ -21,12 +21,13 @@ export function csvCell(value) {
   return `"${text.replaceAll('"', '""')}"`;
 }
 
-export const CSV_COLUMNS = ['id', 'at', 'node', 'name', 'region', 'command', 'result', 'code', 'codeName', 'verified', 'reply', 'note', 'batch'];
+export const CSV_COLUMNS = ['id', 'at', 'node', 'name', 'region', 'command', 'result', 'code', 'codeName', 'verified', 'reply', 'note', 'batch', 'road'];
 
 export function toCsv(events, names = {}) {
   const rows = events.map((e) => CSV_COLUMNS.map((c) => {
     if (c === 'name') return csvCell(names[e.node] || '');
     if (c === 'result') return csvCell(resultKind(e));
+    if (c === 'road') return csvCell(e.road || 'mqtt');          // before the mesh road, every event went over MQTT
     return csvCell(e[c]);
   }).join(','));
   return `${CSV_COLUMNS.join(',')}\r\n${rows.join('\r\n')}\r\n`;
@@ -59,7 +60,7 @@ export function render(ctx) {
           h('td', {}, when(ctx, e.at)),
           h('th', { scope: 'row' }, e.node ? h('a', { href: `#/node/${e.node}` }, names[e.node] || e.node) : ctx.t('history.region', { region: e.region || '' })),
           h('td', {}, h('code', {}, e.command)),
-          h('td', {}, outcomeTag(ctx, x.kind)),
+          h('td', {}, outcomeTag(ctx, x.kind), e.road === 'mesh' ? [' ', h('span', { class: 'road-mark' }, ctx.t('road.overMesh'))] : null),
           h('td', { class: 'res-cell' }, x.kind === 'summary' ? x.text : resultBody(x)[0],
             x.kind === 'refused' ? h('span', { class: 'res-help' }, x.help) : null));
       });

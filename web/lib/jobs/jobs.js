@@ -5,7 +5,11 @@
 // A region-wide send is one signed broadcast, with the broadcast rules.
 //
 //   const jobs = createJobs({ ring, stores, rules, brokers, results, configOf });   // results: lib/data/results.json
-//   await jobs.send({ command, nodes: ['4AC61A7F'] | group: 'canary' | region: 'JKG', onProgress, signal })
+//   await jobs.send({ command, nodes: ['4AC61A7F'] | group: 'canary' | region: 'JKG', road, onProgress, signal })
+//
+// `road` (W-16) is 'mqtt' (the default), 'mesh' or 'auto' (road.js): the mesh goes through the
+// companion `companion()` returns (lib/mesh/companion.js), one node at a time, and an outcome
+// says which road it took. Silence over the mesh is silence, never a refusal.
 //
 // Every job holds the key (ring.hold()) from its first signature to its last, so an auto-lock
 // in between lets it finish, and touches the idle clock when it ends. A locked key is a
@@ -14,9 +18,13 @@
 import { configFor, discover as realDiscover, send as realSend, DISCOVERY_COMMAND } from '../protocol/transport.js';
 import { commandTopic } from '../protocol/topics.js';
 import { codeName } from '../protocol/results.js';
-import { blocker, fillSteps, JobError } from './checks.js';
+import { blocker, fillSteps, JobError, meshBlocker } from './checks.js';
+import { MESH_AFTER_MINS, chooseRoad, mqttHeardAt } from './road.js';
+import { sendOverMesh as realMeshSend } from '../mesh/send.js';
 
 export { JobError } from './checks.js';
+
+const signalAborted = (signal) => Boolean(signal?.aborted);
 
 const sleepFor = (ms, signal) => new Promise((resolve) => {
   const timer = setTimeout(resolve, ms);
@@ -24,11 +32,16 @@ const sleepFor = (ms, signal) => new Promise((resolve) => {
 });
 
 // The value of a `> value` reply, or the reply itself.
+// The codes a CompanionError carries (lib/mesh/companion.js): said as a companion failure.
+const COMPANION_CODES = Object.freeze({ companion: 1, timeout: 1, closed: 1, full: 1, refused: 1 });
+
 export const valueOf = (reply) => String(reply || '').replace(/^>\s*/, '').trim();
 
 export function createJobs({
   ring, stores, rules, brokers, results, transport = { send: realSend, discover: realDiscover }, connect,
   waitSecs = null, sleep = sleepFor, configExtra = {}, configOf = (region) => configFor(brokers, region),
+  companion = () => null, meshSend = realMeshSend, meshAfterMins = () => MESH_AFTER_MINS, mqttSeen = null,
+  now = () => Date.now(),
 }) {
   const wait = () => waitSecs ?? brokers.wait_secs ?? 20;
   // `configOf(region)`: the page passes settings-store's brokerConfig, so a region this device
@@ -58,9 +71,9 @@ export function createJobs({
 
   // Store what came back from `device` for `command`: a history event, the device's last
   // result and last heard, a kept read, and its version or name.
-  async function land(device, command, topic, result, batch, note = '') {
+  async function land(device, command, topic, result, batch, note = '', road = 'mqtt') {
     const event = await stores.history.append({
-      batch, node: device.node, region: device.region, command, topic, note,
+      batch, node: device.node, region: device.region, command, topic, note, road,
       code: result ? result.code : null,
       codeName: result && result.code !== null ? codeName(results, result.code) : null,
       reply: result ? result.reply : null,
@@ -70,7 +83,10 @@ export function createJobs({
       lastSent: event.at,
       lastResult: { at: event.at, command, code: event.code, codeName: event.codeName, verified: event.verified },
     };
-    if (result && result.verified !== false) changes.lastHeard = event.at;      // a refusal too proves it is there
+    if (result && result.verified !== false) {
+      changes.lastHeard = event.at;      // a refusal too proves it is there
+      changes[road === 'mesh' ? 'lastHeardMesh' : 'lastHeardMqtt'] = event.at;   // the auto road asks which way
+    }
     await stores.devices.update(device.node, changes);
     if (result && result.ok) {
       if (rules.isRead(command)) await stores.devices.rememberRead(device.node, command, result.reply || 'OK', result.verified);
@@ -83,12 +99,12 @@ export function createJobs({
     return event;
   }
 
-  // One signed command to one device: { device, result, event } (result null = no answer).
-  async function sendOne(handle, device, command, { batch, keys, signal, onProgress, index = 0, count = 1, note }) {
+  // One signed command to one device over MQTT: { device, result, event, road } (result null = no answer).
+  async function sendMqtt(handle, device, command, { batch, keys, signal, onProgress, index = 0, count = 1, note }) {
     const topic = commandTopic(device.region, device.node, device.key);
     const v2Key = device.key && rules.speaksV2(device.ver) ? device.key : null;
     const progress = (elapsed, total, answered) => {
-      onProgress?.({ phase: 'waiting', node: device.node, name: label(device), index, count, elapsed, total, answered: answered.length });
+      onProgress?.({ phase: 'waiting', road: 'mqtt', node: device.node, name: label(device), index, count, elapsed, total, answered: answered.length });
       return Boolean(signal?.aborted);
     };
     const { answers } = await transport.send({
@@ -97,7 +113,57 @@ export function createJobs({
     });
     const result = answers[device.node] || null;
     const event = await land(device, command, topic, result, batch, note);
-    return { device, result, event, v2: Boolean(v2Key) };
+    return { device, result, event, v2: Boolean(v2Key), road: 'mqtt' };
+  }
+
+  // The same over the mesh, through the companion (actions.send_mesh). With `fallback` (the
+  // auto road) a mesh-closed answer -- the node's MQTT works -- is recorded and sent again over MQTT.
+  async function sendMesh(handle, device, command, opts) {
+    const { batch, signal, onProgress, index = 0, count = 1, why = null, fallback = false } = opts;
+    const block = blocker(rules, { command, device, road: 'mesh' }) || meshBlocker(rules, command, device);
+    if (block) throw new JobError(block.code, block.vars, block.vars.detail || block.code);
+    const radio = companion();
+    if (!radio || radio.closed) throw new JobError('noCompanion', {}, 'no companion is connected');
+    onProgress?.({ phase: 'sending', road: 'mesh', node: device.node, name: label(device), index, count });
+    const out = await meshSend({
+      companion: radio, handle, keyHex: device.key, region: device.region, meshOnly: rules.deviceMeshOnly(device),
+      name: label(device), command, ttl: brokers.ttl_secs ?? undefined, waitSecs: wait(), signal,
+      progress: (elapsed, total) => {
+        onProgress?.({ phase: 'waiting', road: 'mesh', node: device.node, name: label(device), index, count, elapsed, total, answered: 0 });
+        return Boolean(signal?.aborted);
+      },
+    });
+    const note = why ? `mesh: ${why.code}` : '';
+    if (fallback && out.result?.code === 19) {
+      await land(device, command, out.topic, out.result, batch, 'mesh closed: sent over MQTT', 'mesh');
+      const fresh = (await stores.devices.get(device.node)) || device;
+      const again = await sendMqtt(handle, fresh, command, opts);
+      return { ...again, why: { code: 'meshClosed', vars: {} } };
+    }
+    const event = await land(device, command, out.topic, out.result, batch, note, 'mesh');
+    return { device, result: out.result, event, v2: false, road: 'mesh', why, info: out.info };
+  }
+
+  // When Beacon last saw the node's status, or null; never throws.
+  async function seen(device) {
+    if (!mqttSeen) return null;
+    try { return await mqttSeen(device); } catch { return null; }
+  }
+
+  // One signed command to one device by `road`: { device, result, event, road, why?, info? }.
+  async function sendOne(handle, device, command, opts) {
+    const via = opts.road || 'mqtt';
+    if (via === 'mqtt' && !rules.deviceMeshOnly(device)) return sendMqtt(handle, device, command, opts);
+    const heardAt = via === 'auto' ? mqttHeardAt(device, await seen(device)) : null;
+    const choice = chooseRoad(rules, { device, command, via, meshAfterMins: meshAfterMins(), heardAt, now: now() });
+    if (choice.road === 'mesh') return sendMesh(handle, device, command, { ...opts, why: choice.why, fallback: via === 'auto' });
+    if (via !== 'auto') return sendMqtt(handle, device, command, opts);
+    try {
+      return await sendMqtt(handle, device, command, opts);
+    } catch (e) {
+      if (e instanceof JobError || e?.name === 'AbortError' || signalAborted(opts.signal)) throw e;
+      return sendMesh(handle, device, command, { ...opts, why: { code: 'mqttUnreachable', vars: { detail: e.message } } });
+    }
   }
 
   // The nodes a target names: { devices, region } where region is set only for a broadcast.
@@ -123,9 +189,10 @@ export function createJobs({
 
   // The same check for every command before any is signed; a blocker for a region or for
   // a lone node stops the job, while in a group or a multi-node send it marks that member.
-  function vet(commands, target) {
+  function vet(commands, target, road = 'mqtt') {
     for (const command of commands) {
-      const deny = blocker(rules, { command, device: { region: 'X', ver: null, name: '' }, region: target.region });
+      if (road !== 'mqtt' && !target.region) continue;         // per node, by the road it takes
+      const deny = blocker(rules, { command, device: { region: 'X', ver: null, name: '' }, region: target.region, road });
       if (deny && deny.code !== 'oldAscii') throw new JobError(deny.code, deny.vars, deny.vars.detail || deny.code);
     }
   }
@@ -157,10 +224,10 @@ export function createJobs({
   // Send one command. Resolves to { batch, command, target, outcomes: [{ node, name, sent,
   // result, reason?, event? }], answered, asked }. `reason` ({ code, vars }) is why a member
   // was not sent to; `result` null with sent true is silence.
-  async function send({ command, nodes, group, region, onProgress, signal } = {}) {
+  async function send({ command, nodes, group, region, road = 'mqtt', onProgress, signal } = {}) {
     const text = String(command || '').split(/\s+/).filter(Boolean).join(' ');
     const target = await targets({ nodes, group, region });
-    vet([text], target);
+    vet([text], target, road);
     const batch = batchId();
     return withKey(async (handle) => {
       const keys = await keysOf();
@@ -175,7 +242,7 @@ export function createJobs({
           outcomes.push({ node: device.node, name: label(device), sent: false, result: null, reason: { code: 'cancelled', vars: {} } });
           continue;
         }
-        const reason = blocker(rules, { command: text, device });
+        const reason = blocker(rules, { command: text, device, road });
         if (reason) {
           if (!many) throw new JobError(reason.code, reason.vars, reason.code);
           outcomes.push({ node: device.node, name: label(device), sent: false, result: null, reason });
@@ -183,11 +250,14 @@ export function createJobs({
         }
         onProgress?.({ phase: 'sending', node: device.node, name: label(device), index, count: target.devices.length });
         try {
-          const one = await sendOne(handle, device, text, { batch, keys, signal, onProgress, index, count: target.devices.length });
-          outcomes.push({ node: device.node, name: label(device), sent: true, result: one.result, event: one.event, v2: one.v2 });
+          const one = await sendOne(handle, device, text, { batch, keys, signal, onProgress, index, count: target.devices.length, road });
+          outcomes.push({ node: device.node, name: label(device), sent: true, result: one.result, event: one.event, v2: one.v2,
+            road: one.road, why: one.why || null, info: one.info || null });
         } catch (e) {
           if (!many) throw e;
-          outcomes.push({ node: device.node, name: label(device), sent: false, result: null, reason: { code: 'broker', vars: { detail: e.message } } });
+          const reason = e instanceof JobError ? { code: e.code, vars: e.vars }
+            : { code: e?.code && String(e.code) in COMPANION_CODES ? 'companion' : 'broker', vars: { detail: e.message } };
+          outcomes.push({ node: device.node, name: label(device), sent: false, result: null, reason });
         }
       }
       const sent = outcomes.filter((o) => o.sent);
