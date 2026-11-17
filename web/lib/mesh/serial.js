@@ -75,6 +75,7 @@ export async function connectSerial({
   let state = 'opening';          // 'open' | 'lost' (reconnecting) | 'closed'
   let opened = 0;                 // how many times the port was opened; a read loop belongs to one
   let followed = 0;               // restarts followed so far
+  let heard = 0;                  // bytes read since the port was last opened (a boot log counts)
   const deframer = serialDeframer();
   let frameFn = () => {};
   let closeFn = () => {};
@@ -90,6 +91,7 @@ export async function connectSerial({
     await openQuiet(p, baudRate, search, log);
     port = p;
     opened += 1;
+    heard = 0;
     p.addEventListener?.('disconnect', onDisconnect);
     writer = p.writable.getWriter();
     reader = p.readable.getReader();
@@ -104,6 +106,7 @@ export async function connectSerial({
         const { value, done } = await r.read();
         if (done) break;
         log.bytes('in', value);
+        heard += value.length;
         for (const f of deframer.push(value)) frameFn(f);
       }
     } catch (e) { why = `the read failed: ${e?.name || ''} ${e?.message || e}`.trim(); }
@@ -172,6 +175,8 @@ export async function connectSerial({
     startWithinMs: USB_START_WITHIN_MS,
     label: info.usbProductId ? `USB ${info.usbVendorId?.toString(16)}:${info.usbProductId.toString(16)}` : 'USB',
     get reconnecting() { return state === 'lost'; },
+    // Bytes came in but no frame: the board talks (its boot log) but not the companion protocol.
+    get heardBytes() { return heard; },
     onFrame(fn) { frameFn = fn; },
     onClose(fn) { closeFn = fn; },
     onStatus(fn) { statusFns.add(fn); return () => statusFns.delete(fn); },

@@ -164,19 +164,33 @@ test('USB: a board that restarted on open boots for 2 s, app start is asked agai
   await c.close();
 });
 
-test('USB: a board that never answers is reported after the wait, with the reason', async () => {
+// The operator's V4 (capture 2026-11-17): it prints its ROM boot log, then never frames an answer,
+// because it runs the Bluetooth companion build (one interface per build). Said as that.
+test('USB: a board that prints its boot log but never answers runs another link\'s firmware', async () => {
   const { openCompanion, CompanionError } = await import('../lib/mesh/companion.js');
   const port = bootingPort({ bootMs: 300, answers: false });
   const link = await connectSerial({ serial: { requestPort: async () => port } });
   const began = Date.now();
   await assert.rejects(openCompanion(link, { startWithinMs: 1200, startFirstMs: 400, startEveryMs: 200 }), (e) => {
     assert.ok(e instanceof CompanionError);
-    assert.equal(e.code, 'timeout');
-    assert.match(e.message, /didn't answer after it restarted: is it running companion firmware for USB\?/);
+    assert.equal(e.code, 'otherFirmware');
+    assert.match(e.message, /restarted but doesn't answer over USB\. It probably runs the Bluetooth \(or Wi-Fi\) companion firmware/);
     return true;
   });
   assert.ok(Date.now() - began >= 1150);
   assert.equal(port.written.filter((b) => b[3] === 1).length, 5);   // 0, 400, 600, 800, 1000 ms
+  await link.close();
+});
+
+test('USB: a board that sends nothing at all keeps the plain reason', async () => {
+  const { openCompanion } = await import('../lib/mesh/companion.js');
+  const port = bootingPort({ bootMs: 0, answers: false });
+  const link = await connectSerial({ serial: { requestPort: async () => port } });
+  await assert.rejects(openCompanion(link, { startWithinMs: 600, startFirstMs: 200, startEveryMs: 100 }), (e) => {
+    assert.equal(e.code, 'timeout');
+    assert.match(e.message, /didn't answer after it restarted: is it running companion firmware for USB\?/);
+    return true;
+  });
   await link.close();
 });
 

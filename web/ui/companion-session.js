@@ -12,7 +12,7 @@ import { connectSerial, serialAvailable } from '../lib/mesh/serial.js';
 import { setCompanionKind } from './screens/settings-store.js';
 
 let radio = null;
-let current = { status: 'none', kind: '', name: '', error: '', phase: '' };
+let current = { status: 'none', kind: '', name: '', error: '', errorKey: '', phase: '' };
 const listeners = new Set();
 
 function set(next) {
@@ -38,7 +38,7 @@ export function onCompanion(fn) {
 export async function connect(kind) {
   if (current.status === 'connecting') return current;
   await disconnect();
-  set({ status: 'connecting', kind, name: '', error: '', phase: '' });
+  set({ status: 'connecting', kind, name: '', error: '', errorKey: '', phase: '' });
   let link = null;
   let name = '';
   try {
@@ -62,7 +62,9 @@ export async function connect(kind) {
     try { await link?.close(); } catch { /* nothing to close */ }
     // the person closed the browser's chooser: not an error worth a sentence
     const cancelled = e?.name === 'NotFoundError' || e?.name === 'AbortError';
-    set({ status: cancelled ? 'none' : 'error', name: '', error: cancelled ? '' : (e?.message || String(e)), phase: '' });
+    // errorKey: a reason the page says in its own language (the message stays English for a log).
+    const errorKey = e?.code === 'otherFirmware' ? 'companion.otherFirmware' : '';
+    set({ status: cancelled ? 'none' : 'error', name: '', error: cancelled ? '' : (e?.message || String(e)), errorKey, phase: '' });
   }
   return current;
 }

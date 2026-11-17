@@ -525,6 +525,7 @@
   "companion.title": "Companion radio",
   "companion.none": "Companion radio: not connected.",
   "companion.connecting": "Connecting. Choose the radio in the browser's list.",
+  "companion.otherFirmware": "The companion restarted but doesn't answer over USB. It probably runs the Bluetooth (or Wi-Fi) companion firmware, which only talks over that link: connect by Bluetooth, or flash the USB companion firmware.",
   "companion.reconnecting": "The companion restarted, reconnecting…",
   "companion.reconnectingBrief": "restarted, reconnecting…",
   "companion.connected": "Connected to {name} by {kind}.",

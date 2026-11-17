@@ -22,11 +22,12 @@ import {
 export class CompanionError extends Error {
   constructor(message, code = 'companion') {
     super(message);
-    this.code = code;          // 'companion' | 'timeout' | 'closed' | 'full' | 'refused'
+    this.code = code;          // 'companion' | 'timeout' | 'closed' | 'full' | 'refused' | 'otherFirmware'
   }
 }
 
 export const COMMAND_TIMEOUT_MS = 5000;
+export const OTHER_FIRMWARE = "The companion restarted but doesn't answer over USB. It probably runs the Bluetooth (or Wi-Fi) companion firmware, which only talks over that link: connect by Bluetooth, or flash the USB companion firmware.";
 export const START_FIRST_MS = 1500;    // the first app start's wait before it is asked again
 export const START_EVERY_MS = 500;     // then again this often, until the link's startWithinMs
 
@@ -138,6 +139,11 @@ export async function openCompanion(link, {
         stop();
         if (other) reject(new CompanionError('the device did not answer as a MeshCore companion'));
         else if (writeError) reject(new CompanionError(`cannot write to the companion: ${writeError?.message || writeError}`));
+        // A board that printed its boot log but never framed an answer runs a companion build for
+        // another link: a build has one interface (examples/companion_radio/main.cpp: BLE_PIN_CODE
+        // gives SerialBLEInterface, else ArduinoSerialInterface), so a Bluetooth or Wi-Fi companion
+        // never answers over USB (operator's V4 capture, 2026-11-17).
+        else if (link.kind === 'usb' && link.heardBytes > 0) reject(new CompanionError(OTHER_FIRMWARE, 'otherFirmware'));
         else if (link.kind === 'usb') reject(new CompanionError("the companion didn't answer after it restarted: is it running companion firmware for USB?", 'timeout'));
         else reject(new CompanionError(`the companion did not answer in ${Math.round(startWithinMs / 1000)} s`, 'timeout'));
       };

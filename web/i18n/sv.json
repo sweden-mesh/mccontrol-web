@@ -525,6 +525,7 @@
   "companion.title": "Companion-radio",
   "companion.none": "Companion-radio: inte ansluten.",
   "companion.connecting": "Ansluter. Välj radion i webbläsarens lista.",
+  "companion.otherFirmware": "Radion startade om men svarar inte över USB. Den kör troligen companion-firmwaren för Bluetooth (eller Wi-Fi), som bara pratar över den vägen: anslut med Bluetooth, eller flasha companion-firmwaren för USB.",
   "companion.reconnecting": "Radion startade om, ansluter igen…",
   "companion.reconnectingBrief": "startade om, ansluter igen…",
   "companion.connected": "Ansluten till {name} via {kind}.",

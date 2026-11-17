@@ -25,7 +25,7 @@ export function mountUsbDebug(log = usbLog, root = document.body) {
     pre.textContent = log.lines.join('\n') || 'Nothing yet: connect the companion by USB.';
     if (atEnd) pre.scrollTop = pre.scrollHeight;
   };
-  const panel = h('details', { class: 'usb-debug' }, h('summary', {}, count),
+  const panel = h('details', { class: 'usb-debug', open: true }, h('summary', {}, count),
     h('p', { class: 'row wrap' }, copy, clear, said), pre);
   log.onChange(draw);
   draw();

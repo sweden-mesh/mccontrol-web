@@ -434,7 +434,11 @@ click) for the same USB vendor and product, reopens it after 300 ms, and app sta
 to 15 s, and at most 3 restarts per connection. Meanwhile the companion line says "The companion
 restarted, reconnecting…". With `?usbdebug=1` in the address a box in the top corner records every
 step (open, signals, bytes in and out as hex and text, lost, retries, reopened) with the milliseconds
-since the first, and "Copy" puts it on the clipboard (`lib/mesh/usblog.js`, `ui/usb-debug.js`).
+since the first, open from the start, and "Copy" puts it on the clipboard (`lib/mesh/usblog.js`, `ui/usb-debug.js`).
+A board that sends bytes (its ROM boot log) but never frames an answer is said to run the Bluetooth
+or Wi-Fi companion build: a companion build has one interface (`examples/companion_radio/main.cpp`:
+`BLE_PIN_CODE` gives `SerialBLEInterface`, else `ArduinoSerialInterface`), so it never answers over
+USB (the operator's V4 capture, 2026-11-17).
 
 The modals come from `ui/modal.js`'s registry, so a new modal is covered without editing the runner.
 `--only board,help` limits the hashes. Firefox is not run: Puppeteer would need a Firefox download

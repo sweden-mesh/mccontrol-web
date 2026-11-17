@@ -45,7 +45,7 @@ export function companionControl(ctx) {
     const kind = s.kind ? ctx.t(`companion.kind.${s.kind}`) : '';
     status.textContent = s.status === 'connected' ? ctx.t('companion.connected', { name: s.name || kind, kind })
       : s.status === 'connecting' ? ctx.t(s.phase === 'reconnecting' ? 'companion.reconnecting' : 'companion.connecting')
-        : s.status === 'error' ? ctx.t('companion.error', { error: s.error }) : ctx.t('companion.none');
+        : s.status === 'error' ? companionError(ctx, s) : ctx.t('companion.none');
     const list = s.status === 'connected' ? [off]
       : [can.bluetooth ? bt : null, can.usb ? usb : null].filter(Boolean);
     if (preferred === 'usb') list.reverse();
@@ -61,6 +61,9 @@ export function companionControl(ctx) {
   ctx.signal.addEventListener('abort', stop, { once: true });
   return h('div', { class: 'companion' }, status, buttons, note);
 }
+
+// The companion's error: in the page's language when it has a known reason (errorKey).
+export const companionError = (ctx, s) => (s.errorKey ? ctx.t(s.errorKey) : ctx.t('companion.error', { error: s.error }));
 
 // Why this browser cannot reach a companion one way, or '' when it can (W-23a).
 function missingWhy(ctx, can, kind) {
@@ -87,7 +90,7 @@ export function companionChooser(ctx) {
     off.addEventListener('click', () => { dialog.close(); disconnect(); });
     body = [h('p', {}, ctx.t('companion.connected', { name: s.name || kindWord, kind: kindWord })), h('p', {}, off)];
   } else {
-    body = [s.status === 'error' ? h('p', { class: 'hint-line' }, ctx.t('companion.error', { error: s.error })) : null,
+    body = [s.status === 'error' ? h('p', { class: 'hint-line' }, companionError(ctx, s)) : null,
       h('ul', { class: 'chooser-list' }, order.map((kind) => {
         const why = missingWhy(ctx, can, kind);
         const b = h('button', { type: 'button', class: 'button', disabled: Boolean(why), 'aria-describedby': why ? `${id}-${kind}` : null },
@@ -119,7 +122,7 @@ export function companionBrief(ctx) {
         : s.status === 'error' ? ctx.t('companion.briefError') : ctx.t('companion.briefNone');
     button.textContent = word;
     button.disabled = s.status === 'connecting';
-    button.title = s.status === 'error' ? ctx.t('companion.error', { error: s.error }) : '';
+    button.title = s.status === 'error' ? companionError(ctx, s) : '';
   }
   draw(state());
   const stop = onCompanion(draw);
