@@ -6,13 +6,27 @@
 // release zip; a dev copy registers no service worker, so a local server always serves the files
 // as they are on disk.
 
-// register() is a Trusted Types sink (a script URL). The policy accepts this one URL only.
-const policy = globalThis.trustedTypes?.createPolicy('mccontrol-sw', {
-  createScriptURL(url) {
-    if (url !== 'sw.js') throw new TypeError(`not the service worker: ${url}`);
-    return url;
-  },
-});
+// register() is a Trusted Types sink (a script URL). The policy accepts this one URL only. It is
+// made the first time the service worker registers, not when this module loads: a browser that
+// refuses the policy (Firefox enforces Trusted Types from 148) then loses only the offline copy,
+// never the page (W-20k). Made once; a refusal is remembered and not retried.
+let policy;
+export function swPolicy(tt = globalThis.trustedTypes) {
+  if (policy !== undefined) return policy;
+  if (!tt?.createPolicy) return (policy = null);
+  try {
+    policy = tt.createPolicy('mccontrol-sw', {
+      createScriptURL(url) {
+        if (url !== 'sw.js') throw new TypeError(`not the service worker: ${url}`);
+        return url;
+      },
+    });
+  } catch (err) {
+    policy = false;
+    throw new Error(`the browser refused the service worker's Trusted Types policy: ${err.message}`);
+  }
+  return policy;
+}
 
 export async function readVersion() {
   try {
@@ -26,7 +40,9 @@ export async function readVersion() {
 // and reloads the page.
 export async function startUpdates({ version, onWaiting }) {
   if (version === 'dev' || !('serviceWorker' in navigator)) return null;
-  const url = policy ? policy.createScriptURL('sw.js') : 'sw.js';
+  if (policy === false) return null;
+  const tt = swPolicy();
+  const url = tt ? tt.createScriptURL('sw.js') : 'sw.js';
   const reg = await navigator.serviceWorker.register(url, { scope: './', updateViaCache: 'none' });
 
   let reloading = false;

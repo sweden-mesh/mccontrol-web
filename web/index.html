@@ -5,16 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self' wss: https://beacon.meshcoresverige.se https://beacon.meshcore-jkp.se https://api.github.com; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'; require-trusted-types-for 'script'; trusted-types mccontrol-sw">
 <meta name="referrer" content="no-referrer">
-<meta name="color-scheme" content="light dark">
+<meta name="color-scheme" content="dark">
 <script src="ui/boot.js"></script>
 <title>mccontrol</title>
 <meta name="description" content="Fjärrstyrning av MeshCore-repeatrar med din egen nyckel.">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="preload" href="fonts/plex-sans-latin-400.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/plex-mono-latin-400.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="styles/tokens.css">
 <link rel="stylesheet" href="styles/app.css">
-<link rel="stylesheet" href="styles/phosphor.css">
 <link rel="stylesheet" href="styles/key-screens.css">
 <link rel="stylesheet" id="node-kit-css" href="ui/screens/node-kit.css">
 <link rel="stylesheet" href="ui/screens/stats.css">
@@ -22,23 +21,18 @@
 </head>
 <body>
 <a class="skip" id="skip" href="#main">Till innehållet</a>
-<header class="site-header">
-<a class="brand" href="#/">mccontrol</a>
-<p class="brand-sub" id="subtitle">Fjärrstyrning av MeshCore-repeatrar</p>
-<div class="header-tools">
-<a class="key-state" id="key-state" href="#/unlock" hidden></a>
-<button type="button" class="tool" id="display-button" popovertarget="display-panel" hidden>Visning</button>
-<div class="display-panel" id="display-panel" popover="auto"></div>
-</div>
+<header class="statusline" id="statusline">
+<a class="brand" href="#">mccontrol</a>
+<ul class="status-items" id="status-items"></ul>
 </header>
-<nav class="site-nav" id="site-nav" aria-label="Huvudmeny">
-<button type="button" class="menu-button" id="menu-button" popovertarget="nav-list" aria-controls="nav-list" hidden>Meny</button>
-<ul class="nav-list" id="nav-list" popover="auto"></ul>
-</nav>
 <main id="main" tabindex="-1">
 <noscript>mccontrol behöver JavaScript. / mccontrol needs JavaScript.</noscript>
 </main>
-<footer class="site-footer" id="footer"><p><span id="footer-status"></span> · <a id="source-link" href="https://github.com/sweden-mesh/mccontrol">Källkod</a></p></footer>
+<footer class="keybar" id="footer">
+<div class="keys" id="keys" role="group"></div>
+<p class="foot"><span id="footer-status"></span> · <a id="source-link" href="https://github.com/sweden-mesh/mccontrol">Källkod</a></p>
+</footer>
+<dialog class="modal" id="modal"></dialog>
 <p class="visually-hidden" id="announce" role="status"></p>
 <section class="toasts" id="toasts" popover="manual" aria-label="Meddelanden"></section>
 </body>

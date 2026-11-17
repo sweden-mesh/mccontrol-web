@@ -1,8 +1,13 @@
 /* Design tokens: the regional template's look (meshcore-regional-template, assets/css/main.css,
    BSD-2-Clause, Copyright (c) 2026 the meshcore-regional-template contributors), copied so the
-   app looks like the sites it is linked from. Colours, radii, fonts and the colour-blind palette
-   are the template's values; each token is written once with light-dark(), and the colour scheme
-   comes from <meta name="color-scheme"> (ui/boot.js), so following the system needs no script.
+   Dark and Light look like the sites the app is linked from. Four themes, one setting
+   (html[data-theme], written by ui/boot.js before the first paint, W-20f): Amber (the default, also
+   when nothing is set), Green, Dark and Light. Each theme is one block of colour tokens; the layout
+   is the same in all four. Amber and Green are a terminal's one hue on black in IBM Plex Mono;
+   Dark and Light use IBM Plex Sans, as the sites do. Status colours are colour-blind safe in every
+   theme: Okabe-Ito in Dark and Light, one hue (glyph, word and an inverse alert line) in Amber and
+   Green, so there is no separate colour-blind setting. test/shell-themes.test.js checks WCAG AA
+   for every text token on --bg and --surface, and 3:1 for --field-border.
    Fonts: IBM Plex (SIL OFL 1.1, fonts/LICENSE-IBMPlex.txt), self-hosted: no request leaves the
    origin. */
 @font-face { font-family: "IBM Plex Sans"; src: url("../fonts/plex-sans-latin-400.woff2") format("woff2"); font-weight: 400; font-display: swap; }
@@ -15,46 +20,73 @@
 @font-face { font-family: "Plex Fallback"; src: local("Arial Bold"), local("Arial-BoldMT"), local("Liberation Sans Bold"), local("LiberationSans-Bold"); font-weight: 600 700; size-adjust: 97.3%; ascent-override: 105.34%; descent-override: 28.26%; line-gap-override: 0%; }
 
 :root {
-  color-scheme: light dark;
-  /* The <meta> is only a hint that author CSS would override: map it back (ui/boot.js sets it). */
-  &:has(> head > meta[name="color-scheme"][content="dark"]) { color-scheme: dark; }
-  &:has(> head > meta[name="color-scheme"][content="light"]) { color-scheme: light; }
-
-  --font-body: "IBM Plex Sans", "Plex Fallback", system-ui, sans-serif;
-  --font-head: "IBM Plex Sans", "Plex Fallback", system-ui, sans-serif;
+  --font-sans: "IBM Plex Sans", "Plex Fallback", system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
-  --radius: 10px;
-  --radius-sm: 6px;
-  --radius-xs: 4px;
   --gutter: 16px;
   --tap: 44px;
-
-  /* light, dark: Vättern blue and pine green on white; the template's night blue. */
-  --accent: light-dark(#1f5d82, #6fb3dc);
-  --accent-2: light-dark(#21664a, #5fbf8f);
-  --online: light-dark(#2f8a5f, #3ddc84);
-  --warn: light-dark(#b45309, #f08a3c);
-  --caution: light-dark(#a16207, #facc15);
-  --danger: light-dark(#c62828, #ff6b6b);
-  --info: light-dark(#1d4ed8, #60a5fa);
-  --bg: light-dark(#ffffff, #0b141b);
-  --surface: light-dark(#f6f9fb, #0f1f2a);
-  --fg: light-dark(#0f1d26, #e6eef3);
-  --strong: light-dark(#000000, #ffffff);
-  --muted: light-dark(#4a5c68, #9fb3c0);
-  --line: light-dark(#e3e8ec, #1d3242);
-  /* Text-field and control outline: at least 3:1 on --bg and --surface (WCAG 1.4.11). */
-  --field-border: light-dark(#7d8c96, #56707f);
-  --shadow: 0 12px 30px light-dark(rgba(15, 29, 38, .15), rgba(0, 0, 0, .5));
+  /* One row of a tile: dense on a desktop, a finger's height on a phone (operator decision 2). */
+  --row: 28px;
+  --tile-text: .875rem;
+  @media (width < 45em), (pointer: coarse) { --row: var(--tap); --tile-text: 1rem; }
 }
 
-/* Colour-blind mode (html[data-cvd="1"]): every red/green signal moves to Okabe-Ito colours that
-   differ in hue and lightness for every kind of colour-blindness: good blue, warning orange,
-   caution yellow, danger purple. Text colours keep 4.5:1 on --bg and --surface. */
-:root[data-cvd="1"] {
-  --accent-2: light-dark(#0072b2, #56b4e9);
-  --online: light-dark(#0072b2, #56b4e9);
-  --warn: light-dark(#a35a00, #e69f00);
-  --caution: light-dark(#7a6a00, #f0e442);
-  --danger: light-dark(#a3446f, #e48fc0);
+/* Amber: the default. Every colour is the one hue; status is a glyph and a word, an alert line
+   is drawn inverse (--alert-bg/--alert-fg), as on the Monolith board. */
+:root, :root[data-theme="amber"] {
+  color-scheme: dark;
+  --font-body: var(--font-mono);
+  --font-head: var(--font-mono);
+  --radius: 2px; --radius-sm: 2px; --radius-xs: 0;
+  --bg: #0a0600; --surface: #160e02; --fg: #ffb84d; --strong: #ffd88f; --muted: #c98a28;
+  --accent: #ffd88f; --accent-2: #ffd88f;
+  --online: #ffb84d; --warn: #ffd88f; --caution: #ffd88f; --danger: #ffd88f; --info: #ffd88f;
+  --alert-bg: #ffb84d; --alert-fg: #0a0600;
+  --line: #5a3d0c; --field-border: #9a6a1c;
+  --backdrop: rgb(0 0 0 / .7);
+  --shadow: 0 0 0 1px var(--line);
+}
+:root[data-theme="green"] {
+  color-scheme: dark;
+  --font-body: var(--font-mono);
+  --font-head: var(--font-mono);
+  --radius: 2px; --radius-sm: 2px; --radius-xs: 0;
+  --bg: #020a04; --surface: #06140a; --fg: #5cff8a; --strong: #9dffb8; --muted: #2fbf5c;
+  --accent: #9dffb8; --accent-2: #9dffb8;
+  --online: #5cff8a; --warn: #9dffb8; --caution: #9dffb8; --danger: #9dffb8; --info: #9dffb8;
+  --alert-bg: #5cff8a; --alert-fg: #020a04;
+  --line: #1c5a2e; --field-border: #2a8a47;
+  --backdrop: rgb(0 0 0 / .7);
+  --shadow: 0 0 0 1px var(--line);
+}
+/* Dark: the template's night blue; status in Okabe-Ito's dark-ground colours. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --font-body: var(--font-sans);
+  --font-head: var(--font-sans);
+  --radius: 10px; --radius-sm: 6px; --radius-xs: 4px;
+  --bg: #0b141b; --surface: #0f1f2a; --fg: #e6eef3; --strong: #ffffff; --muted: #9fb3c0;
+  --accent: #6fb3dc; --accent-2: #56b4e9;
+  --online: #56b4e9; --warn: #e69f00; --caution: #f0e442; --danger: #e48fc0; --info: #60a5fa;
+  --alert-bg: transparent; --alert-fg: #e48fc0;
+  --line: #1d3242; --field-border: #56707f;
+  --backdrop: rgb(0 0 0 / .6);
+  --shadow: 0 12px 30px rgb(0 0 0 / .5);
+}
+/* Light: Vättern blue on white; status in Okabe-Ito's light-ground colours. */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --font-body: var(--font-sans);
+  --font-head: var(--font-sans);
+  --radius: 10px; --radius-sm: 6px; --radius-xs: 4px;
+  --bg: #ffffff; --surface: #f6f9fb; --fg: #0f1d26; --strong: #000000; --muted: #4a5c68;
+  --accent: #1f5d82; --accent-2: #0072b2;
+  --online: #0072b2; --warn: #a35a00; --caution: #7a6a00; --danger: #a3446f; --info: #1d4ed8;
+  --alert-bg: transparent; --alert-fg: #a3446f;
+  --line: #e3e8ec; --field-border: #7d8c96;
+  --backdrop: rgb(15 29 38 / .35);
+  --shadow: 0 12px 30px rgb(15 29 38 / .15);
+}
+:root:is(:not([data-theme]), [data-theme="amber"], [data-theme="green"]) {
+  ::selection { background: var(--fg); color: var(--bg); }
+  :is(h1, h2, h3) { letter-spacing: 0; }
 }
