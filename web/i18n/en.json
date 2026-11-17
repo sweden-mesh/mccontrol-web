@@ -667,5 +667,6 @@
   "refresh.skipped.notHeard": "{name}: not heard for 2 h, version not asked",
   "refresh.skipped.budget": "{name}: many commands this hour, version waits",
   "refresh.skipped.locked": "{name}: version waits for the key",
-  "refresh.skipped.meshOnly": "{name}: mesh-only, version only by hand"
+  "refresh.skipped.meshOnly": "{name}: mesh-only, version only by hand",
+  "area.county": "Your county"
 }

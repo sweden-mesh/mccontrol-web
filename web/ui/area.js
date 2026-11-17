@@ -25,7 +25,7 @@ export function areaPicker(ctx, { id = 'area' } = {}) {
     const status = h('p', { role: 'status', class: 'muted', id: `${id}-status` });
     const form = h('form', { class: 'stack', 'aria-labelledby': `${id}-label` },
       h('div', { class: 'field' },
-        h('label', { for: id, id: `${id}-label` }, ctx.t('area.label')),
+        h('label', { for: id, id: `${id}-label` }, ctx.t('area.county')),
         select,
         h('p', { id: `${id}-help`, class: 'muted small' }, ctx.t('area.help'))),
       h('div', { class: 'row' }, h('button', { type: 'submit', class: 'button' }, ctx.t('area.save'))),

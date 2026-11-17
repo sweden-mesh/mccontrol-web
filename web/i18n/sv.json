@@ -667,5 +667,6 @@
   "refresh.skipped.notHeard": "{name}: inte hörd på 2 h, version inte frågad",
   "refresh.skipped.budget": "{name}: många kommandon denna timme, versionen väntar",
   "refresh.skipped.locked": "{name}: versionen väntar på nyckeln",
-  "refresh.skipped.meshOnly": "{name}: bara mesh, version bara för hand"
+  "refresh.skipped.meshOnly": "{name}: bara mesh, version bara för hand",
+  "area.county": "Ditt län"
 }
