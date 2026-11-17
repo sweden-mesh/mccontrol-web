@@ -334,9 +334,10 @@
   }
  ],
  "broadcast_refused": [
-  "ota update"
+  "ota update",
+  "reboot"
  ],
- "broadcast_refused_why": "a firmware update restarts the node, so it goes to one node at a time; the firmware refuses it as a broadcast, and so does this",
+ "broadcast_refused_why": "it restarts the node, so it goes to one node at a time; the firmware refuses it as a broadcast, and so does this",
  "messages": {
   "empty": "an empty command",
   "separator": "'|' is the envelope's field separator; region put one name at a time",

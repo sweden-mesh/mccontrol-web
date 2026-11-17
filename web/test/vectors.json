@@ -1521,11 +1521,11 @@
    },
    {
     "command": "ota update",
-    "refusal": "a firmware update restarts the node, so it goes to one node at a time; the firmware refuses it as a broadcast, and so does this"
+    "refusal": "it restarts the node, so it goes to one node at a time; the firmware refuses it as a broadcast, and so does this"
    },
    {
     "command": "OTA  Update",
-    "refusal": "a firmware update restarts the node, so it goes to one node at a time; the firmware refuses it as a broadcast, and so does this"
+    "refusal": "it restarts the node, so it goes to one node at a time; the firmware refuses it as a broadcast, and so does this"
    },
    {
     "command": "ota update now",
@@ -1597,7 +1597,7 @@
    },
    {
     "command": "reboot",
-    "refusal": null
+    "refusal": "it restarts the node, so it goes to one node at a time; the firmware refuses it as a broadcast, and so does this"
    },
    {
     "command": "reboot now",

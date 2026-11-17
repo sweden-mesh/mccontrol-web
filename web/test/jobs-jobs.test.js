@@ -49,6 +49,8 @@ test('checks: deny list, broadcast rules, ASCII before lou-17, and what the firm
   assert.equal(blocker(rules, { command: 'trigger test', region: 'JKG' }).code, 'broadcastTransmit');
   assert.equal(blocker(rules, { command: 'set name Väster', region: 'JKG' }).code, 'broadcastAscii');
   assert.equal(blocker(rules, { command: 'ota update', region: 'JKG' }).code, 'broadcastUpdate');
+  assert.equal(blocker(rules, { command: 'reboot', region: 'JKG' }).code, 'broadcastUpdate');
+  assert.equal(blocker(rules, { command: 'reboot', device: { region: 'JKG', ver: LOU18 } }), null);
   assert.equal(blocker(rules, { command: 'ota update', device: { region: 'JKG', ver: LOU19 } }), null);
   assert.ok(preflight(rules, { command: 'ota update', device: { region: 'JKG', ver: LOU19 } }).caution);
   assert.equal(preflight(rules, { command: 'ota update', device: { region: 'JKG', ver: LOU19 } }).admits, true);
