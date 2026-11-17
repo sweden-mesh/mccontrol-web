@@ -38,10 +38,10 @@ function columnPath(x, y, w, base) {
 
 function formats(lang, period) {
   const n = new Intl.NumberFormat(lang, { maximumFractionDigits: 0 });
-  const tick = new Intl.DateTimeFormat(lang, period === '7d' ? { weekday: 'short' } : { hour: '2-digit', minute: '2-digit' });
+  const tick = new Intl.DateTimeFormat(lang, period === '7d' ? { weekday: 'short' } : { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
   const full = new Intl.DateTimeFormat(lang, period === '7d'
-    ? { weekday: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }
-    : { hour: '2-digit', minute: '2-digit' });
+    ? { weekday: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }
+    : { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
   return { n: (v) => n.format(v), tick: (t) => tick.format(t), full: (t) => full.format(t) };
 }
 

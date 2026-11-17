@@ -48,7 +48,10 @@ a.tool { color: var(--fg); }
 .pick input { width: 1.15rem; height: 1.15rem; margin: 0; flex: none; }
 .pick-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: 0 1rem; padding-left: 1.65rem; }
 details.advanced, details.block { margin: 1rem 0; }
-details.advanced > summary, details.block > summary { cursor: pointer; font-weight: 600; min-height: var(--tap); display: flex; align-items: center; }
+/* A folded form keeps its disclosure marker and reads as something to open, not as an empty
+   heading (display: flex dropped the marker). */
+details.advanced > summary, details.block > summary { cursor: pointer; font-weight: 600; display: list-item; padding-block: .6rem; color: var(--accent); }
+details.advanced[open] > summary, details.block[open] > summary { color: var(--fg); }
 details.advanced[open] { padding-bottom: .5rem; }
 details.block[open] > summary { margin-bottom: .5rem; }
 
