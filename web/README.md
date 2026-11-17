@@ -5,8 +5,11 @@ talks to the broker over a secure WebSocket, and nothing is sent anywhere else. 
 mccontrol.meshcoresverige.se (Cloudflare Pages) and as a zip per release. Plan: `planning/mccontrol/web-ui-plan-20261116.md`
 in the Mesh-Health workspace (sections 11 to 16 are the operator's answers).
 
-**Status:** the shell (header, menu, display settings, messages, offline copy) is built; the
-screens are placeholders.
+**Status:** every screen of the plan is built: start and unlock, key and backup (QR code,
+passphrase change, fingerprint unlock, broker registration, key replacement), set up a node over
+USB (Web Serial), the overview, nodes, one node, send, groups, command sets, history, statistics
+(Beacon), settings and help. The firmware update is shown but flashed by hand until the firmware
+admits `ota update` over the control plane.
 
 ## Run it
 
@@ -32,12 +35,16 @@ that says why.
 |---|---|---|
 | `index.html` | the page: the CSP, the shell's landmarks, `ui/boot.js`, one module script | shell (W-6) |
 | `ui/` | `app.js` (shell, routing, ctx), `boot.js` (settings before paint), `prefs.js`, `appearance.js` (display settings form), `key-state.js` (key status interface), `notify.js`, `update.js`, `dom.js` (`h()`) | shell (W-6) |
-| `ui/screens/` | one module per screen; `index.js` registers routes and the menu | screens (W-7, W-8, W-9, W-15, W-18, W-19) |
-| `styles/` | `tokens.css` (the regional template's tokens, light/dark, colour-blind), `app.css` (shell), `phosphor.css` (W-17) | shell (W-6, W-17) |
+| `ui/screens/` | one module per screen; `index.js` registers routes and the menu. `key-session.js` holds the page's one keyring (header state, handle, holds, unlock-and-return links); `settings-store.js` the device's thresholds and brokers per region; `node-services.js` the stores, jobs, releases and fleet for a key; `node-kit.js`/`node-kit.css` and `key-kit.js` the shared pieces | screens (W-5, W-7, W-8, W-9, W-13, W-14, W-15, W-18, W-19) |
+| `styles/` | `tokens.css` (the regional template's tokens, light/dark, colour-blind), `app.css` (shell), `phosphor.css` (W-17), `key-screens.css` (unlock, key, set-up, settings, help) | shell (W-6, W-17), screens |
 | `fonts/`, `icon*` | IBM Plex (OFL) and the icons, copied from the regional template | shell |
 | `_headers`, `manifest.webmanifest`, `sw.js`, `version.json` | the hosted copy: headers, install, offline copy | shell (W-10) |
 | `lib/protocol/` | envelope v1/v2, results r1/r2/r3, broker token, registration, the MQTT client | protocol (W-3, W-4, W-16) |
-| `lib/key/` | the key: `handle.js` (seed -> signing handle), storage, unlock, auto-lock, backup | key and security (W-5) |
+| `lib/key/` | the key: `handle.js` (seed -> signing handle), storage, unlock, auto-lock, backup, passphrase change | key and security (W-5) |
+| `lib/store/` | IndexedDB stores per key: devices, history, groups, sets, meta | screens (W-7, W-9) |
+| `lib/jobs/` | send, run a set, discover, refresh, update; checks before signing; the overview's sums; Beacon fleet reads (through `lib/stats`); the firmware release list (GitHub) | screens (W-8, W-15, W-18, W-19) |
+| `lib/stats/` | the Beacon client and the traffic arithmetic; the page's only Beacon | statistics (W-14) |
+| `lib/qr.js` | QR code, byte mode, level M, for the key screen (no network, no library) | key screen (W-5) |
 | `lib/data/` | `load.js` and the JSON exported from Python (generated: never edit) | W-2 |
 | `lib/bytes.js` | hex, UTF-8, concat | anyone, carefully |
 | `i18n/` | `i18n.js`, `sv.json`, `en.json` | shell (W-6); every stream adds its keys |
@@ -88,7 +95,8 @@ for this origin only (`test/shell-deploy.test.js` keeps the two in step):
 
 ```
 default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self';
-connect-src 'self' wss: https://beacon.meshat.se; manifest-src 'self'; worker-src 'self';
+connect-src 'self' wss: https://beacon.meshcore-jkp.se https://api.github.com; manifest-src 'self';
+worker-src 'self';
 base-uri 'none'; form-action 'none'; object-src 'none'; require-trusted-types-for 'script'
 ```
 
@@ -102,7 +110,8 @@ What it means for code:
   `h(tag, attrs, ...children)`, which sets text as text; attach listeners with
   `addEventListener`.
 - **No third-party requests.** `connect-src` allows this origin, any `wss:` broker (a region
-  may run its own, RB-1) and Beacon's API. No fonts, images, analytics or scripts from
+  may run its own, RB-1), Beacon's API (`lib/stats/beacon.json`) and GitHub's API for the firmware
+  release list (`lib/jobs/releases.json`). No fonts, images, analytics or scripts from
   elsewhere. A new origin is a CSP change and a security-review item, not a code change.
 - A `<meta>` CSP cannot carry `frame-ancestors`; `_headers` does.
 - `navigator.serviceWorker.register` is a Trusted Types sink: `ui/update.js` has a policy that
@@ -118,8 +127,8 @@ files (a test checks). Help topics and result texts from Python are English toda
 ## Adding a screen
 
 1. `ui/screens/<name>.js` exporting `route` (the part after `#/`, e.g. `'nodes'`), `title` (an
-   i18n key) and `render(ctx)` returning one element. Replace the route's `placeholder(...)` in
-   `ui/screens/index.js` with the module; `NAV` there is the menu's order.
+   i18n key) and `render(ctx)` returning one element. Add the module to `SCREENS` in
+   `ui/screens/index.js`; `NAV` there is the menu's order.
 2. `ctx` (built in `ui/app.js`):
    - `t(key, vars)`, `lang`; `route`, `args` (`#/node/4AC61A7F` -> `['4AC61A7F']`)
    - `signal`: aborts when the screen is replaced; pass it to `addEventListener` and timers
@@ -128,11 +137,13 @@ files (a test checks). Help topics and result texts from Python are English toda
      message and announces it; `announce(text)` only announces. An action in a message must also
      be reachable elsewhere.
    - `key.state()` -> `{ status: 'none'|'locked'|'unlocked', publicKeyHex }`, `key.on(fn)`.
-     The key stream provides the source with `provideKeySource()` in `ui/key-state.js`; the
-     signing handle is not on `ctx`.
+     `ui/screens/key-session.js` provides the source (`provideKeySource()`) and is where a screen
+     gets the handle (`currentHandle()`, `holdKey()`), the full status (`keyStatus()`,
+     `onKeyStatus(fn)`) and an unlock link that returns (`unlockHash(route)`); the handle is not
+     on `ctx`.
    - `prefs.current()`, `prefs.set(name, value)`, `prefs.on(fn)`; `displaySettings()` returns
      the display settings form for the settings screen.
-3. The screen's first heading is an `<h1>` with an id that labels the section (see `home.js`).
+3. The screen's first heading is an `<h1>` with an id that labels the section (see `help.js`).
    The shell moves focus to it on navigation and puts its text in the window title.
 4. Its strings in `i18n/sv.json` and `i18n/en.json` under `<name>.`.
 5. Colours from the tokens in `styles/tokens.css` (`--fg`, `--muted`, `--accent`, `--online`,
@@ -168,7 +179,8 @@ light and the phosphor look, and fails on any console error, uncaught page error
 sideways page scroll or screen without an `<h1>`. A screenshot of each lands in a new directory
 under the system's temp dir (`--out DIR` to choose). The routes come from `ui/screens/index.js`,
 so a new screen is covered without editing the runner; routes that take an argument are also
-opened with a node id from the fixture.
+opened with sample arguments (`SAMPLE_ARGS`: a node id from the fixture, help topics, the unlock
+variants). It visits the screens without a key; the key flows are walked separately.
 
 It serves the directory with a small static server that sends `_headers` as Cloudflare Pages
 does, so the browser enforces the deployed CSP (header and `<meta>`). Beacon's answers come from
