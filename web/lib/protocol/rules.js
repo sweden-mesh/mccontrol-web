@@ -43,6 +43,11 @@ export function rulesFrom({ denylist, cautions, commands, firmware, facts }) {
     return msg.not_admitted;
   }
 
+  // Why a command that may go to one node may not go to every node in a region, beyond a
+  // transmit (isTransmit in envelope.js), or null.
+  const broadcastRefusal = (command) => (denylist.broadcast_refused.includes(squash(command).toLowerCase())
+    ? denylist.broadcast_refused_why : null);
+
   // A sentence saying what a command takes away, or null for a harmless one.
   function caution(command) {
     const text = squash(command.toLowerCase());
@@ -186,7 +191,7 @@ export function rulesFrom({ denylist, cautions, commands, firmware, facts }) {
   const reader = (key) => facts.readers[key] ?? facts.readers['*'].replace('{key}', key);
 
   return Object.freeze({
-    refusal, caution, isRead, build,
+    refusal, broadcastRefusal, caution, isRead, build,
     revision, features, has, entryFor, admits, lacks, needs, speaksV2, admitsUtf8, privateSubtype,
     parseFacts, reader,
   });

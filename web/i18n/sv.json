@@ -262,6 +262,7 @@
   "send.why.empty": "skriv ett kommando",
   "send.why.denied": "noden skulle neka det: {detail}",
   "send.why.broadcastTransmit": "ett kommando som sänder i luften får inte gå till alla noder samtidigt; firmwaren nekar det",
+  "send.why.broadcastUpdate": "en firmwareuppdatering startar om noden, så den går till en nod i taget; firmwaren nekar den som utsändning",
   "send.why.broadcastAscii": "en utsändning är ren ASCII: noder före lou-17 nekar tecken som åäö; skicka till varje nod i stället",
   "send.why.noTarget": "välj en nod",
   "send.why.noRegion": "{name} har ingen region",

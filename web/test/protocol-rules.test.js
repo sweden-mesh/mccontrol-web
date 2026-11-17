@@ -16,6 +16,10 @@ test('deny list', () => {
   for (const c of C.refusal) assert.equal(rules.refusal(c.command), c.refusal, JSON.stringify(c.command));
 });
 
+test('broadcast refusals', () => {
+  for (const c of C.broadcast_refusal) assert.equal(rules.broadcastRefusal(c.command), c.refusal, JSON.stringify(c.command));
+});
+
 test('cautions', () => {
   for (const c of C.caution) assert.equal(rules.caution(c.command), c.caution, JSON.stringify(c.command));
 });

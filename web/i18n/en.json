@@ -262,6 +262,7 @@
   "send.why.empty": "type a command",
   "send.why.denied": "the node would refuse it: {detail}",
   "send.why.broadcastTransmit": "a command that transmits may not go to every node at once; the firmware refuses it",
+  "send.why.broadcastUpdate": "a firmware update restarts the node, so it goes to one node at a time; the firmware refuses it as a broadcast",
   "send.why.broadcastAscii": "a broadcast is plain ASCII: nodes before lou-17 refuse letters such as åäö; send it to each node instead",
   "send.why.noTarget": "choose a node",
   "send.why.noRegion": "{name} has no region",

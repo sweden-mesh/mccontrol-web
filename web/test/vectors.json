@@ -457,7 +457,15 @@
    },
    {
     "command": "ota update",
-    "refusal": "denied: waits for a signed image and rollback in the firmware"
+    "refusal": null
+   },
+   {
+    "command": "OTA  Update",
+    "refusal": null
+   },
+   {
+    "command": "ota update now",
+    "refusal": "not a command the control plane admits"
    },
    {
     "command": "ota check",
@@ -715,7 +723,15 @@
    },
    {
     "command": "ota update",
-    "caution": null
+    "caution": "downloads the newest signed firmware and restarts the node on it. It is off the air for about a minute; if the new image never works, the node goes back to the old one."
+   },
+   {
+    "command": "OTA  Update",
+    "caution": "downloads the newest signed firmware and restarts the node on it. It is off the air for about a minute; if the new image never works, the node goes back to the old one."
+   },
+   {
+    "command": "ota update now",
+    "caution": "downloads the newest signed firmware and restarts the node on it. It is off the air for about a minute; if the new image never works, the node goes back to the old one."
    },
    {
     "command": "ota check",
@@ -973,6 +989,14 @@
    },
    {
     "command": "ota update",
+    "read": false
+   },
+   {
+    "command": "OTA  Update",
+    "read": false
+   },
+   {
+    "command": "ota update now",
     "read": false
    },
    {
@@ -1234,6 +1258,14 @@
     "transmit": false
    },
    {
+    "command": "OTA  Update",
+    "transmit": false
+   },
+   {
+    "command": "ota update now",
+    "transmit": false
+   },
+   {
     "command": "ota check",
     "transmit": false
    },
@@ -1394,6 +1426,272 @@
     "transmit": false
    }
   ],
+  "broadcast_refusal": [
+   {
+    "command": "",
+    "refusal": null
+   },
+   {
+    "command": "ver",
+    "refusal": null
+   },
+   {
+    "command": "VER",
+    "refusal": null
+   },
+   {
+    "command": "  get   name ",
+    "refusal": null
+   },
+   {
+    "command": "get",
+    "refusal": null
+   },
+   {
+    "command": "set",
+    "refusal": null
+   },
+   {
+    "command": "set prv.key 00",
+    "refusal": null
+   },
+   {
+    "command": "get prv",
+    "refusal": null
+   },
+   {
+    "command": "set prvx",
+    "refusal": null
+   },
+   {
+    "command": "set mqtt.cmd on",
+    "refusal": null
+   },
+   {
+    "command": "set mqtt.cmd.pubkey AA",
+    "refusal": null
+   },
+   {
+    "command": "get mqtt.cmd",
+    "refusal": null
+   },
+   {
+    "command": "get mqtt.cmd.pubkey",
+    "refusal": null
+   },
+   {
+    "command": "get mqtt2.password",
+    "refusal": null
+   },
+   {
+    "command": "get mqtt2.passwordx",
+    "refusal": null
+   },
+   {
+    "command": "get mqtt2.username",
+    "refusal": null
+   },
+   {
+    "command": "set mqtt2.password x",
+    "refusal": null
+   },
+   {
+    "command": "get mqtt.iata",
+    "refusal": null
+   },
+   {
+    "command": "password x",
+    "refusal": null
+   },
+   {
+    "command": "passwords",
+    "refusal": null
+   },
+   {
+    "command": "erase",
+    "refusal": null
+   },
+   {
+    "command": "erasex",
+    "refusal": null
+   },
+   {
+    "command": "start ota",
+    "refusal": null
+   },
+   {
+    "command": "ota update",
+    "refusal": "a firmware update restarts the node, so it goes to one node at a time; the firmware refuses it as a broadcast, and so does this"
+   },
+   {
+    "command": "OTA  Update",
+    "refusal": "a firmware update restarts the node, so it goes to one node at a time; the firmware refuses it as a broadcast, and so does this"
+   },
+   {
+    "command": "ota update now",
+    "refusal": null
+   },
+   {
+    "command": "ota check",
+    "refusal": null
+   },
+   {
+    "command": "region",
+    "refusal": null
+   },
+   {
+    "command": "region put se-jkp *",
+    "refusal": null
+   },
+   {
+    "command": "region denyf *",
+    "refusal": null
+   },
+   {
+    "command": "region denyf se-jkp",
+    "refusal": null
+   },
+   {
+    "command": "region remove se06",
+    "refusal": null
+   },
+   {
+    "command": "region a|b",
+    "refusal": null
+   },
+   {
+    "command": "trigger test",
+    "refusal": null
+   },
+   {
+    "command": "trigger test F",
+    "refusal": null
+   },
+   {
+    "command": "trigger private AABB",
+    "refusal": null
+   },
+   {
+    "command": "trigger",
+    "refusal": null
+   },
+   {
+    "command": "set repeat off",
+    "refusal": null
+   },
+   {
+    "command": "get repeat",
+    "refusal": null
+   },
+   {
+    "command": "set autoreply off",
+    "refusal": null
+   },
+   {
+    "command": "set autoreply on",
+    "refusal": null
+   },
+   {
+    "command": "set autoreply.hops 3",
+    "refusal": null
+   },
+   {
+    "command": "reboot",
+    "refusal": null
+   },
+   {
+    "command": "reboot now",
+    "refusal": null
+   },
+   {
+    "command": "clkreboot",
+    "refusal": null
+   },
+   {
+    "command": "set mqtt.iata GOT",
+    "refusal": null
+   },
+   {
+    "command": "set mqtt.presets 2",
+    "refusal": null
+   },
+   {
+    "command": "set mqtt1.server x.se",
+    "refusal": null
+   },
+   {
+    "command": "set mqtt6.preset custom",
+    "refusal": null
+   },
+   {
+    "command": "set name SE-JKP-Väster",
+    "refusal": null
+   },
+   {
+    "command": "mqtt.cmd ping",
+    "refusal": null
+   },
+   {
+    "command": "advert",
+    "refusal": null
+   },
+   {
+    "command": "time 1",
+    "refusal": null
+   },
+   {
+    "command": "log",
+    "refusal": null
+   },
+   {
+    "command": "neighbors",
+    "refusal": null
+   },
+   {
+    "command": "neighbors x",
+    "refusal": null
+   },
+   {
+    "command": "clear stats",
+    "refusal": null
+   },
+   {
+    "command": "gps on",
+    "refusal": null
+   },
+   {
+    "command": "powersaving off",
+    "refusal": null
+   },
+   {
+    "command": "sensor list",
+    "refusal": null
+   },
+   {
+    "command": "foo",
+    "refusal": null
+   },
+   {
+    "command": "set lat 1",
+    "refusal": null
+   },
+   {
+    "command": "get lon",
+    "refusal": null
+   },
+   {
+    "command": "set tx 22",
+    "refusal": null
+   },
+   {
+    "command": "set txdelay 0.5",
+    "refusal": null
+   },
+   {
+    "command": "tempradio x",
+    "refusal": null
+   }
+  ],
   "needs": [
    {
     "command": "",
@@ -1489,6 +1787,14 @@
    },
    {
     "command": "ota update",
+    "tag": "lou-19"
+   },
+   {
+    "command": "OTA  Update",
+    "tag": "lou-19"
+   },
+   {
+    "command": "ota update now",
     "tag": null
    },
    {
@@ -1671,7 +1977,8 @@
      "get stats": false,
      "set txdelay 0.5": false,
      "get txdelay": true,
-     "set prv.key 00": false
+     "set prv.key 00": false,
+     "ota update": false
     },
     "lacks": {
      "ver": null,
@@ -1683,7 +1990,8 @@
      "get stats": null,
      "set txdelay 0.5": null,
      "get txdelay": null,
-     "set prv.key 00": null
+     "set prv.key 00": null,
+     "ota update": null
     }
    },
    {
@@ -1704,7 +2012,8 @@
      "get stats": false,
      "set txdelay 0.5": false,
      "get txdelay": true,
-     "set prv.key 00": false
+     "set prv.key 00": false,
+     "ota update": false
     },
     "lacks": {
      "ver": null,
@@ -1716,7 +2025,8 @@
      "get stats": null,
      "set txdelay 0.5": null,
      "get txdelay": null,
-     "set prv.key 00": null
+     "set prv.key 00": null,
+     "ota update": null
     }
    },
    {
@@ -1737,7 +2047,8 @@
      "get stats": false,
      "set txdelay 0.5": false,
      "get txdelay": true,
-     "set prv.key 00": false
+     "set prv.key 00": false,
+     "ota update": false
     },
     "lacks": {
      "ver": null,
@@ -1749,7 +2060,8 @@
      "get stats": null,
      "set txdelay 0.5": null,
      "get txdelay": null,
-     "set prv.key 00": null
+     "set prv.key 00": null,
+     "ota update": null
     }
    },
    {
@@ -1770,7 +2082,8 @@
      "get stats": false,
      "set txdelay 0.5": false,
      "get txdelay": true,
-     "set prv.key 00": false
+     "set prv.key 00": false,
+     "ota update": false
     },
     "lacks": {
      "ver": null,
@@ -1782,7 +2095,8 @@
      "get stats": null,
      "set txdelay 0.5": null,
      "get txdelay": null,
-     "set prv.key 00": null
+     "set prv.key 00": null,
+     "ota update": null
     }
    },
    {
@@ -1803,7 +2117,8 @@
      "get stats": true,
      "set txdelay 0.5": true,
      "get txdelay": true,
-     "set prv.key 00": false
+     "set prv.key 00": false,
+     "ota update": false
     },
     "lacks": {
      "ver": null,
@@ -1815,7 +2130,8 @@
      "get stats": null,
      "set txdelay 0.5": null,
      "get txdelay": null,
-     "set prv.key 00": null
+     "set prv.key 00": null,
+     "ota update": null
     }
    },
    {
@@ -1836,7 +2152,8 @@
      "get stats": true,
      "set txdelay 0.5": true,
      "get txdelay": true,
-     "set prv.key 00": false
+     "set prv.key 00": false,
+     "ota update": false
     },
     "lacks": {
      "ver": null,
@@ -1848,7 +2165,8 @@
      "get stats": null,
      "set txdelay 0.5": null,
      "get txdelay": null,
-     "set prv.key 00": null
+     "set prv.key 00": null,
+     "ota update": null
     }
    },
    {
@@ -1869,7 +2187,8 @@
      "get stats": true,
      "set txdelay 0.5": true,
      "get txdelay": true,
-     "set prv.key 00": false
+     "set prv.key 00": false,
+     "ota update": false
     },
     "lacks": {
      "ver": null,
@@ -1881,7 +2200,8 @@
      "get stats": null,
      "set txdelay 0.5": null,
      "get txdelay": null,
-     "set prv.key 00": null
+     "set prv.key 00": null,
+     "ota update": null
     }
    },
    {
@@ -1902,7 +2222,8 @@
      "get stats": true,
      "set txdelay 0.5": true,
      "get txdelay": true,
-     "set prv.key 00": false
+     "set prv.key 00": false,
+     "ota update": false
     },
     "lacks": {
      "ver": null,
@@ -1914,7 +2235,8 @@
      "get stats": null,
      "set txdelay 0.5": null,
      "get txdelay": null,
-     "set prv.key 00": null
+     "set prv.key 00": null,
+     "ota update": null
     }
    },
    {
@@ -1935,7 +2257,8 @@
      "get stats": false,
      "set txdelay 0.5": false,
      "get txdelay": false,
-     "set prv.key 00": false
+     "set prv.key 00": false,
+     "ota update": false
     },
     "lacks": {
      "ver": "rc",
@@ -1947,7 +2270,8 @@
      "get stats": "rc",
      "set txdelay 0.5": "rc",
      "get txdelay": "rc",
-     "set prv.key 00": "rc"
+     "set prv.key 00": "rc",
+     "ota update": "rc"
     }
    },
    {
@@ -1968,7 +2292,8 @@
      "get stats": true,
      "set txdelay 0.5": true,
      "get txdelay": true,
-     "set prv.key 00": false
+     "set prv.key 00": false,
+     "ota update": false
     },
     "lacks": {
      "ver": null,
@@ -1980,7 +2305,8 @@
      "get stats": null,
      "set txdelay 0.5": null,
      "get txdelay": null,
-     "set prv.key 00": null
+     "set prv.key 00": null,
+     "ota update": null
     }
    },
    {
@@ -2001,7 +2327,8 @@
      "get stats": true,
      "set txdelay 0.5": true,
      "get txdelay": true,
-     "set prv.key 00": false
+     "set prv.key 00": false,
+     "ota update": false
     },
     "lacks": {
      "ver": null,
@@ -2013,7 +2340,8 @@
      "get stats": null,
      "set txdelay 0.5": null,
      "get txdelay": null,
-     "set prv.key 00": null
+     "set prv.key 00": null,
+     "ota update": null
     }
    },
    {
@@ -2034,7 +2362,8 @@
      "get stats": true,
      "set txdelay 0.5": true,
      "get txdelay": true,
-     "set prv.key 00": false
+     "set prv.key 00": false,
+     "ota update": false
     },
     "lacks": {
      "ver": null,
@@ -2046,7 +2375,8 @@
      "get stats": null,
      "set txdelay 0.5": null,
      "get txdelay": null,
-     "set prv.key 00": null
+     "set prv.key 00": null,
+     "ota update": null
     }
    },
    {
@@ -2067,7 +2397,8 @@
      "get stats": true,
      "set txdelay 0.5": true,
      "get txdelay": true,
-     "set prv.key 00": false
+     "set prv.key 00": false,
+     "ota update": false
     },
     "lacks": {
      "ver": null,
@@ -2079,7 +2410,43 @@
      "get stats": null,
      "set txdelay 0.5": null,
      "get txdelay": null,
-     "set prv.key 00": null
+     "set prv.key 00": null,
+     "ota update": null
+    }
+   },
+   {
+    "version": "esp32s3-v1.18.0-lou-19-arrc-observer-1a2b3c4d",
+    "revision": 19,
+    "features": "arrc",
+    "entry": "lou-19",
+    "speaks_v2": true,
+    "admits_utf8": true,
+    "private_subtype": 240,
+    "admits": {
+     "ver": true,
+     "get autoreply": true,
+     "set autoreply on": true,
+     "trigger test": true,
+     "region": true,
+     "mqtt.cmd ping": true,
+     "get stats": true,
+     "set txdelay 0.5": true,
+     "get txdelay": true,
+     "set prv.key 00": false,
+     "ota update": true
+    },
+    "lacks": {
+     "ver": null,
+     "get autoreply": null,
+     "set autoreply on": null,
+     "trigger test": null,
+     "region": null,
+     "mqtt.cmd ping": null,
+     "get stats": null,
+     "set txdelay 0.5": null,
+     "get txdelay": null,
+     "set prv.key 00": null,
+     "ota update": null
     }
    },
    {
@@ -2100,7 +2467,8 @@
      "get stats": false,
      "set txdelay 0.5": false,
      "get txdelay": false,
-     "set prv.key 00": false
+     "set prv.key 00": false,
+     "ota update": false
     },
     "lacks": {
      "ver": "rc",
@@ -2112,7 +2480,8 @@
      "get stats": "rc",
      "set txdelay 0.5": "rc",
      "get txdelay": "rc",
-     "set prv.key 00": "rc"
+     "set prv.key 00": "rc",
+     "ota update": "rc"
     }
    }
   ],

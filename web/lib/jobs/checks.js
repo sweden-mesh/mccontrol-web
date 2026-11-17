@@ -25,6 +25,7 @@ export function blocker(rules, { command, device = null, region = null }) {
   if (denied) return { code: 'denied', vars: { command: text, detail: denied } };
   if (region) {
     if (isTransmit(text)) return { code: 'broadcastTransmit', vars: { command: text } };
+    if (rules.broadcastRefusal(text)) return { code: 'broadcastUpdate', vars: { command: text } };
     if (!ascii(text)) return { code: 'broadcastAscii', vars: {} };
     return null;
   }

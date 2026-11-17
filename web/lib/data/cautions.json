@@ -27,6 +27,10 @@
    "why": "restarts the node. It is off the air and off the control plane until it is back."
   },
   {
+   "prefix": "ota update",
+   "why": "downloads the newest signed firmware and restarts the node on it. It is off the air for about a minute; if the new image never works, the node goes back to the old one."
+  },
+  {
    "prefix": "set mqtt.iata",
    "why": "moves the node to another region's topics: this tool must change its region to match."
   },

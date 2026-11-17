@@ -127,10 +127,6 @@
    "why": "the SoftAP paths (webconfig, hand-uploaded OTA) need someone at the node"
   },
   {
-   "prefix": "ota update",
-   "why": "waits for a signed image and rollback in the firmware"
-  },
-  {
    "prefix": "poweroff",
    "why": "no way back from the road"
   },
@@ -331,8 +327,16 @@
   {
    "text": "mqtt.cmd ping",
    "exact": true
+  },
+  {
+   "text": "ota update",
+   "exact": true
   }
  ],
+ "broadcast_refused": [
+  "ota update"
+ ],
+ "broadcast_refused_why": "a firmware update restarts the node, so it goes to one node at a time; the firmware refuses it as a broadcast, and so does this",
  "messages": {
   "empty": "an empty command",
   "separator": "'|' is the envelope's field separator; region put one name at a time",

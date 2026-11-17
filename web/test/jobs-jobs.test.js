@@ -22,6 +22,7 @@ const all = Object.fromEntries(['brokers', 'cautions', 'commands', 'denylist', '
 const rules = rulesFrom(all);
 const OWNER = 'C'.repeat(64);
 const LOU18 = 'v1.18.0-lou-18-arrc-observer-1a2b3c4d';
+const LOU19 = 'v1.18.0-lou-19-arrc-observer-1a2b3c4d';
 const AR10 = 'v1.17.1-ar-10-observer-42f48ce9';
 const A = `AAAA0001${'1'.repeat(56)}`;
 const B = `BBBB0002${'2'.repeat(56)}`;
@@ -47,6 +48,12 @@ test('checks: deny list, broadcast rules, ASCII before lou-17, and what the firm
   assert.equal(blocker(rules, { command: '  ', device: null }).code, 'empty');
   assert.equal(blocker(rules, { command: 'trigger test', region: 'JKG' }).code, 'broadcastTransmit');
   assert.equal(blocker(rules, { command: 'set name Väster', region: 'JKG' }).code, 'broadcastAscii');
+  assert.equal(blocker(rules, { command: 'ota update', region: 'JKG' }).code, 'broadcastUpdate');
+  assert.equal(blocker(rules, { command: 'ota update', device: { region: 'JKG', ver: LOU19 } }), null);
+  assert.ok(preflight(rules, { command: 'ota update', device: { region: 'JKG', ver: LOU19 } }).caution);
+  assert.equal(preflight(rules, { command: 'ota update', device: { region: 'JKG', ver: LOU19 } }).admits, true);
+  assert.equal(preflight(rules, { command: 'ota update', device: { region: 'JKG', ver: LOU18 } }).admits, false);
+  assert.equal(preflight(rules, { command: 'ota update', device: { region: 'JKG', ver: LOU18 } }).needs, 'lou-19');
   assert.equal(blocker(rules, { command: 'set name Väster', device: { region: 'JKG', ver: AR10 } }).code, 'oldAscii');
   assert.equal(blocker(rules, { command: 'set name Väster', device: { region: 'JKG', ver: 'v1.18.0-lou-17-arrc-observer-1' } }), null);
   assert.equal(blocker(rules, { command: 'ver', device: { region: 'JKG' } }), null);
@@ -168,24 +175,24 @@ test('refresh reads name and version: an unnamed node takes its own name', async
   assert.equal((await stores.devices.get('CCCC0003')).ver, LOU18);
 });
 
-test('firmware update: refused while the deny list holds ota update; with it admitted, polls ver until the new version', async () => {
+test('firmware update: refused before lou-19, which does not admit ota update; from it, polls ver until the new version', async () => {
   const { jobs } = await setup();
-  await assert.rejects(jobs.update({ node: 'AAAA0001', target: 'v1.18.0-lou-19' }), (e) => e.code === 'otaRefused');
+  await assert.rejects(jobs.update({ node: 'AAAA0001', target: 'v1.18.0-lou-20' }), (e) => e.code === 'otaRefused');
   let polls = 0;
-  const admitting = { ...rules, refusal: (c) => (c === 'ota update' ? null : rules.refusal(c)), admits: () => true };
-  const fresh = await setup({ jobsRules: admitting, behaviour: {
+  const fresh = await setup({ behaviour: {
     AAAA0001: { answer: (c) => {
       if (c === 'ota update') return { code: 0, reply: 'OK - updating' };
       polls += 1;
-      return { code: 0, reply: polls < 2 ? `> ${LOU18}` : '> v1.18.0-lou-19-arrc-observer-0' };
+      return { code: 0, reply: polls < 2 ? `> ${LOU19}` : '> v1.18.0-lou-20-arrc-observer-0' };
     } },
   } });
+  await fresh.stores.devices.update('AAAA0001', { ver: LOU19 });
   const stages = [];
-  const res = await fresh.jobs.update({ node: 'AAAA0001', target: 'v1.18.0-lou-19', pollSecs: 0, onStage: (s) => stages.push(s.stage) });
+  const res = await fresh.jobs.update({ node: 'AAAA0001', target: 'v1.18.0-lou-20', pollSecs: 0, onStage: (s) => stages.push(s.stage) });
   assert.equal(res.ok, true);
-  assert.equal(res.version, 'v1.18.0-lou-19-arrc-observer-0');
+  assert.equal(res.version, 'v1.18.0-lou-20-arrc-observer-0');
   assert.deepEqual(stages, ['asking', 'restarting', 'checking', 'checking', 'done']);
-  assert.equal((await fresh.stores.devices.get('AAAA0001')).ver, 'v1.18.0-lou-19-arrc-observer-0');
+  assert.equal((await fresh.stores.devices.get('AAAA0001')).ver, 'v1.18.0-lou-20-arrc-observer-0');
 });
 
 test('releases: the newest real release, cached for an hour; the mark compares revisions', async () => {

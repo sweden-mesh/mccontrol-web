@@ -755,6 +755,14 @@
    "read": false
   },
   {
+   "text": "ota update",
+   "group": "node",
+   "kind": "none",
+   "choices": [],
+   "examples": [],
+   "read": false
+  },
+  {
    "text": "clear stats",
    "group": "node",
    "kind": "none",

@@ -45,6 +45,11 @@
    "tag": "lou-14",
    "number": 14,
    "admitted": null
+  },
+  {
+   "tag": "lou-19",
+   "number": 19,
+   "admitted": null
   }
  ],
  "ar10_families": [
@@ -69,7 +74,8 @@
   "get autoreply"
  ],
  "arrived": {
-  "mqtt.cmd ping": 12
+  "mqtt.cmd ping": 12,
+  "ota update": 19
  },
  "v2_from": 13,
  "utf8_from": 17,
