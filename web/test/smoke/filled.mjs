@@ -302,6 +302,40 @@ async function main() {
           await shot(page, 'beta-result');
         }
       }
+      // One "Show passphrase" per form, showing every passphrase field of it together (beta.3 bench).
+      for (const [hash, prep] of [['setup/key', null], ['unlock/replace', 0], ['unlock/replace', 1]]) {
+        const where = `${look} 1280x800 #${hash}${prep === null ? '' : ` ${['make', 'import'][prep]}`}: one passphrase toggle per form`;
+        problems.length = 0;
+        try {
+          await go(page, hash, 1280, 800);
+          const seen = await page.evaluate(async (pick) => {
+            const out = [];
+            const scope = document.querySelector('#modal[open]') || document;
+            for (const d of scope.querySelectorAll('details')) d.open = true;
+            if (pick !== null) scope.querySelectorAll('.choice-row button')[pick]?.click();
+            if (pick === 1) { const p = scope.querySelector('#import-paste'); p.value = 'ab'.repeat(32); p.dispatchEvent(new Event('input')); }
+            await new Promise((ok) => setTimeout(ok, 200));
+            let multi = 0;
+            for (const form of scope.querySelectorAll('form')) {
+              const fields = [...form.querySelectorAll('input[autocomplete$="-password"]')].filter((i) => i.offsetParent);
+              const toggles = [...form.querySelectorAll('.show-pass input')];
+              if (toggles.length > 1) out.push(`a form has ${toggles.length} Show passphrase boxes`);
+              if (fields.length < 2) continue;
+              multi += 1;
+              const box = toggles.find((x) => x.offsetParent);
+              if (!box) { out.push('a form with several passphrase fields has no visible toggle'); continue; }
+              box.click();
+              if (fields.some((i) => i.type !== 'text')) out.push('the toggle did not show every field');
+              if (!form.querySelector('[autocomplete="new-password"]')) out.push('new-password autocomplete lost');
+              form.scrollIntoView();
+            }
+            if (!multi) out.push('no form with several passphrase fields found');
+            return out;
+          }, prep);
+          await shot(page, `pass-toggle-${look}-${hash.replace(/\W+/g, '_')}${prep === null ? '' : `-${['make', 'import'][prep]}`}`);
+          report(where, [...problems, ...seen]);
+        } catch (err) { report(where, [err.message]); }
+      }
       // The long values: names at 31 bytes, a long companion error, then a long companion name.
       await renameLong(page);
       for (const [w, hh] of LONG_WIDTHS) {

@@ -6,7 +6,7 @@
 // A new or imported key goes straight to the key screen: keeping a copy of it is the owner's
 // job (operator 2026-11-17), said once on the make form.
 import { h } from '../dom.js';
-import { errorLine, passField, useStyles } from './key-kit.js';
+import { errorLine, passField, showPassphrases, useStyles } from './key-kit.js';
 import { keyring, keyStatus } from './key-session.js';
 
 export const route = 'unlock';
@@ -102,14 +102,14 @@ export function render(ctx) {
   }
 
   function makeForm() {
-    const first = passField(t, { label: t('unlock.pass'), autocomplete: 'new-password', name: 'new-passphrase', hint: t('unlock.passHint', { min: MIN }) });
-    const second = passField(t, { label: t('unlock.passAgain'), autocomplete: 'new-password', name: 'new-passphrase-again' });
+    const first = passField(t, { label: t('unlock.pass'), autocomplete: 'new-password', name: 'new-passphrase', hint: t('unlock.passHint', { min: MIN }), toggle: false });
+    const second = passField(t, { label: t('unlock.passAgain'), autocomplete: 'new-password', name: 'new-passphrase-again', toggle: false });
     const err = errorLine();
     const submit = h('button', { type: 'submit', class: 'button' }, t('unlock.makeSubmit'));
     const form = h('form', { class: 'stack', 'aria-labelledby': 'make-title', novalidate: true },
       h('h2', { id: 'make-title' }, t('unlock.make')),
       h('p', {}, t('unlock.makeBody')),
-      first.el, second.el,
+      first.el, second.el, showPassphrases(t, [first, second]),
       h('p', { class: 'muted' }, t('unlock.noRecovery')),
       h('p', { class: 'muted' }, t('unlock.ownCopy')),
       h('div', { class: 'row' }, submit), err);
@@ -140,10 +140,11 @@ export function render(ctx) {
     const file = h('input', { type: 'file', id: fileId, accept: '.json,.seed,.txt,application/json,text/plain' });
     const paste = h('textarea', { id: 'import-paste', rows: '3', spellcheck: 'false', autocomplete: 'off', autocapitalize: 'off', class: 'mono', 'aria-describedby': 'import-paste-hint' });
     const kindLine = h('p', { class: 'hint-line', role: 'status' });
-    const backupPass = passField(t, { label: t('unlock.backupPass'), autocomplete: 'current-password', name: 'passphrase', hint: t('unlock.backupPassHint') });
-    const first = passField(t, { label: t('unlock.pass'), autocomplete: 'new-password', name: 'new-passphrase', hint: t('unlock.passHint', { min: MIN }) });
-    const second = passField(t, { label: t('unlock.passAgain'), autocomplete: 'new-password', name: 'new-passphrase-again' });
+    const backupPass = passField(t, { label: t('unlock.backupPass'), autocomplete: 'current-password', name: 'passphrase', hint: t('unlock.backupPassHint'), toggle: false });
+    const first = passField(t, { label: t('unlock.pass'), autocomplete: 'new-password', name: 'new-passphrase', hint: t('unlock.passHint', { min: MIN }), toggle: false });
+    const second = passField(t, { label: t('unlock.passAgain'), autocomplete: 'new-password', name: 'new-passphrase-again', toggle: false });
     const seedFields = h('div', { class: 'stack' }, first.el, second.el);
+    const showAll = showPassphrases(t, [backupPass, first, second]);
     const err = errorLine();
     const submit = h('button', { type: 'submit', class: 'button' }, t('unlock.importSubmit'));
     let text = '';
@@ -151,6 +152,7 @@ export function render(ctx) {
       const kind = importKind(text);
       backupPass.el.hidden = kind !== 'backup';
       seedFields.hidden = kind !== 'seed';
+      showAll.hidden = kind !== 'backup' && kind !== 'seed';
       kindLine.textContent = text ? t(`unlock.kind.${kind || 'unknown'}`) : '';
     };
     file.addEventListener('change', async () => {
@@ -164,7 +166,7 @@ export function render(ctx) {
       h('div', { class: 'field' }, h('label', { for: fileId }, t('unlock.file')), file),
       h('div', { class: 'field' }, h('label', { for: 'import-paste' }, t('unlock.paste')), paste,
         h('p', { class: 'hint-line', id: 'import-paste-hint' }, t('unlock.pasteHint'))),
-      kindLine, backupPass.el, seedFields,
+      kindLine, backupPass.el, seedFields, showAll,
       h('div', { class: 'row' }, submit), err);
     sync();
     form.addEventListener('submit', async (e) => {

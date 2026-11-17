@@ -5,7 +5,7 @@
 // a dialog that says what it costs. Keeping a copy is the owner's job (operator 2026-11-17).
 import { h } from '../dom.js';
 import { download } from './node-kit.js';
-import { copyButton, errorLine, groupedHex, passField, qrSvg, useStyles } from './key-kit.js';
+import { copyButton, errorLine, groupedHex, passField, qrSvg, showPassphrases, useStyles } from './key-kit.js';
 import { currentHandle, keyring, keyStatus, onKeyStatus, unlockHash } from './key-session.js';
 import { passProblem, MIN } from './unlock.js';
 import { registerNow, registration, onRegistration, registrationText } from './key-register.js';
@@ -194,12 +194,12 @@ export function render(ctx) {
   }
 
   function passBlock() {
-    const old = passField(t, { label: t('keyscreen.oldPass'), autocomplete: 'current-password', name: 'passphrase' });
-    const first = passField(t, { label: t('keyscreen.newPass'), autocomplete: 'new-password', name: 'new-passphrase', hint: t('unlock.passHint', { min: MIN }) });
-    const second = passField(t, { label: t('unlock.passAgain'), autocomplete: 'new-password', name: 'new-passphrase-again' });
+    const old = passField(t, { label: t('keyscreen.oldPass'), autocomplete: 'current-password', name: 'passphrase', toggle: false });
+    const first = passField(t, { label: t('keyscreen.newPass'), autocomplete: 'new-password', name: 'new-passphrase', hint: t('unlock.passHint', { min: MIN }), toggle: false });
+    const second = passField(t, { label: t('unlock.passAgain'), autocomplete: 'new-password', name: 'new-passphrase-again', toggle: false });
     const err = errorLine();
     const go = h('button', { type: 'submit', class: 'button' }, t('keyscreen.changePass'));
-    const form = h('form', { class: 'stack', novalidate: true }, old.el, first.el, second.el,
+    const form = h('form', { class: 'stack', novalidate: true }, old.el, first.el, second.el, showPassphrases(t, [old, first, second]),
       h('p', { class: 'muted' }, t('keyscreen.changePassNote')), h('div', { class: 'row' }, go), err);
     form.addEventListener('submit', async (e) => {
       e.preventDefault();

@@ -19,21 +19,29 @@ export const uid = (prefix) => `${prefix}-${++serial}`;
 
 // <label> + password input + "Show passphrase" checkbox (+ hint). `autocomplete` is
 // 'new-password' for a passphrase being chosen and 'current-password' for one being typed.
-export function passField(t, { label, autocomplete, name, hint = null, minlength = 8 }) {
+// A form with more than one passphrase field passes `toggle: false` to each and puts one
+// showPassphrases() after them, which shows or hides them all together.
+export function passField(t, { label, autocomplete, name, hint = null, minlength = 8, toggle = true }) {
   const id = uid('pass');
   const hintId = hint ? `${id}-hint` : null;
   const input = h('input', {
     type: 'password', id, name, autocomplete, required: true, minlength: String(minlength),
     spellcheck: 'false', autocapitalize: 'off', 'aria-describedby': hintId,
   });
-  const show = h('input', { type: 'checkbox', id: `${id}-show` });
-  show.addEventListener('change', () => { input.type = show.checked ? 'text' : 'password'; });
   const el = h('div', { class: 'field pass-field' },
     h('label', { for: id }, label),
     input,
     hint ? h('p', { class: 'hint-line', id: hintId }, hint) : null,
-    h('label', { class: 'show-pass', for: `${id}-show` }, show, ' ', t('unlock.show')));
+    toggle ? showPassphrases(t, [{ input }]) : null);
   return { el, input };
+}
+
+// One "Show passphrase" checkbox for every field in `fields` ([{ input }]).
+export function showPassphrases(t, fields) {
+  const id = uid('pass-show');
+  const show = h('input', { type: 'checkbox', id });
+  show.addEventListener('change', () => { for (const f of fields) f.input.type = show.checked ? 'text' : 'password'; });
+  return h('label', { class: 'show-pass', for: id }, show, ' ', t('unlock.show'));
 }
 
 // "736EA54A AE6E1C76 …": the key in groups of eight, upper case.
