@@ -45,7 +45,7 @@ export const nodeModal = Object.freeze({
   title: 'tile.node',
   render(ctx) {
     const nodeId = String(ctx.args[0] || '').toUpperCase();
-    const heading = h('h1', { class: 'node-modal-title' }, nodeId);
+    const heading = h('h1', { class: 'node-modal-title' }, nodeId || ctx.t('tile.node'));
     const body = h('div', { class: 'node-modal-body' });
     forKey(ctx, body, (svc) => {
       body.replaceChildren(nodeView(ctx, svc, nodeId, {
