@@ -7,6 +7,7 @@
 // down. Battery and last-heard come from Beacon (read-only; asked again when older than an
 // hour) and from the node's own answers.
 import { h } from '../dom.js';
+import { lowBatteryVolts, notHeardHours } from './settings-store.js';
 import { fleetCounts, needsAttention, recentSince } from '../../lib/jobs/overview.js';
 import {
   explainEvent, nameOf, outcomeTag, screen, when, withServices, put, resultBody,
@@ -21,10 +22,8 @@ let traffic = null;
 // fn(ctx, { devices, owner }) -> an element (or a promise of one), or null for nothing.
 export function provideTrafficBlock(fn) { traffic = fn; }
 
-const settings = (ctx) => {
-  const p = ctx.prefs.current();
-  return { hours: Number(p.notHeardHours) || 24, volts: Number(p.lowBatteryV) || 3.5 };
-};
+// The thresholds are the settings screen's (settings-store.js), kept on this device.
+const settings = () => ({ hours: notHeardHours(), volts: lowBatteryVolts() });
 
 // One line per node, its reasons in the plan's order, each with its age where it has one.
 function attentionBlock(ctx, items, s) {
@@ -84,7 +83,7 @@ export function render(ctx) {
             h('li', {}, h('a', { href: '#/nodes' }, ctx.t('dash.toDiscover')))));
         return;
       }
-      const s = settings(ctx);
+      const s = settings();
       const now = Date.now();
       const names = Object.fromEntries(devices.map((d) => [d.node, nameOf(d)]));
       const items = needsAttention(devices, { now, hours: s.hours, thresholdMv: s.volts * 1000, release, rules: svc.rules });

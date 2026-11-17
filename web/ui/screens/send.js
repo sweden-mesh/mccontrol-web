@@ -8,7 +8,7 @@
 import { h } from '../dom.js';
 import { preflight } from '../../lib/jobs/checks.js';
 import {
-  byName, confirm, explain, field, nameOf, outcomeTag, progressLine, screen, withServices, put, resultBody,
+  byName, confirm, explain, field, nameOf, outcomeTag, progressLine, screen, withServices, put, resultBody, unlockHere,
 } from './node-kit.js';
 
 export const route = 'send';
@@ -124,7 +124,7 @@ export function sendPanel(ctx, svc, target, { onDone = null, initial = '' } = {}
     } catch (err) {
       const text = err.code === 'locked' ? ctx.t('send.locked') : err.code ? ctx.t(`send.why.${err.code}`, err.vars) : err.message;
       put(results, h('p', { class: 'err', role: 'alert' }, text,
-        err.code === 'locked' ? [' ', h('a', { href: '#/unlock' }, ctx.t('send.unlockLink'))] : null));
+        err.code === 'locked' ? [' ', h('a', { href: unlockHere(ctx) }, ctx.t('send.unlockLink'))] : null));
     } finally {
       running = null;
       sendButton.disabled = false;

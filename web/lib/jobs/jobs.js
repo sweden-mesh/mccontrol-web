@@ -4,7 +4,7 @@
 // on its own topic; a member that cannot take the command is reported and the rest still go.
 // A region-wide send is one signed broadcast, with the broadcast rules.
 //
-//   const jobs = createJobs({ ring, stores, rules, brokers, results });   // results: lib/data/results.json
+//   const jobs = createJobs({ ring, stores, rules, brokers, results, configOf });   // results: lib/data/results.json
 //   await jobs.send({ command, nodes: ['4AC61A7F'] | group: 'canary' | region: 'JKG', onProgress, signal })
 //
 // Every job holds the key (ring.hold()) from its first signature to its last, so an auto-lock
@@ -28,10 +28,12 @@ export const valueOf = (reply) => String(reply || '').replace(/^>\s*/, '').trim(
 
 export function createJobs({
   ring, stores, rules, brokers, results, transport = { send: realSend, discover: realDiscover }, connect,
-  waitSecs = null, sleep = sleepFor, configExtra = {},
+  waitSecs = null, sleep = sleepFor, configExtra = {}, configOf = (region) => configFor(brokers, region),
 }) {
   const wait = () => waitSecs ?? brokers.wait_secs ?? 20;
-  const config = (region) => ({ ...configFor(brokers, region), ...configExtra });
+  // `configOf(region)`: the page passes settings-store's brokerConfig, so a region this device
+  // sends to its own broker is honoured; the default is the exported table alone.
+  const config = (region) => ({ ...configOf(region), ...configExtra });
 
   async function withKey(work) {
     const handle = ring.handle();

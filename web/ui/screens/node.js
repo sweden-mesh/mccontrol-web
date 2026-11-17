@@ -8,8 +8,7 @@ import { lastHeard, shortVersion } from '../../lib/jobs/overview.js';
 import { updateAvailable } from '../../lib/jobs/releases.js';
 import { blocker } from '../../lib/jobs/checks.js';
 import {
-  confirm, explainEvent, field, nameOf, outcomeTag, progressLine, screen, when, withServices, put, resultBody,
-} from './node-kit.js';
+  confirm, explainEvent, field, nameOf, outcomeTag, progressLine, screen, when, withServices, put, resultBody, lockedNote } from './node-kit.js';
 import { sendPanel } from './send.js';
 import { runSetPanel } from './sets.js';
 
@@ -79,7 +78,7 @@ function firmwareBlock(ctx, svc, device, release, page, redraw) {
       ctx.notify(msg, { kind: res.ok ? 'info' : 'warning' });
       if (res.ok) redraw();
     } catch (err) {
-      put(out, h('p', { class: 'err', role: 'alert' }, err.code === 'locked' ? ctx.t('send.locked') : err.message));
+      put(out, h('p', { class: 'err', role: 'alert' }, err.code === 'locked' ? lockedNote(ctx) : err.message));
     } finally { button.disabled = false; }
   }, { signal: ctx.signal });
   wrap.append(h('div', { class: 'row' }, button), out);
@@ -160,6 +159,7 @@ export function render(ctx) {
       put(rest, 
         h('h2', {}, ctx.t('node.facts')),
         factList(ctx, svc, device, events),
+        h('p', {}, h('a', { href: `#/stats/${device.node}` }, ctx.t('node.statsLink'))),
         h('h2', {}, ctx.t('update.title')),
         firmwareBlock(ctx, svc, device, release, page, draw),
         h('h2', {}, ctx.t('sets.title')),

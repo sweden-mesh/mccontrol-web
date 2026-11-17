@@ -8,8 +8,7 @@ import { h } from '../dom.js';
 import { SET_STEPS } from '../../lib/store/index.js';
 import { blocker, fillSteps } from '../../lib/jobs/checks.js';
 import {
-  byName, confirm, explain, field, nameOf, progressLine, screen, withServices, put,
-} from './node-kit.js';
+  byName, confirm, explain, field, nameOf, progressLine, screen, withServices, put, lockedNote } from './node-kit.js';
 import { whyText } from './send.js';
 
 export const route = 'sets';
@@ -67,7 +66,7 @@ export function runSetPanel(ctx, svc, target, sets) {
       put(out, h('ul', { class: 'res-list' }, res.runs.map((r) => runLine(ctx, svc, r, res.steps))));
       ctx.announce(ctx.t('sets.done'));
     } catch (err) {
-      put(out, h('p', { class: 'err', role: 'alert' }, err.code === 'locked' ? ctx.t('send.locked') : err.code ? ctx.t(`send.why.${err.code}`, err.vars) : err.message));
+      put(out, h('p', { class: 'err', role: 'alert' }, err.code === 'locked' ? lockedNote(ctx) : err.code ? ctx.t(`send.why.${err.code}`, err.vars) : err.message));
     } finally { run.disabled = false; }
   }, { signal: ctx.signal });
   return form;

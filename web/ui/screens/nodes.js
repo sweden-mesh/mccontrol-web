@@ -3,16 +3,16 @@
 // control under the heading; a group narrows the list. Nodes are added by discovery (one signed
 // harmless read to a region, answered only by nodes that hold this key) or by pasting a key.
 import { h } from '../dom.js';
+import { lowBatteryVolts, notHeardHours } from './settings-store.js';
 import { lastHeard, shortVersion } from '../../lib/jobs/overview.js';
 import { updateAvailable } from '../../lib/jobs/releases.js';
 import {
-  byName, explainEvent, field, nameOf, outcomeTag, progressLine, screen, when, withServices, put,
-} from './node-kit.js';
+  byName, explainEvent, field, nameOf, outcomeTag, progressLine, screen, when, withServices, put, lockedNote, unlockHere } from './node-kit.js';
 
 export const route = 'nodes';
 export const title = 'nav.nodes';
 
-const HOURS = (ctx) => Number(ctx.prefs.current().notHeardHours) || 24;
+const HOURS = () => notHeardHours();
 
 function heardCell(ctx, d, now) {
   const at = lastHeard(d);
@@ -24,7 +24,7 @@ function heardCell(ctx, d, now) {
 function batteryCell(ctx, d) {
   const mv = d.fleet?.batteryMv;
   if (!Number.isFinite(mv)) return h('span', { class: 'muted' }, '–');
-  const low = mv < (Number(ctx.prefs.current().lowBatteryV) || 3.5) * 1000;
+  const low = mv < lowBatteryVolts() * 1000;
   return h('span', { class: low ? 'warn-text' : '' }, `${(mv / 1000).toFixed(2)} V`, low ? ` ${ctx.t('nodes.low')}` : '');
 }
 
@@ -94,7 +94,7 @@ function discoverForm(ctx, svc, devices, redraw) {
           f.verified === false ? h('span', { class: 'err' }, ctx.t('send.res.forged')) : null);
       })));
     } catch (err) {
-      put(out, h('p', { class: 'err', role: 'alert' }, err.code === 'locked' ? ctx.t('send.locked') : err.message));
+      put(out, h('p', { class: 'err', role: 'alert' }, err.code === 'locked' ? lockedNote(ctx) : err.message));
     } finally { button.disabled = false; }
   }, { signal: ctx.signal });
   return form;
@@ -169,7 +169,10 @@ export function render(ctx) {
           });
           ctx.notify(ctx.t('nodes.refreshed', { versions: r.versioned, named: r.named, of: all.length }));
           await draw();
-        } catch (err) { ctx.notify(err.code === 'locked' ? ctx.t('send.locked') : err.message, { kind: 'error' }); }
+        } catch (err) {
+          ctx.notify(err.code === 'locked' ? ctx.t('send.locked') : err.message, { kind: 'error',
+            actions: err.code === 'locked' ? [{ label: ctx.t('send.unlockLink'), run: () => ctx.navigate(unlockHere(ctx)) }] : [] });
+        }
         finally { versions.disabled = false; status.textContent = ''; }
       });
       fleet.addEventListener('click', async () => {

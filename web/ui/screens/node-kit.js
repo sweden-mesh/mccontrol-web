@@ -3,6 +3,7 @@
 import { h } from '../dom.js';
 import { codeHelp, codeName } from '../../lib/protocol/results.js';
 import { services } from './node-services.js';
+import { unlockHash } from './key-session.js';
 
 // The screens' stylesheet, linked once (style-src 'self'; no inline style anywhere).
 export function useStyles() {
@@ -23,12 +24,20 @@ export function screen(id, title, ...children) {
     h('h1', { id: `${id}-title` }, title), ...children);
 }
 
+// Where an unlock prompt leads: the unlock screen, then back to this screen.
+export const unlockHere = (ctx) => unlockHash([ctx.route, ...ctx.args.map(encodeURIComponent)].join('/'));
+
+// "The key is locked." with a link that unlocks and comes back.
+export function lockedNote(ctx) {
+  return [ctx.t('send.locked'), ' ', h('a', { href: unlockHere(ctx) }, ctx.t('send.unlockLink'))];
+}
+
 // The key the screen works for, or a paragraph saying there is none. Locked is fine for
 // reading; sending says so itself.
 export function keyGate(ctx) {
   const { status, publicKeyHex } = ctx.key.state();
   if (status === 'none' || !publicKeyHex) {
-    return { owner: null, note: h('p', {}, ctx.t('node.noKey'), ' ', h('a', { href: '#/unlock' }, ctx.t('node.noKeyLink'))) };
+    return { owner: null, note: h('p', {}, ctx.t('node.noKey'), ' ', h('a', { href: unlockHere(ctx) }, ctx.t('node.noKeyLink'))) };
   }
   return { owner: publicKeyHex, locked: status === 'locked', note: null };
 }

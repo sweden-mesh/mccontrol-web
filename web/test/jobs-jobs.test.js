@@ -10,6 +10,9 @@ import { createJobs, JobError } from '../lib/jobs/jobs.js';
 import { blocker, fillSteps, preflight } from '../lib/jobs/checks.js';
 import { latestRelease, newestRelease, updateAvailable } from '../lib/jobs/releases.js';
 import { refreshFleet } from '../lib/jobs/fleet.js';
+import { beaconClient } from '../lib/stats/beacon.js';
+
+const BASE = 'https://beacon.example/api/v1';
 import { fleetCounts, needsAttention, recentSince } from '../lib/jobs/overview.js';
 import { csvCell, toCsv } from '../ui/screens/history.js';
 import { data } from './protocol-helpers.js';
@@ -210,12 +213,19 @@ test('releases: the newest real release, cached for an hour; the mark compares r
 test('fleet: battery and last status from Beacon; a node Beacon does not know keeps nothing stale', async () => {
   const { stores } = await setup();
   await stores.devices.update('BBBB0002', { fleet: { batteryMv: 1, seen: 'old' } });
-  const read = async (url) => {
-    if (url.includes('/nodes?iata=JKG')) return { items: [{ publicKey: A, observerId: 'obs-a' }] };
-    if (url.endsWith('/observers/obs-a')) return { lastStatusAt: 1763370000000, firmwareVersion: LOU18, statusMetadata: { stats: { battery_mv: 3999 } } };
-    throw new Error('404');
+  // The statistics' Beacon client (lib/stats/beacon.js) over a fake fetch: one client for both.
+  const asked = [];
+  const fetch = async (url) => {
+    asked.push(url.replace(BASE, ''));
+    const path = url.replace(BASE, '');
+    let body = null;
+    if (path.startsWith('/nodes?pubkeyPrefix=aaaa0001')) body = { items: [{ publicKey: A, observerId: 'obs-a' }] };
+    else if (path.startsWith('/nodes?')) body = { items: [] };
+    else if (path === '/observers/obs-a') body = { lastStatusAt: 1763370000000, firmwareVersion: LOU18, statusMetadata: { stats: { battery_mv: 3999 } } };
+    return { ok: body !== null, status: body ? 200 : 404, json: async () => body };
   };
-  const r = await refreshFleet({ stores, brokers: all.brokers, read });
+  const r = await refreshFleet({ stores, client: beaconClient({ base: BASE, fetch }) });
+  assert.ok(asked.every((p) => p.startsWith('/nodes?pubkeyPrefix=') || p.startsWith('/observers/')), asked.join());
   assert.deepEqual(r, { updated: 1, failed: 2 });
   assert.equal((await stores.devices.get('AAAA0001')).fleet.batteryMv, 3999);
   assert.equal((await stores.devices.get('BBBB0002')).fleet, null);
