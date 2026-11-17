@@ -160,3 +160,22 @@ The offline copy (`sw.js`) installs a release only when every file matches `inte
 keeps serving the running release, and shows "a new version is available" with a button when
 another one has installed; it switches only when the owner presses it. A copy with
 `version.json` = `dev` (this directory as it is) registers no service worker.
+
+## Smoke test
+
+`node web/test/smoke/run.mjs` opens every route in headless Chrome, at 360 and 1280 px, in the
+light and the phosphor look, and fails on any console error, uncaught page error, CSP violation,
+sideways page scroll or screen without an `<h1>`. A screenshot of each lands in a new directory
+under the system's temp dir (`--out DIR` to choose). The routes come from `ui/screens/index.js`,
+so a new screen is covered without editing the runner; routes that take an argument are also
+opened with a node id from the fixture.
+
+It serves the directory with a small static server that sends `_headers` as Cloudflare Pages
+does, so the browser enforces the deployed CSP (header and `<meta>`). Beacon's answers come from
+`test/smoke/beacon-fixture.json`, times moved to now; `--live` reaches the real Beacon instead.
+`--root DIR` serves another copy, such as a `scripts/web-dist.mjs` output or an unzipped
+release; `--only stats,node` limits the routes.
+
+It needs Chrome and Puppeteer: the system Chrome (`/usr/bin/google-chrome`) and Puppeteer from
+`npm root -g`, the same as the headless-browser helper. It is not part of `node --test`, because
+CI has no Chrome; run it before a release and after a change to a screen, the CSP or `_headers`.

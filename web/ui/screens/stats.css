@@ -1,0 +1,60 @@
+/* The statistics screen and the traffic chart (stats.js, stats-chart.js). Loaded by the chart
+   module itself, so any screen that mounts the chart gets it. Colours from tokens.css only, so
+   the dark, colour-blind and phosphor themes hold. One series: the bars wear --accent, every
+   piece of text wears --fg or --muted. */
+.stats-screen h2 { font-size: 1.15rem; margin: 1.75rem 0 .5rem; }
+.stats-node { margin: 0 0 .5rem; font-weight: 600; }
+.stats-node code { font-weight: 400; color: var(--muted); }
+.stats-note { margin: .5rem 0; }
+.stats-age { margin: 0 0 .5rem; color: var(--muted); font-size: .9375rem; }
+.stats-error { color: var(--danger); font-weight: 600; margin: .5rem 0 0; }
+
+.stats-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr)); gap: 0 2rem; max-inline-size: 52rem; margin: 0; }
+.stats-list div { display: flex; justify-content: space-between; gap: .75rem; padding: .375rem 0; border-bottom: 1px solid var(--line); }
+.stats-list dt { color: var(--muted); }
+.stats-list dd { margin: 0; font-variant-numeric: tabular-nums; text-align: end; }
+
+.stats-ask { max-width: 32rem; }
+.stats-ask label { display: block; font-weight: 600; margin-bottom: .25rem; }
+.stats-ask .hint { margin: 0 0 .5rem; }
+.stats-ask-row { display: flex; gap: .5rem; }
+.stats-ask input {
+  flex: 1; min-width: 0; min-height: var(--tap); padding: 0 .75rem;
+  font: 1rem var(--font-mono); text-transform: uppercase;
+  color: var(--fg); background: var(--bg); border: 1px solid var(--field-border); border-radius: var(--radius-sm);
+}
+.stats-ask input[aria-invalid="true"] { border-color: var(--danger); }
+
+.stats-period { display: flex; flex-wrap: wrap; gap: 0 1.25rem; border: 0; margin: 0 0 .5rem; padding: 0; }
+.stats-period legend { padding: 0; font-weight: 600; margin-bottom: .125rem; }
+.stats-period label { display: inline-flex; align-items: center; gap: .5rem; min-height: var(--tap); cursor: pointer; }
+.stats-period input { width: 1.15rem; height: 1.15rem; margin: 0; }
+
+.stats-chart { margin: 0; }
+.stats-chart figcaption { display: grid; gap: .125rem; margin-bottom: .5rem; }
+.stats-chart-title { font-weight: 600; }
+.stats-summary { color: var(--muted); font-size: .9375rem; max-width: 70ch; }
+.stats-plot { inline-size: 100%; }
+.stats-svg { display: block; max-inline-size: 100%; block-size: auto; overflow: visible; touch-action: pan-y; }
+.stats-svg:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+.stats-bar { fill: var(--accent); }
+.stats-bar.is-active { fill: var(--fg); }
+.stats-cursor { fill: var(--surface); }
+.stats-grid line { stroke: var(--line); stroke-width: 1; shape-rendering: crispEdges; }
+.stats-svg text { fill: var(--muted); font: .75rem var(--font-body); font-variant-numeric: tabular-nums; }
+.stats-readout { min-height: 1.6em; margin: .25rem 0; font-size: .9375rem; font-variant-numeric: tabular-nums; }
+
+.stats-details summary { cursor: pointer; color: var(--accent); min-height: var(--tap); display: flex; align-items: center; inline-size: fit-content; }
+.stats-table-wrap { overflow: auto; max-block-size: min(24rem, 70vh); border: 1px solid var(--line); border-radius: var(--radius-sm); }
+.stats-table { border-collapse: separate; border-spacing: 0; inline-size: 100%; font-size: .9375rem; font-variant-numeric: tabular-nums; }
+.stats-table caption { text-align: start; padding: .5rem .75rem; font-weight: 600; }
+.stats-table th, .stats-table td { padding: .3rem .75rem; border-bottom: 1px solid var(--line); text-align: end; white-space: nowrap; }
+.stats-table th[scope="row"], .stats-table thead th:first-child { text-align: start; font-weight: 400; }
+.stats-table thead th { position: sticky; inset-block-start: 0; background: var(--surface); font-weight: 600; }
+.stats-source { margin-top: 1rem; }
+
+@media (forced-colors: active) {
+  .stats-bar { fill: CanvasText; }
+  .stats-bar.is-active { fill: Highlight; }
+  .stats-cursor { fill: Canvas; stroke: Highlight; }
+}

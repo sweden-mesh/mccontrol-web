@@ -1,0 +1,1440 @@
+{
+ "_note": "Captured from beacon.meshcore-jkp.se for the tests and the smoke run; keys are API paths. capturedAt is epoch ms; the smoke server moves every time by (now - capturedAt).",
+ "capturedAt": 1794899951584,
+ "paths": {
+  "/nodes?pubkeyPrefix=13b58595&limit=2": {
+   "items": [
+    {
+     "id": "a05e153e-1c53-4469-8366-9b7ca487b154",
+     "publicKey": "13b58595d141b1ab02a7fd0fb4f2fae3e7d895a1416ca672e14ce53287ed40fb",
+     "nodeType": 2,
+     "nodeTypeName": "repeater",
+     "name": "SE-JKP-TORPA7TYU",
+     "isObserver": true,
+     "observerId": "dd10ee9d-96bf-4300-9685-68234de12317"
+    }
+   ]
+  },
+  "/observers/dd10ee9d-96bf-4300-9685-68234de12317": {
+   "id": "dd10ee9d-96bf-4300-9685-68234de12317",
+   "displayName": "SE-JKP-7TYUobserv",
+   "publicKey": "13b58595d141b1ab02a7fd0fb4f2fae3e7d895a1416ca672e14ce53287ed40fb",
+   "hardwareModel": "Heltec V4.3 OLED",
+   "firmwareVersion": "v1.18.0.1-observer-a714b38",
+   "batteryLevel": 4.174,
+   "uptimeSeconds": 2487901,
+   "statusMetadata": {
+    "stats": {
+     "errors": 8,
+     "queue_len": 0,
+     "battery_mv": 4174,
+     "noise_floor": -86,
+     "recv_errors": 14271,
+     "rx_air_secs": 28259,
+     "tx_air_secs": 13706,
+     "uptime_secs": 2487901,
+     "heap_largest": 163828,
+     "packets_sent": 15562,
+     "internal_heap": 189852,
+     "mqtt_slots_up": 2,
+     "mqtt_slots_total": 2,
+     "packets_received": 34909,
+     "mqtt_connect_failures": 54
+    }
+   },
+   "lastStatusAt": 1794899738432
+  },
+  "/observers/dd10ee9d-96bf-4300-9685-68234de12317/telemetry?range=24h&interval=1h": {
+   "range": "24h",
+   "interval": "1h",
+   "points": [
+    {
+     "t": 1794816000000,
+     "batteryMv": 4192,
+     "airtimeTxSecs": 13185,
+     "airtimeRxSecs": 26939,
+     "noiseFloorDb": -89,
+     "uptimeSeconds": 2404194,
+     "queueLength": 0,
+     "receiveErrors": 13702
+    },
+    {
+     "t": 1794819600000,
+     "batteryMv": 4174,
+     "airtimeTxSecs": 13212,
+     "airtimeRxSecs": 26999,
+     "noiseFloorDb": -88,
+     "uptimeSeconds": 2407794,
+     "queueLength": 0,
+     "receiveErrors": 13750
+    },
+    {
+     "t": 1794823200000,
+     "batteryMv": 4209,
+     "airtimeTxSecs": 13220,
+     "airtimeRxSecs": 27013,
+     "noiseFloorDb": -88,
+     "uptimeSeconds": 2411395,
+     "queueLength": 0,
+     "receiveErrors": 13759
+    },
+    {
+     "t": 1794826800000,
+     "batteryMv": 4192,
+     "airtimeTxSecs": 13257,
+     "airtimeRxSecs": 27100,
+     "noiseFloorDb": -86,
+     "uptimeSeconds": 2414995,
+     "queueLength": 0,
+     "receiveErrors": 13806
+    },
+    {
+     "t": 1794830400000,
+     "batteryMv": 4192,
+     "airtimeTxSecs": 13311,
+     "airtimeRxSecs": 27221,
+     "noiseFloorDb": -86,
+     "uptimeSeconds": 2418595,
+     "queueLength": 0,
+     "receiveErrors": 13867
+    },
+    {
+     "t": 1794834000000,
+     "batteryMv": 4192,
+     "airtimeTxSecs": 13329,
+     "airtimeRxSecs": 27249,
+     "noiseFloorDb": -86,
+     "uptimeSeconds": 2422195,
+     "queueLength": 0,
+     "receiveErrors": 13878
+    },
+    {
+     "t": 1794837600000,
+     "batteryMv": 4209,
+     "airtimeTxSecs": 13339,
+     "airtimeRxSecs": 27268,
+     "noiseFloorDb": -86,
+     "uptimeSeconds": 2425796,
+     "queueLength": 0,
+     "receiveErrors": 13887
+    },
+    {
+     "t": 1794841200000,
+     "batteryMv": 4192,
+     "airtimeTxSecs": 13346,
+     "airtimeRxSecs": 27285,
+     "noiseFloorDb": -79,
+     "uptimeSeconds": 2429396,
+     "queueLength": 0,
+     "receiveErrors": 13890
+    },
+    {
+     "t": 1794844800000,
+     "batteryMv": 4174,
+     "airtimeTxSecs": 13360,
+     "airtimeRxSecs": 27313,
+     "noiseFloorDb": -85,
+     "uptimeSeconds": 2432996,
+     "queueLength": 0,
+     "receiveErrors": 13904
+    },
+    {
+     "t": 1794848400000,
+     "batteryMv": 4209,
+     "airtimeTxSecs": 13389,
+     "airtimeRxSecs": 27385,
+     "noiseFloorDb": -87,
+     "uptimeSeconds": 2436597,
+     "queueLength": 0,
+     "receiveErrors": 13932
+    },
+    {
+     "t": 1794852000000,
+     "batteryMv": 4192,
+     "airtimeTxSecs": 13479,
+     "airtimeRxSecs": 27576,
+     "noiseFloorDb": -88,
+     "uptimeSeconds": 2440197,
+     "queueLength": 0,
+     "receiveErrors": 14034
+    },
+    {
+     "t": 1794855600000,
+     "batteryMv": 4174,
+     "airtimeTxSecs": 13496,
+     "airtimeRxSecs": 27608,
+     "noiseFloorDb": -95,
+     "uptimeSeconds": 2443797,
+     "queueLength": 0,
+     "receiveErrors": 14052
+    },
+    {
+     "t": 1794859200000,
+     "batteryMv": 4192,
+     "airtimeTxSecs": 13513,
+     "airtimeRxSecs": 27654,
+     "noiseFloorDb": -84,
+     "uptimeSeconds": 2447398,
+     "queueLength": 0,
+     "receiveErrors": 14072
+    },
+    {
+     "t": 1794862800000,
+     "batteryMv": 4192,
+     "airtimeTxSecs": 13535,
+     "airtimeRxSecs": 27725,
+     "noiseFloorDb": -84,
+     "uptimeSeconds": 2450998,
+     "queueLength": 0,
+     "receiveErrors": 14100
+    },
+    {
+     "t": 1794866400000,
+     "batteryMv": 4174,
+     "airtimeTxSecs": 13549,
+     "airtimeRxSecs": 27797,
+     "noiseFloorDb": -85,
+     "uptimeSeconds": 2454598,
+     "queueLength": 0,
+     "receiveErrors": 14116
+    },
+    {
+     "t": 1794870000000,
+     "batteryMv": 4174,
+     "airtimeTxSecs": 13559,
+     "airtimeRxSecs": 27844,
+     "noiseFloorDb": -80,
+     "uptimeSeconds": 2458199,
+     "queueLength": 0,
+     "receiveErrors": 14123
+    },
+    {
+     "t": 1794873600000,
+     "batteryMv": 4174,
+     "airtimeTxSecs": 13583,
+     "airtimeRxSecs": 27940,
+     "noiseFloorDb": -90,
+     "uptimeSeconds": 2461799,
+     "queueLength": 0,
+     "receiveErrors": 14144
+    },
+    {
+     "t": 1794877200000,
+     "batteryMv": 4192,
+     "airtimeTxSecs": 13610,
+     "airtimeRxSecs": 28023,
+     "noiseFloorDb": -86,
+     "uptimeSeconds": 2465399,
+     "queueLength": 0,
+     "receiveErrors": 14170
+    },
+    {
+     "t": 1794880800000,
+     "batteryMv": 4192,
+     "airtimeTxSecs": 13631,
+     "airtimeRxSecs": 28073,
+     "noiseFloorDb": -96,
+     "uptimeSeconds": 2468999,
+     "queueLength": 0,
+     "receiveErrors": 14199
+    },
+    {
+     "t": 1794884400000,
+     "batteryMv": 4192,
+     "airtimeTxSecs": 13649,
+     "airtimeRxSecs": 28117,
+     "noiseFloorDb": -85,
+     "uptimeSeconds": 2472600,
+     "queueLength": 0,
+     "receiveErrors": 14216
+    },
+    {
+     "t": 1794888000000,
+     "batteryMv": 4174,
+     "airtimeTxSecs": 13670,
+     "airtimeRxSecs": 28170,
+     "noiseFloorDb": -89,
+     "uptimeSeconds": 2476200,
+     "queueLength": 0,
+     "receiveErrors": 14232
+    },
+    {
+     "t": 1794891600000,
+     "batteryMv": 4192,
+     "airtimeTxSecs": 13687,
+     "airtimeRxSecs": 28212,
+     "noiseFloorDb": -89,
+     "uptimeSeconds": 2479800,
+     "queueLength": 0,
+     "receiveErrors": 14253
+    },
+    {
+     "t": 1794895200000,
+     "batteryMv": 4174,
+     "airtimeTxSecs": 13694,
+     "airtimeRxSecs": 28227,
+     "noiseFloorDb": -86,
+     "uptimeSeconds": 2483400,
+     "queueLength": 0,
+     "receiveErrors": 14260
+    },
+    {
+     "t": 1794898800000,
+     "batteryMv": 4174,
+     "airtimeTxSecs": 13705,
+     "airtimeRxSecs": 28257,
+     "noiseFloorDb": -87,
+     "uptimeSeconds": 2487001,
+     "queueLength": 0,
+     "receiveErrors": 14270
+    }
+   ]
+  },
+  "/observers/dd10ee9d-96bf-4300-9685-68234de12317/telemetry?range=168h&interval=1h": {
+   "range": "168h",
+   "interval": "1h",
+   "points": [
+    {
+     "t": 1794492000000,
+     "batteryMv": 4192,
+     "airtimeTxSecs": 11512,
+     "airtimeRxSecs": 23378,
+     "noiseFloorDb": -86,
+     "uptimeSeconds": 2083468,
+     "queueLength": 0,
+     "receiveErrors": 11814
+    },
+    {
+     "t": 1794495600000,
+     "batteryMv": 4192,
+     "airtimeTxSecs": 11512,
+     "airtimeRxSecs": 23379,
+     "noiseFloorDb": -83,
+     "uptimeSeconds": 2083768,
+     "queueLength": 0,
+     "receiveErrors": 11814
+    },
+    {
+     "t": 1794499200000,
+     "batteryMv": 4192,
+     "airtimeTxSecs": 11522,
+     "airtimeRxSecs": 23396,
+     "noiseFloorDb": -88,
+     "uptimeSeconds": 2087368,
+     "queueLength": 0,
+     "receiveErrors": 11832
+    },
+    {
+     "t": 1794502800000,
+     "batteryMv": 4192,
+     "airtimeTxSecs": 11552,
+     "airtimeRxSecs": 23451,
+     "noiseFloorDb": -87,
+     "uptimeSeconds": 2090969,
+     "queueLength": 0,
+     "receiveErrors": 11854
+    },
+    {
+     "t": 1794506400000,
+     "batteryMv": 4174,
+     "airtimeTxSecs": 11575,
+     "airtimeRxSecs": 23497,
+     "noiseFloorDb": -86,
+     "uptimeSeconds": 2094569,
+     "queueLength": 0,
+     "receiveErrors": 11879
+    },
+    {
+     "t": 1794510000000,
+     "batteryMv": 4209,
+     "airtimeTxSecs": 11606,
+     "airtimeRxSecs": 23566,
+     "noiseFloorDb": -86,
+     "uptimeSeconds": 2098169,
+     "queueLength": 0,
+     "receiveErrors": 11915
+    },
+    {
+     "t": 1794513600000,
+     "batteryMv": 4192,
+     "airtimeTxSecs": 11618,
+     "airtimeRxSecs": 23594,
+     "noiseFloorDb": -82,
+     "uptimeSeconds": 2101769,
+     "queueLength": 0,
+     "receiveErrors": 11930
+    },
+    {
+     "t": 1794517200000,
+     "batteryMv": 4192,
+     "airtimeTxSecs": 11631,
+     "airtimeRxSecs": 23615,
+     "noiseFloorDb": -106,
+     "uptimeSeconds": 2105370,
+     "queueLength": 0,
+     "receiveErrors": 11941
+    },
+    {
+     "t": 1794520800000,
+     "batteryMv": 4174,
+     "airtimeTxSecs": 11638,
+     "airtimeRxSecs": 23624,
+     "noiseFloorDb": -88,
+     "uptimeSeconds": 2108970,
+     "queueLength": 0,
+     "receiveErrors": 11948
+    },
+    {
+     "t": 1794524400000,
+     "batteryMv": 4174,
+     "airtimeTxSecs": 11642,
+     "airtimeRxSecs": 23631,
+     "noiseFloorDb": -83,
+     "uptimeSeconds": 2112570,
+     "queueLength": 0,
+     "receiveErrors": 11952
+    },
+    {
+     "t": 1794528000000,
+     "batteryMv": 4174,
+     "airtimeTxSecs": 11667,
+     "airtimeRxSecs": 23692,
+     "noiseFloorDb": -88,
+     "uptimeSeconds": 2116170,
+     "queueLength": 0,
+     "receiveErrors": 11969
+    },
+    {
+     "t": 1794531600000,
+     "batteryMv": 4174,
+     "airtimeTxSecs": 11689,
+     "airtimeRxSecs": 23734,
+     "noiseFloorDb": -90,
+     "uptimeSeconds": 2119771,
+     "queueLength": 0,
+     "receiveErrors": 11991
+    },
+    {
+     "t": 1794535200000,
+     "batteryMv": 4174,
+     "airtimeTxSecs": 11709,
+     "airtimeRxSecs": 23777,
+     "noiseFloorDb": -90,
+     "uptimeSeconds": 2123371,
+     "queueLength": 0,
+     "receiveErrors": 12004
+    },
+    {
+     "t": 1794538800000,
+     "batteryMv": 4174,
+     "airtimeTxSecs": 11727,
+     "airtimeRxSecs": 23816,
+     "noiseFloorDb": -86,
+     "uptimeSeconds": 2126971,
+     "queueLength": 0,
+     "receiveErrors": 12026
+    },
+    {
+     "t": 1794542400000,
+     "batteryMv": 4192,
+     "airtimeTxSecs": 11752,
+     "airtimeRxSecs": 23872,
+     "noiseFloorDb": -94,
+     "uptimeSeconds": 2130572,
+     "queueLength": 0,
+     "receiveErrors": 12045
+    },
+    {
+     "t": 1794546000000,
+     "batteryMv": 4192,
+     "airtimeTxSecs": 11769,
+     "airtimeRxSecs": 23907,
+     "noiseFloorDb": -82,
+     "uptimeSeconds": 2134172,
+     "queueLength": 0,
+     "receiveErrors": 12057
+    },
+    {
+     "t": 1794549600000,
+     "batteryMv": 4192,
+     "airtimeTxSecs": 11773,
+     "airtimeRxSecs": 23913,
+     "noiseFloorDb": -84,
+     "uptimeSeconds": 2137772,
+     "queueLength": 0,
+     "receiveErrors": 12059
+    },
+    {
+     "t": 1794553200000,
+     "batteryMv": 4174,
+     "airtimeTxSecs": 11800,
+     "airtimeRxSecs": 23985,
+     "noiseFloorDb": -84,
+     "uptimeSeconds": 2141373,
+     "queueLength": 0,
+     "receiveErrors": 12110
+    },
+    {
+     "t": 1794556800000,
+     "batteryMv": 4174,
+     "airtimeTxSecs": 11831,
+     "airtimeRxSecs": 24055,
+     "noiseFloorDb": -81,
+     "uptimeSeconds": 2144973,
+     "queueLength": 0,
+     "receiveErrors": 12137
+    },
+    {
+     "t": 1794560400000,
+     "batteryMv": 4174,
+     "airtimeTxSecs": 11839,
+     "airtimeRxSecs": 24068,
+     "noiseFloorDb": -78,
+     "uptimeSeconds": 2148573,
+     "queueLength": 0,
+     "receiveErrors": 12148
+    },
+    {
+     "t": 1794564000000,
+     "batteryMv": 4174,
+     "airtimeTxSecs": 11847,
+     "airtimeRxSecs": 24082,
+     "noiseFloorDb": -80,
+     "uptimeSeconds": 2152173,
+     "queueLength": 0,
+     "receiveErrors": 12155
+    },
+    {
+     "t": 1794567600000,
+     "batteryMv": 4174,
+     "airtimeTxSecs": 11851,
+     "airtimeRxSecs": 24089,
+     "noiseFloorDb": -92,
+     "uptimeSeconds": 2155774,
+     "queueLength": 0,
+     "receiveErrors": 12158
+    },
+    {
+     "t": 1794571200000,
+     "batteryMv": 4174,
+     "airtimeTxSecs": 11914,
+     "airtimeRxSecs": 24249,
+     "noiseFloorDb": -82,
+     "uptimeSeconds": 2159374,
+     "queueLength": 0,
+     "receiveErrors": 12226
+    },
+    {
+     "t": 1794574800000,
+     "batteryMv": 4174,
+     "airtimeTxSecs": 11945,
+     "airtimeRxSecs": 24311,
+     "noiseFloorDb": -87,
+     "uptimeSeconds": 2162974,
+     "queueLength": 0,
+     "receiveErrors": 12251
+    },
+    {
+     "t": 1794578400000,
+     "batteryMv": 4174,
+     "airtimeTxSecs": 11951,
+     "airtimeRxSecs": 24320,
+     "noiseFloorDb": -86,
+     "uptimeSeconds": 2166575,
+     "queueLength": 0,
+     "receiveErrors": 12258
+    },
+    {
+     "t": 1794582000000,
+     "batteryMv": 4174,
+     "airtimeTxSecs": 11961,
+     "airtimeRxSecs": 24335,
+     "noiseFloorDb": -78,
+     "uptimeSeconds": 2170175,
+     "queueLength": 0,
+     "receiveErrors": 12264
+    },
+    {
+     "t": 1794585600000,
+     "batteryMv": 4174,
+     "airtimeTxSecs": 11965,
+     "airtimeRxSecs": 24346,
+     "noiseFloorDb": -84,
+     "uptimeSeconds": 2173775,
+     "queueLength": 0,
+     "receiveErrors": 12273
+    },
+    {
+     "t": 1794589200000,
+     "batteryMv": 4192,
+     "airtimeTxSecs": 12005,
+     "airtimeRxSecs": 24444,
+     "noiseFloorDb": -93,
+     "uptimeSeconds": 2177376,
+     "queueLength": 0,
+     "receiveErrors": 12325
+    },
+    {
+     "t": 1794592800000,
+     "batteryMv": 4174,
+     "airtimeTxSecs": 12034,
+     "airtimeRxSecs": 24519,
+     "noiseFloorDb": -90,
+     "uptimeSeconds": 2180976,
+     "queueLength": 0,
+     "receiveErrors": 12354
+    },
+    {
+     "t": 1794596400000,
+     "batteryMv": 4174,
+     "airtimeTxSecs": 12089,
+     "airtimeRxSecs": 24642,
+     "noiseFloorDb": -88,
+     "uptimeSeconds": 2184576,
+     "queueLength": 0,
+     "receiveErrors": 12425
+    },
+    {
+     "t": 1794600000000,
+     "batteryMv": 4174,
+     "airtimeTxSecs": 12099,
+     "airtimeRxSecs": 24664,
+     "noiseFloorDb": -84,
+     "uptimeSeconds": 2188177,
+     "queueLength": 0,
+     "receiveErrors": 12432
+    },
+    {
+     "t": 1794603600000,
+     "batteryMv": 4174,
+     "airtimeTxSecs": 12105,
+     "airtimeRxSecs": 24677,
+     "noiseFloorDb": -87,
+     "uptimeSeconds": 2191777,
+     "queueLength": 0,
+     "receiveErrors": 12436
+    },
+    {
+     "t": 1794607200000,
+     "batteryMv": 4174,
+     "airtimeTxSecs": 12117,
+     "airtimeRxSecs": 24697,
+     "noiseFloorDb": -82,
+     "uptimeSeconds": 2195377,
+     "queueLength": 0,
+     "receiveErrors": 12446
+    },
+    {
+     "t": 1794610800000,
+     "batteryMv": 4174,
+     "airtimeTxSecs": 12125,
+     "airtimeRxSecs": 24712,
+     "noiseFloorDb": -90,
+     "uptimeSeconds": 2198977,
+     "queueLength": 0,
+     "receiveErrors": 12451
+    },
+    {
+     "t": 1794614400000,
+     "batteryMv": 4174,
+     "airtimeTxSecs": 12160,
+     "airtimeRxSecs": 24795,
+     "noiseFloorDb": -85,
+     "uptimeSeconds": 2202578,
+     "queueLength": 0,
+     "receiveErrors": 12487
+    },
+    {
+     "t": 1794618000000,
+     "batteryMv": 4174,
+     "airtimeTxSecs": 12186,
+     "airtimeRxSecs": 24841,
+     "noiseFloorDb": -90,
+     "uptimeSeconds": 2206178,
+     "queueLength": 0,
+     "receiveErrors": 12516
+    },
+    {
+     "t": 1794621600000,
+     "batteryMv": 4174,
+     "airtimeTxSecs": 12206,
+     "airtimeRxSecs": 24874,
+     "noiseFloorDb": -94,
+     "uptimeSeconds": 2209778,
+     "queueLength": 0,
+     "receiveErrors": 12534
+    },
+    {
+     "t": 1794625200000,
+     "batteryMv": 4174,
+     "airtimeTxSecs": 12221,
+     "airtimeRxSecs": 24909,
+     "noiseFloorDb": -88,
+     "uptimeSeconds": 2213379,
+     "queueLength": 0,
+     "receiveErrors": 12553
+    },
+    {
+     "t": 1794628800000,
+     "batteryMv": 4174,
+     "airtimeTxSecs": 12242,
+     "airtimeRxSecs": 24961,
+     "noiseFloorDb": -91,
+     "uptimeSeconds": 2216979,
+     "queueLength": 0,
+     "receiveErrors": 12571
+    },
+    {
+     "t": 1794632400000,
+     "batteryMv": 4174,
+     "airtimeTxSecs": 12261,
+     "airtimeRxSecs": 24992,
+     "noiseFloorDb": -92,
+     "uptimeSeconds": 2220579,
+     "queueLength": 0,
+     "receiveErrors": 12593
+    },
+    {
+     "t": 1794636000000,
+     "batteryMv": 4174,
+     "airtimeTxSecs": 12266,
+     "airtimeRxSecs": 25003,
+     "noiseFloorDb": -82,
+     "uptimeSeconds": 2224179,
+     "queueLength": 0,
+     "receiveErrors": 12597
+    },
+    {
+     "t": 1794639600000,
+     "batteryMv": 4174,
+     "airtimeTxSecs": 12270,
+     "airtimeRxSecs": 25010,
+     "noiseFloorDb": -81,
+     "uptimeSeconds": 2227780,
+     "queueLength": 0,
+     "receiveErrors": 12601
+    },
+    {
+     "t": 1794643200000,
+     "batteryMv": 4174,
+     "airtimeTxSecs": 12276,
+     "airtimeRxSecs": 25020,
+     "noiseFloorDb": -97,
+     "uptimeSeconds": 2231380,
+     "queueLength": 0,
+     "receiveErrors": 12609
+    },
+    {
+     "t": 1794646800000,
+     "batteryMv": 4174,
+     "airtimeTxSecs": 12283,
+     "airtimeRxSecs": 25030,
+     "noiseFloorDb": -87,
+     "uptimeSeconds": 2234980,
+     "queueLength": 0,
+     "receiveErrors": 12617
+    },
+    {
+     "t": 1794650400000,
+     "batteryMv": 4174,
+     "airtimeTxSecs": 12291,
+     "airtimeRxSecs": 25044,
+     "noiseFloorDb": -85,
+     "uptimeSeconds": 2238581,
+     "queueLength": 0,
+     "receiveErrors": 12619
+    },
+    {
+     "t": 1794654000000,
+     "batteryMv": 4174,
+     "airtimeTxSecs": 12302,
+     "airtimeRxSecs": 25061,
+     "noiseFloorDb": -85,
+     "uptimeSeconds": 2242181,
+     "queueLength": 0,
+     "receiveErrors": 12634
+    },
+    {
+     "t": 1794657600000,
+     "batteryMv": 4192,
+     "airtimeTxSecs": 12325,
+     "airtimeRxSecs": 25114,
+     "noiseFloorDb": -84,
+     "uptimeSeconds": 2245781,
+     "queueLength": 0,
+     "receiveErrors": 12650
+    },
+    {
+     "t": 1794661200000,
+     "batteryMv": 4174,
+     "airtimeTxSecs": 12342,
+     "airtimeRxSecs": 25139,
+     "noiseFloorDb": -83,
+     "uptimeSeconds": 2249381,
+     "queueLength": 0,
+     "receiveErrors": 12667
+    },
+    {
+     "t": 1794664800000,
+     "batteryMv": 4192,
+     "airtimeTxSecs": 12379,
+     "airtimeRxSecs": 25227,
+     "noiseFloorDb": -85,
+     "uptimeSeconds": 2252982,
+     "queueLength": 0,
+     "receiveErrors": 12723
+    },
+    {
+     "t": 1794668400000,
+     "batteryMv": 4192,
+     "airtimeTxSecs": 12445,
+     "airtimeRxSecs": 25400,
+     "noiseFloorDb": -86,
+     "uptimeSeconds": 2256582,
+     "queueLength": 0,
+     "receiveErrors": 12825
+    },
+    {
+     "t": 1794672000000,
+     "batteryMv": 4192,
+     "airtimeTxSecs": 12473,
+     "airtimeRxSecs": 25465,
+     "noiseFloorDb": -83,
+     "uptimeSeconds": 2260182,
+     "queueLength": 0,
+     "receiveErrors": 12856
+    },
+    {
+     "t": 1794675600000,
+     "batteryMv": 4192,
+     "airtimeTxSecs": 12505,
+     "airtimeRxSecs": 25529,
+     "noiseFloorDb": -86,
+     "uptimeSeconds": 2263783,
+     "queueLength": 0,
+     "receiveErrors": 12890
+    },
+    {
+     "t": 1794679200000,
+     "batteryMv": 4174,
+     "airtimeTxSecs": 12524,
+     "airtimeRxSecs": 25562,
+     "noiseFloorDb": -85,
+     "uptimeSeconds": 2267383,
+     "queueLength": 0,
+     "receiveErrors": 12902
+    },
+    {
+     "t": 1794682800000,
+     "batteryMv": 4192,
+     "airtimeTxSecs": 12533,
+     "airtimeRxSecs": 25579,
+     "noiseFloorDb": -83,
+     "uptimeSeconds": 2270983,
+     "queueLength": 0,
+     "receiveErrors": 12907
+    },
+    {
+     "t": 1794686400000,
+     "batteryMv": 4192,
+     "airtimeTxSecs": 12540,
+     "airtimeRxSecs": 25594,
+     "noiseFloorDb": -89,
+     "uptimeSeconds": 2274584,
+     "queueLength": 0,
+     "receiveErrors": 12915
+    },
+    {
+     "t": 1794690000000,
+     "batteryMv": 4192,
+     "airtimeTxSecs": 12561,
+     "airtimeRxSecs": 25627,
+     "noiseFloorDb": -85,
+     "uptimeSeconds": 2278184,
+     "queueLength": 0,
+     "receiveErrors": 12938
+    },
+    {
+     "t": 1794693600000,
+     "batteryMv": 4174,
+     "airtimeTxSecs": 12575,
+     "airtimeRxSecs": 25650,
+     "noiseFloorDb": -84,
+     "uptimeSeconds": 2281784,
+     "queueLength": 0,
+     "receiveErrors": 12949
+    },
+    {
+     "t": 1794697200000,
+     "batteryMv": 4174,
+     "airtimeTxSecs": 12587,
+     "airtimeRxSecs": 25670,
+     "noiseFloorDb": -91,
+     "uptimeSeconds": 2285384,
+     "queueLength": 0,
+     "receiveErrors": 12961
+    },
+    {
+     "t": 1794700800000,
+     "batteryMv": 4192,
+     "airtimeTxSecs": 12611,
+     "airtimeRxSecs": 25730,
+     "noiseFloorDb": -89,
+     "uptimeSeconds": 2288985,
+     "queueLength": 0,
+     "receiveErrors": 12977
+    },
+    {
+     "t": 1794704400000,
+     "batteryMv": 4192,
+     "airtimeTxSecs": 12632,
+     "airtimeRxSecs": 25768,
+     "noiseFloorDb": -87,
+     "uptimeSeconds": 2292585,
+     "queueLength": 0,
+     "receiveErrors": 13002
+    },
+    {
+     "t": 1794708000000,
+     "batteryMv": 4174,
+     "airtimeTxSecs": 12656,
+     "airtimeRxSecs": 25815,
+     "noiseFloorDb": -90,
+     "uptimeSeconds": 2296185,
+     "queueLength": 0,
+     "receiveErrors": 13025
+    },
+    {
+     "t": 1794711600000,
+     "batteryMv": 4192,
+     "airtimeTxSecs": 12675,
+     "airtimeRxSecs": 25851,
+     "noiseFloorDb": -88,
+     "uptimeSeconds": 2299785,
+     "queueLength": 0,
+     "receiveErrors": 13039
+    },
+    {
+     "t": 1794715200000,
+     "batteryMv": 4192,
+     "airtimeTxSecs": 12692,
+     "airtimeRxSecs": 25881,
+     "noiseFloorDb": -84,
+     "uptimeSeconds": 2303386,
+     "queueLength": 0,
+     "receiveErrors": 13071
+    },
+    {
+     "t": 1794718800000,
+     "batteryMv": 4192,
+     "airtimeTxSecs": 12713,
+     "airtimeRxSecs": 25919,
+     "noiseFloorDb": -90,
+     "uptimeSeconds": 2306986,
+     "queueLength": 0,
+     "receiveErrors": 13093
+    },
+    {
+     "t": 1794722400000,
+     "batteryMv": 4174,
+     "airtimeTxSecs": 12717,
+     "airtimeRxSecs": 25926,
+     "noiseFloorDb": -87,
+     "uptimeSeconds": 2310586,
+     "queueLength": 0,
+     "receiveErrors": 13103
+    },
+    {
+     "t": 1794726000000,
+     "batteryMv": 4174,
+     "airtimeTxSecs": 12722,
+     "airtimeRxSecs": 25932,
+     "noiseFloorDb": -89,
+     "uptimeSeconds": 2314187,
+     "queueLength": 0,
+     "receiveErrors": 13107
+    },
+    {
+     "t": 1794729600000,
+     "batteryMv": 4209,
+     "airtimeTxSecs": 12729,
+     "airtimeRxSecs": 25942,
+     "noiseFloorDb": -88,
+     "uptimeSeconds": 2317787,
+     "queueLength": 0,
+     "receiveErrors": 13114
+    },
+    {
+     "t": 1794733200000,
+     "batteryMv": 4192,
+     "airtimeTxSecs": 12738,
+     "airtimeRxSecs": 25957,
+     "noiseFloorDb": -88,
+     "uptimeSeconds": 2321387,
+     "queueLength": 0,
+     "receiveErrors": 13122
+    },
+    {
+     "t": 1794736800000,
+     "batteryMv": 4174,
+     "airtimeTxSecs": 12747,
+     "airtimeRxSecs": 25970,
+     "noiseFloorDb": -86,
+     "uptimeSeconds": 2324988,
+     "queueLength": 0,
+     "receiveErrors": 13140
+    },
+    {
+     "t": 1794740400000,
+     "batteryMv": 4192,
+     "airtimeTxSecs": 12762,
+     "airtimeRxSecs": 25997,
+     "noiseFloorDb": -93,
+     "uptimeSeconds": 2328588,
+     "queueLength": 0,
+     "receiveErrors": 13153
+    },
+    {
+     "t": 1794744000000,
+     "batteryMv": 4192,
+     "airtimeTxSecs": 12765,
+     "airtimeRxSecs": 26009,
+     "noiseFloorDb": -82,
+     "uptimeSeconds": 2332188,
+     "queueLength": 0,
+     "receiveErrors": 13160
+    },
+    {
+     "t": 1794747600000,
+     "batteryMv": 4192,
+     "airtimeTxSecs": 12810,
+     "airtimeRxSecs": 26106,
+     "noiseFloorDb": -88,
+     "uptimeSeconds": 2335789,
+     "queueLength": 0,
+     "receiveErrors": 13208
+    },
+    {
+     "t": 1794751200000,
+     "batteryMv": 4192,
+     "airtimeTxSecs": 12822,
+     "airtimeRxSecs": 26135,
+     "noiseFloorDb": -86,
+     "uptimeSeconds": 2339389,
+     "queueLength": 0,
+     "receiveErrors": 13222
+    },
+    {
+     "t": 1794754800000,
+     "batteryMv": 4192,
+     "airtimeTxSecs": 12877,
+     "airtimeRxSecs": 26275,
+     "noiseFloorDb": -76,
+     "uptimeSeconds": 2342989,
+     "queueLength": 0,
+     "receiveErrors": 13291
+    },
+    {
+     "t": 1794758400000,
+     "batteryMv": 4174,
+     "airtimeTxSecs": 12959,
+     "airtimeRxSecs": 26480,
+     "noiseFloorDb": -81,
+     "uptimeSeconds": 2346589,
+     "queueLength": 0,
+     "receiveErrors": 13404
+    },
+    {
+     "t": 1794762000000,
+     "batteryMv": 4174,
+     "airtimeTxSecs": 12966,
+     "airtimeRxSecs": 26491,
+     "noiseFloorDb": -84,
+     "uptimeSeconds": 2350190,
+     "queueLength": 0,
+     "receiveErrors": 13413
+    },
+    {
+     "t": 1794765600000,
+     "batteryMv": 4192,
+     "airtimeTxSecs": 12971,
+     "airtimeRxSecs": 26499,
+     "noiseFloorDb": -83,
+     "uptimeSeconds": 2353790,
+     "queueLength": 0,
+     "receiveErrors": 13416
+    },
+    {
+     "t": 1794769200000,
+     "batteryMv": 4174,
+     "airtimeTxSecs": 12975,
+     "airtimeRxSecs": 26505,
+     "noiseFloorDb": -80,
+     "uptimeSeconds": 2357390,
+     "queueLength": 0,
+     "receiveErrors": 13424
+    },
+    {
+     "t": 1794772800000,
+     "batteryMv": 4192,
+     "airtimeTxSecs": 12981,
+     "airtimeRxSecs": 26515,
+     "noiseFloorDb": -82,
+     "uptimeSeconds": 2360991,
+     "queueLength": 0,
+     "receiveErrors": 13432
+    },
+    {
+     "t": 1794776400000,
+     "batteryMv": 4192,
+     "airtimeTxSecs": 12987,
+     "airtimeRxSecs": 26526,
+     "noiseFloorDb": -85,
+     "uptimeSeconds": 2364591,
+     "queueLength": 0,
+     "receiveErrors": 13443
+    },
+    {
+     "t": 1794780000000,
+     "batteryMv": 4174,
+     "airtimeTxSecs": 13001,
+     "airtimeRxSecs": 26552,
+     "noiseFloorDb": -85,
+     "uptimeSeconds": 2368191,
+     "queueLength": 0,
+     "receiveErrors": 13455
+    },
+    {
+     "t": 1794783600000,
+     "batteryMv": 4192,
+     "airtimeTxSecs": 13009,
+     "airtimeRxSecs": 26568,
+     "noiseFloorDb": -86,
+     "uptimeSeconds": 2371792,
+     "queueLength": 0,
+     "receiveErrors": 13460
+    },
+    {
+     "t": 1794787200000,
+     "batteryMv": 4209,
+     "airtimeTxSecs": 13033,
+     "airtimeRxSecs": 26617,
+     "noiseFloorDb": -87,
+     "uptimeSeconds": 2375392,
+     "queueLength": 0,
+     "receiveErrors": 13490
+    },
+    {
+     "t": 1794790800000,
+     "batteryMv": 4192,
+     "airtimeTxSecs": 13056,
+     "airtimeRxSecs": 26660,
+     "noiseFloorDb": -88,
+     "uptimeSeconds": 2378992,
+     "queueLength": 0,
+     "receiveErrors": 13524
+    },
+    {
+     "t": 1794794400000,
+     "batteryMv": 4192,
+     "airtimeTxSecs": 13077,
+     "airtimeRxSecs": 26701,
+     "noiseFloorDb": -94,
+     "uptimeSeconds": 2382592,
+     "queueLength": 0,
+     "receiveErrors": 13550
+    },
+    {
+     "t": 1794798000000,
+     "batteryMv": 4192,
+     "airtimeTxSecs": 13095,
+     "airtimeRxSecs": 26738,
+     "noiseFloorDb": -97,
+     "uptimeSeconds": 2386193,
+     "queueLength": 0,
+     "receiveErrors": 13571
+    },
+    {
+     "t": 1794801600000,
+     "batteryMv": 4192,
+     "airtimeTxSecs": 13118,
+     "airtimeRxSecs": 26785,
+     "noiseFloorDb": -85,
+     "uptimeSeconds": 2389793,
+     "queueLength": 0,
+     "receiveErrors": 13603
+    },
+    {
+     "t": 1794805200000,
+     "batteryMv": 4174,
+     "airtimeTxSecs": 13133,
+     "airtimeRxSecs": 26813,
+     "noiseFloorDb": -87,
+     "uptimeSeconds": 2393393,
+     "queueLength": 0,
+     "receiveErrors": 13620
+    },
+    {
+     "t": 1794808800000,
+     "batteryMv": 4192,
+     "airtimeTxSecs": 13142,
+     "airtimeRxSecs": 26828,
+     "noiseFloorDb": -87,
+     "uptimeSeconds": 2396993,
+     "queueLength": 0,
+     "receiveErrors": 13632
+    },
+    {
+     "t": 1794812400000,
+     "batteryMv": 4192,
+     "airtimeTxSecs": 13146,
+     "airtimeRxSecs": 26834,
+     "noiseFloorDb": -88,
+     "uptimeSeconds": 2400594,
+     "queueLength": 0,
+     "receiveErrors": 13637
+    },
+    {
+     "t": 1794816000000,
+     "batteryMv": 4192,
+     "airtimeTxSecs": 13185,
+     "airtimeRxSecs": 26939,
+     "noiseFloorDb": -89,
+     "uptimeSeconds": 2404194,
+     "queueLength": 0,
+     "receiveErrors": 13702
+    },
+    {
+     "t": 1794819600000,
+     "batteryMv": 4174,
+     "airtimeTxSecs": 13212,
+     "airtimeRxSecs": 26999,
+     "noiseFloorDb": -88,
+     "uptimeSeconds": 2407794,
+     "queueLength": 0,
+     "receiveErrors": 13750
+    },
+    {
+     "t": 1794823200000,
+     "batteryMv": 4209,
+     "airtimeTxSecs": 13220,
+     "airtimeRxSecs": 27013,
+     "noiseFloorDb": -88,
+     "uptimeSeconds": 2411395,
+     "queueLength": 0,
+     "receiveErrors": 13759
+    },
+    {
+     "t": 1794826800000,
+     "batteryMv": 4192,
+     "airtimeTxSecs": 13257,
+     "airtimeRxSecs": 27100,
+     "noiseFloorDb": -86,
+     "uptimeSeconds": 2414995,
+     "queueLength": 0,
+     "receiveErrors": 13806
+    },
+    {
+     "t": 1794830400000,
+     "batteryMv": 4192,
+     "airtimeTxSecs": 13311,
+     "airtimeRxSecs": 27221,
+     "noiseFloorDb": -86,
+     "uptimeSeconds": 2418595,
+     "queueLength": 0,
+     "receiveErrors": 13867
+    },
+    {
+     "t": 1794834000000,
+     "batteryMv": 4192,
+     "airtimeTxSecs": 13329,
+     "airtimeRxSecs": 27249,
+     "noiseFloorDb": -86,
+     "uptimeSeconds": 2422195,
+     "queueLength": 0,
+     "receiveErrors": 13878
+    },
+    {
+     "t": 1794837600000,
+     "batteryMv": 4209,
+     "airtimeTxSecs": 13339,
+     "airtimeRxSecs": 27268,
+     "noiseFloorDb": -86,
+     "uptimeSeconds": 2425796,
+     "queueLength": 0,
+     "receiveErrors": 13887
+    },
+    {
+     "t": 1794841200000,
+     "batteryMv": 4192,
+     "airtimeTxSecs": 13346,
+     "airtimeRxSecs": 27285,
+     "noiseFloorDb": -79,
+     "uptimeSeconds": 2429396,
+     "queueLength": 0,
+     "receiveErrors": 13890
+    },
+    {
+     "t": 1794844800000,
+     "batteryMv": 4174,
+     "airtimeTxSecs": 13360,
+     "airtimeRxSecs": 27313,
+     "noiseFloorDb": -85,
+     "uptimeSeconds": 2432996,
+     "queueLength": 0,
+     "receiveErrors": 13904
+    },
+    {
+     "t": 1794848400000,
+     "batteryMv": 4209,
+     "airtimeTxSecs": 13389,
+     "airtimeRxSecs": 27385,
+     "noiseFloorDb": -87,
+     "uptimeSeconds": 2436597,
+     "queueLength": 0,
+     "receiveErrors": 13932
+    },
+    {
+     "t": 1794852000000,
+     "batteryMv": 4192,
+     "airtimeTxSecs": 13479,
+     "airtimeRxSecs": 27576,
+     "noiseFloorDb": -88,
+     "uptimeSeconds": 2440197,
+     "queueLength": 0,
+     "receiveErrors": 14034
+    },
+    {
+     "t": 1794855600000,
+     "batteryMv": 4174,
+     "airtimeTxSecs": 13496,
+     "airtimeRxSecs": 27608,
+     "noiseFloorDb": -95,
+     "uptimeSeconds": 2443797,
+     "queueLength": 0,
+     "receiveErrors": 14052
+    },
+    {
+     "t": 1794859200000,
+     "batteryMv": 4192,
+     "airtimeTxSecs": 13513,
+     "airtimeRxSecs": 27654,
+     "noiseFloorDb": -84,
+     "uptimeSeconds": 2447398,
+     "queueLength": 0,
+     "receiveErrors": 14072
+    },
+    {
+     "t": 1794862800000,
+     "batteryMv": 4192,
+     "airtimeTxSecs": 13535,
+     "airtimeRxSecs": 27725,
+     "noiseFloorDb": -84,
+     "uptimeSeconds": 2450998,
+     "queueLength": 0,
+     "receiveErrors": 14100
+    },
+    {
+     "t": 1794866400000,
+     "batteryMv": 4174,
+     "airtimeTxSecs": 13549,
+     "airtimeRxSecs": 27797,
+     "noiseFloorDb": -85,
+     "uptimeSeconds": 2454598,
+     "queueLength": 0,
+     "receiveErrors": 14116
+    },
+    {
+     "t": 1794870000000,
+     "batteryMv": 4174,
+     "airtimeTxSecs": 13559,
+     "airtimeRxSecs": 27844,
+     "noiseFloorDb": -80,
+     "uptimeSeconds": 2458199,
+     "queueLength": 0,
+     "receiveErrors": 14123
+    },
+    {
+     "t": 1794873600000,
+     "batteryMv": 4174,
+     "airtimeTxSecs": 13583,
+     "airtimeRxSecs": 27940,
+     "noiseFloorDb": -90,
+     "uptimeSeconds": 2461799,
+     "queueLength": 0,
+     "receiveErrors": 14144
+    },
+    {
+     "t": 1794877200000,
+     "batteryMv": 4192,
+     "airtimeTxSecs": 13610,
+     "airtimeRxSecs": 28023,
+     "noiseFloorDb": -86,
+     "uptimeSeconds": 2465399,
+     "queueLength": 0,
+     "receiveErrors": 14170
+    },
+    {
+     "t": 1794880800000,
+     "batteryMv": 4192,
+     "airtimeTxSecs": 13631,
+     "airtimeRxSecs": 28073,
+     "noiseFloorDb": -96,
+     "uptimeSeconds": 2468999,
+     "queueLength": 0,
+     "receiveErrors": 14199
+    },
+    {
+     "t": 1794884400000,
+     "batteryMv": 4192,
+     "airtimeTxSecs": 13649,
+     "airtimeRxSecs": 28117,
+     "noiseFloorDb": -85,
+     "uptimeSeconds": 2472600,
+     "queueLength": 0,
+     "receiveErrors": 14216
+    },
+    {
+     "t": 1794888000000,
+     "batteryMv": 4174,
+     "airtimeTxSecs": 13670,
+     "airtimeRxSecs": 28170,
+     "noiseFloorDb": -89,
+     "uptimeSeconds": 2476200,
+     "queueLength": 0,
+     "receiveErrors": 14232
+    },
+    {
+     "t": 1794891600000,
+     "batteryMv": 4192,
+     "airtimeTxSecs": 13687,
+     "airtimeRxSecs": 28212,
+     "noiseFloorDb": -89,
+     "uptimeSeconds": 2479800,
+     "queueLength": 0,
+     "receiveErrors": 14253
+    },
+    {
+     "t": 1794895200000,
+     "batteryMv": 4174,
+     "airtimeTxSecs": 13694,
+     "airtimeRxSecs": 28227,
+     "noiseFloorDb": -86,
+     "uptimeSeconds": 2483400,
+     "queueLength": 0,
+     "receiveErrors": 14260
+    },
+    {
+     "t": 1794898800000,
+     "batteryMv": 4174,
+     "airtimeTxSecs": 13705,
+     "airtimeRxSecs": 28257,
+     "noiseFloorDb": -87,
+     "uptimeSeconds": 2487001,
+     "queueLength": 0,
+     "receiveErrors": 14270
+    }
+   ]
+  }
+ }
+}

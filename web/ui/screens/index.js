@@ -5,6 +5,7 @@
 import * as home from './home.js';
 import * as notfound from './notfound.js';
 import { placeholder } from './placeholder.js';
+import * as stats from './stats.js';
 
 export const SCREENS = [
   home,                                           // the overview dashboard (W-18)
@@ -17,6 +18,7 @@ export const SCREENS = [
   placeholder('unlock', 'nav.unlock'),            // start / unlock (W-5)
   placeholder('settings', 'nav.settings'),        // settings; the display settings are the shell's
   placeholder('help', 'nav.help'),                // help (W-8)
+  stats,                                          // one node's statistics: #/stats/<node id> (W-14)
 ];
 
 // The menu, in this order. `node` and `unlock` are reached from other screens and the header.
