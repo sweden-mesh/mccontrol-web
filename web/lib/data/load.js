@@ -2,7 +2,7 @@
 // The JSON files beside this module are generated: never edit them by hand.
 
 export const NAMES = ['brokers', 'cautions', 'commands', 'denylist', 'facts', 'firmware', 'help',
-  'protocol', 'results'];
+  'protocol', 'results', 'areas'];
 
 const cache = new Map();
 
