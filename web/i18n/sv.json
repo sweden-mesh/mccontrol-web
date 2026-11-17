@@ -576,7 +576,7 @@
   "road.silentMesh": "Tystnad över meshen är inget nej: äldre firmware, fel signatur, en upprepning, en avstängd mqtt.cmd.mesh eller nodens minutbudget svarar alla ingenting.",
   "road.help": "Laga en nod över meshen",
   "companion.title": "Companion-radio",
-  "companion.none": "Inte ansluten.",
+  "companion.none": "Companion-radio: inte ansluten.",
   "companion.connecting": "Ansluter. Välj radion i webbläsarens lista.",
   "companion.connected": "Ansluten till {name} via {kind}.",
   "companion.error": "Kunde inte ansluta: {error}",

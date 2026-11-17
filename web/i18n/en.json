@@ -576,7 +576,7 @@
   "road.silentMesh": "Silence over the mesh is not a refusal: older firmware, a bad signature, a replay, a closed mqtt.cmd.mesh or the node's minute budget all say nothing.",
   "road.help": "Repair a node over the mesh",
   "companion.title": "Companion radio",
-  "companion.none": "Not connected.",
+  "companion.none": "Companion radio: not connected.",
   "companion.connecting": "Connecting. Choose the radio in the browser's list.",
   "companion.connected": "Connected to {name} by {kind}.",
   "companion.error": "Could not connect: {error}",
