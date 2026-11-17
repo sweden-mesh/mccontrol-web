@@ -83,15 +83,13 @@ export function stateMark(ctx, state, word = ctx.t(`tile.state.${state}`)) {
     h('span', { class: 'mark-word' }, word));
 }
 
-// "14:02" today, "yesterday", else the date: the RESULTS time column.
+// "14:02" today, else the date ("16 nov"): the RESULTS time column.
 export function clockTime(ctx, at, now = Date.now()) {
   const d = new Date(at);
   const today = new Date(now);
   if (d.toDateString() === today.toDateString()) {
     return d.toLocaleTimeString(ctx.lang, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
   }
-  const y = new Date(now - 86400000);
-  if (d.toDateString() === y.toDateString()) return ctx.t('tile.yesterday');
   return d.toLocaleDateString(ctx.lang, { day: 'numeric', month: 'short' });
 }
 

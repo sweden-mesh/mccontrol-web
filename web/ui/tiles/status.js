@@ -27,7 +27,7 @@ export const title = 'tile.status';
 export const REFRESH_EVERY = 15 * 60000;
 
 export function render(ctx) {
-  const list = h('ul', { class: 'rows status-rows' });
+  const list = h('ul', { class: 'rows status-rows tile-fill' });
   let svcFor = null;      // [owner, services]
   let lastFleet = null;   // newest fleet.fetched among the devices (ms)
   let busy = new Set();
@@ -97,7 +97,7 @@ export function render(ctx) {
     if (status === 'none') return line('key', 'unknown', ctx.t('key.none'), h('a', { href: '#unlock', class: 'status-act' }, ctx.t('tile.makeKey')));
     if (status === 'locked') return line('key', 'warn', ctx.t('key.locked'), h('a', { href: '#unlock', class: 'status-act' }, ctx.t('key.unlock')));
     const after = ks.autoLockMinutes ? ctx.t('tile.locksAfter', { n: ks.autoLockMinutes }) : ctx.t('tile.locksOnClose');
-    return line('key', 'ok', `${ctx.t('key.unlocked')}, ${after}`, act(ctx.t('key.lock'), async () => { await keyring()?.lock(); }));
+    return line('key', 'ok', ctx.t('tile.unlockedShort'), act(ctx.t('key.lock'), async () => { await keyring()?.lock(); }), after);
   }
 
   function registrationLine() {

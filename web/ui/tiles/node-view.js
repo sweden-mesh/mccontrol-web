@@ -13,7 +13,7 @@
 import { h } from '../dom.js';
 import { deriveFacts } from '../../lib/store/index.js';
 import { lastHeard, shortVersion } from '../../lib/jobs/overview.js';
-import { preflight } from '../../lib/jobs/checks.js';
+import { blocker, preflight } from '../../lib/jobs/checks.js';
 import { beaconBase, beaconClient } from '../../lib/stats/beacon.js';
 import { CompanionError } from '../../lib/mesh/companion.js';
 import { meshAfterMins } from '../screens/settings-store.js';
@@ -88,8 +88,8 @@ function commandList(svc) {
 
 export function nodeView(ctx, svc, nodeId, { heading = null } = {}) {
   const head = h('div', { class: 'node-head' });
-  const sparks = h('ul', { class: 'rows facts' });
-  const facts = h('ul', { class: 'rows facts' });
+  const sparks = h('ul', { class: 'rows fact-list' });
+  const facts = h('ul', { class: 'rows fact-list' });
   const log = h('ol', { class: 'rows node-log', 'aria-label': ctx.t('tile.log') });
   const links = h('p', { class: 'row node-links' },
     h('a', { href: `#nodeinfo/${nodeId}` }, ctx.t('tile.details')), ' ',
@@ -171,7 +171,7 @@ function commandLine(ctx, svc, nodeId) {
     spellcheck: 'false', enterkeyhint: 'send', 'aria-describedby': `cl-check-${nodeId}` });
   const prompt = h('label', { class: 'cmd-prompt' });
   const road = h('select', { class: 'road', 'aria-label': ctx.t('road.legend') },
-    ['auto', 'mqtt', 'mesh'].map((r) => h('option', { value: r }, ctx.t(`road.${r}`))));
+    ['auto', 'mqtt', 'mesh'].map((r) => h('option', { value: r }, ctx.t(`tile.road.${r}`))));
   const send = h('button', { type: 'submit', class: 'button cmd-send' }, ctx.t('tile.send'));
   const check = h('p', { class: 'cmd-check', id: `cl-check-${nodeId}`, 'aria-live': 'polite' });
   const companionSlot = h('div', { class: 'cmd-companion' });
@@ -193,9 +193,15 @@ function commandLine(ctx, svc, nodeId) {
     return tags.map((n) => all.find((d) => d.node === n)).filter(Boolean);
   };
 
+  // For several nodes each is checked on its own: one that cannot take the command is left out
+  // (the send says so) and blocks the send only when none can.
   const verdict = () => {
     const to = targets();
-    return preflight(svc.rules, { command: input.value, device: to.length === 1 ? to[0] : null, road: road.value, meshAfterMins: meshAfterMins() });
+    const p = preflight(svc.rules, { command: input.value, device: to[0] || null, road: road.value, meshAfterMins: meshAfterMins() });
+    if (to.length <= 1 || !p.command) return { ...p, skip: [], refuse: [] };
+    const skip = to.map((d) => [d, blocker(svc.rules, { command: p.command, device: d, road: road.value })]).filter(([, x]) => x);
+    const refuse = road.value === 'mqtt' ? to.filter((d) => d.ver && !svc.rules.admits(d.ver, p.command)) : [];
+    return { ...p, block: skip.length === to.length ? skip[0][1] : null, skip, refuse };
   };
 
   function drawPrompt() {
@@ -221,7 +227,10 @@ function commandLine(ctx, svc, nodeId) {
     } else if (p.command && to.length === 1 && p.road?.road === 'mesh') {
       text = p.road.why ? ctx.t('road.willMesh', { why: ctx.t(`road.why.${p.road.why.code}`, p.road.why.vars) }) : ctx.t('road.willMeshPlain');
     } else if (p.command && to.length > 1) {
-      text = ctx.t('send.perNode', { n: to.length });
+      text = [ctx.t('send.perNode', { n: to.length }),
+        p.skip.length ? ctx.t('tile.skipped', { n: p.skip.length, names: p.skip.map(([d]) => nameOf(d)).join(', ') }) : '',
+        p.refuse.length ? ctx.t('send.someRefuse', { n: p.refuse.length, names: p.refuse.map(nameOf).join(', ') }) : ''].filter(Boolean).join(' ');
+      if (p.skip.length || p.refuse.length) kind = 'warn';
     }
     check.textContent = text;
     check.dataset.kind = kind;

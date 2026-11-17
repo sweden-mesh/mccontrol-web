@@ -71,7 +71,7 @@ function fill(ctx, svc, body) {
       'aria-label': ctx.t('tile.tagNode', { name }) });
     box.addEventListener('change', () => ctx.board.toggleTag(d.node));
     const heard = lastHeard(d);
-    const reason = status.reasons[0];
+    const reason = status.reasons.find((r) => r.kind === 'refused' || r.kind === 'forged') || status.reasons[0];
     const reasonText = reason ? ctx.t(`dash.att.${reason.kind}`, reason.vars) : null;
     const button = h('button', { type: 'button', class: 'node-row', 'data-node': d.node, tabindex: d.node === f ? '0' : '-1',
       'aria-current': d.node === selected ? 'true' : null, 'aria-describedby': reasonText ? `why-${d.node}` : null },
@@ -85,8 +85,9 @@ function fill(ctx, svc, body) {
     return h('li', { class: `node-item${tagged ? ' is-tagged' : ''}`, 'data-state': status.state },
       h('label', { class: 'tag-hit' }, box),
       button,
-      reasonText ? h('span', { class: `node-why${status.state === 'alert' ? ' alert' : ''}`, id: `why-${d.node}` },
-        reasonText, status.reasons.length > 1 ? ` ${ctx.t('tile.more', { n: status.reasons.length - 1 })}` : '') : null);
+      reasonText ? h('span', { class: `node-why${status.state === 'alert' ? ' alert' : ''}`, id: `why-${d.node}`,
+        title: status.reasons.map((r) => ctx.t(`dash.att.${r.kind}`, r.vars)).join('; ') },
+      reasonText, status.reasons.length > 1 ? ` ${ctx.t('tile.more', { n: status.reasons.length - 1 })}` : '') : null);
   }
 
   // One tab stop: arrows move the roving focus, Space tags, Enter is the button's own click.

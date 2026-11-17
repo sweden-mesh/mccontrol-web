@@ -6,6 +6,8 @@
 .tile-body { container: tile / inline-size; }
 .tile-fill { font-variant-numeric: tabular-nums; }
 .tile-fill :is(p, li) { max-width: none; }
+/* The screens' .row (node-kit.css) spaces paragraphs; a tile's row is one line, no margin. */
+:is(.tile-fill, .node-modal, .result-modal) .row { margin: 0; }
 .tile-foot { margin: 4px 0 0; min-height: var(--row); display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; }
 .tile-err { color: var(--danger); }
 .tile-fill .link-button { min-height: var(--row); }
@@ -37,32 +39,48 @@
 .node-item { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; column-gap: 4px; }
 .tag-hit { display: inline-flex; align-items: center; justify-content: center; min-width: 24px; min-height: var(--row); cursor: pointer; }
 .tag-box { width: 1rem; height: 1rem; margin: 0; }
-.node-row { grid-template-columns: 11ch minmax(6ch, 1fr) 5ch 7ch 7ch 6ch; }
+/* glyph, word, name, region, firmware, battery, heard. The word drops (still read aloud) under
+   36em, the region under 24em, the firmware under 20em (em: the tile's text, larger on a phone). */
+.node-row { grid-template-columns: 2ch 9ch minmax(6ch, 1fr) 3ch 6ch 6ch 6ch; column-gap: 6px; }
+.node-row .mark { display: contents; }
+.node-row .mark .glyph { grid-column: 1; }
 .node-row[aria-current="true"] { background: var(--surface); box-shadow: inset 3px 0 0 var(--accent); }
 .node-name { font-weight: 600; }
 :is(.node-batt, .node-heard) { text-align: end; }
-.node-why { grid-column: 2; padding: 0 4px 2px calc(11ch + 12px); color: var(--muted); font-size: .9em; min-height: 0; }
-.node-why.alert { padding-block: 2px; }
+.node-why { grid-column: 2; margin-inline-start: calc(2ch + 10px); padding: 0 4px 2px; color: var(--muted); font-size: .9em;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.node-why.alert { padding-block: 2px; color: var(--alert-fg); }
 .node-item[data-state="warn"] .node-why { color: var(--fg); }
-@container tile (width < 34rem) {
-  .node-row { grid-template-columns: 11ch minmax(6ch, 1fr) 7ch 6ch; }
-  :is(.node-reg, .node-ver) { display: none; }
+@container tile (width < 36em) {
+  .node-row { grid-template-columns: 2ch minmax(6ch, 1fr) 3ch 6ch 6ch 6ch; }
+  .node-row .mark-word { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 }
-@container tile (width < 22rem) {
-  .node-row { grid-template-columns: 2ch minmax(6ch, 1fr) 6ch; }
-  .node-row .mark-word, .node-batt { display: none; }
-  .node-why { padding-inline-start: calc(2ch + 12px); }
+@container tile (width < 24em) {
+  .node-row { grid-template-columns: 2ch minmax(6ch, 1fr) 6ch 6ch 6ch; }
+  .node-reg { display: none; }
+}
+@container tile (width < 20em) {
+  .node-row { grid-template-columns: 2ch minmax(6ch, 1fr) 6ch 6ch; }
+  .node-ver { display: none; }
 }
 
 /* NODE: facts, sparklines and the log above, the command line pinned to the bottom. */
 .node-tile, .node-view { height: 100%; }
 .node-view { display: flex; flex-direction: column; min-height: 0; }
 .node-scroll { flex: 1; min-height: 0; overflow: auto; }
-@media (width >= 68.75em) { .tile[data-tile="node"] .tile-body { overflow: hidden; } }
+/* From 1100 px the board fills the window and each tile scrolls inside itself (app.css). The
+   window height has to reach the board for that, and NODE's own display rule must not undo the
+   tile's flex column. */
+@media (width >= 68.75em) {
+  body { height: 100dvh; }
+  main { min-height: 0; }
+  .tile[data-tile="node"] { display: flex; }
+  .tile[data-tile="node"] .tile-body { overflow: hidden; }
+}
 .node-meta { color: var(--muted); flex-wrap: wrap; }
 .rule { border: 0; border-top: 1px dashed var(--line); margin: 4px 0; }
-.fact { display: grid; grid-template-columns: 14ch minmax(0, 1fr) auto; gap: 8px; }
-.spark-row { grid-template-columns: 14ch 9ch 96px minmax(0, 1fr); }
+.fact-list .fact { display: grid; grid-template-columns: 14ch minmax(0, 1fr) auto; gap: 8px; }
+.fact-list .spark-row { grid-template-columns: 14ch 9ch 96px minmax(0, 1fr); }
 .fact-name { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fact-value { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: inherit; }
 .fact-age { text-align: end; white-space: nowrap; }
@@ -76,8 +94,8 @@
 .log-cmd { font-family: inherit; }
 .node-links { gap: 16px; flex-wrap: wrap; }
 @container tile (width < 30rem) {
-  .fact { grid-template-columns: 11ch minmax(0, 1fr) auto; }
-  .spark-row { grid-template-columns: 11ch 8ch 72px; }
+  .fact-list .fact { grid-template-columns: 11ch minmax(0, 1fr) auto; }
+  .fact-list .spark-row { grid-template-columns: 11ch 8ch 72px; }
   .spark-row .fact-age { display: none; }
   .spark { width: 72px; }
   .node-log .log-row { grid-template-columns: minmax(0, 1fr) 10ch auto; }
@@ -91,7 +109,8 @@
   min-height: var(--row); padding: 0 8px; border: 1px solid var(--field-border); border-radius: var(--radius-xs);
   background: var(--bg); color: var(--fg); font: inherit;
 }
-.cmd { flex: 1; min-width: 6ch; }
+.cmd { flex: 1; min-width: 6ch; width: auto; }
+.road { flex: 0 0 auto; width: auto; }
 .cmd-send.button { min-height: var(--row); padding: 0 12px; font-size: inherit; }
 .cmd-check { margin: 4px 0 0; }
 .cmd-check[data-kind="alert"] { background: var(--alert-bg); color: var(--alert-fg); font-weight: 600; padding-inline: 4px; }
@@ -122,10 +141,9 @@
 .result-item.is-new .res-who { font-weight: 600; }
 .result-item.alert.is-new .result-row { background: var(--alert-bg); color: var(--alert-fg); }
 .result-item.alert.is-new .result-row .glyph { color: inherit; }
-@container tile (width < 22rem) {
-  .result-row { grid-template-columns: 6ch minmax(0, 1fr) 2ch; }
-  .result-row :is(.res-what) { display: none; }
-  .result-row .mark-word { display: none; }
+@container tile (width < 28rem) {
+  .result-row { grid-template-columns: 6ch minmax(5ch, 9ch) 2ch minmax(0, 1fr); }
+  .result-row .mark-word { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 }
 .result-reply { white-space: pre-wrap; overflow-wrap: anywhere; padding: 8px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-xs); }
 .result-facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 16px; }
@@ -133,9 +151,8 @@
 .result-facts dd { margin: 0; overflow-wrap: anywhere; }
 
 /* STATUS: name, mark, action. */
-.status-row { display: grid; grid-template-columns: 11ch minmax(0, 1fr) auto; gap: 8px; }
-.status-row .mark { overflow: hidden; text-overflow: ellipsis; }
-.status-row .mark-word { overflow: hidden; text-overflow: ellipsis; }
+.status-row { display: grid; grid-template-columns: 10ch minmax(0, 1fr) auto; gap: 8px; }
+.status-row .mark { white-space: normal; align-items: baseline; }
 .status-act { justify-self: end; white-space: nowrap; }
 .status-acts { display: inline-flex; gap: 12px; justify-self: end; }
 .status-row.alert { padding-inline: 4px; }
@@ -143,11 +160,12 @@
 
 /* MAP: outlines and links recessive, the owner's marks in ink, the selected one ringed. */
 .map-figure { display: flex; justify-content: center; }
-.map-svg { display: block; width: 100%; height: auto; max-height: 22rem; }
+.map-svg { display: block; max-width: 100%; height: auto; }
 @media (width >= 68.75em) {
   .map-tile { display: flex; flex-direction: column; height: 100%; }
-  .map-figure { flex: 1; min-height: 6rem; }
-  .map-svg { height: 100%; max-height: none; }
+  .map-figure { flex: 1; min-height: 6rem; overflow: hidden; }
+  .map-figure.fills .map-svg { position: absolute; }
+  .map-figure.fills { position: relative; }
 }
 .map-outline path { fill: none; stroke: var(--line); stroke-width: 1; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
 .map-links line { stroke: var(--muted); stroke-width: 1; opacity: .45; vector-effect: non-scaling-stroke; }
@@ -160,15 +178,23 @@
 .map-node .mark-x { fill: none; stroke: var(--fg); stroke-width: 2.5; }
 .map-node .ring { fill: none; stroke: var(--accent); stroke-width: 2; vector-effect: non-scaling-stroke; }
 .map-node:focus-visible .hit { stroke: var(--accent); stroke-width: 2; vector-effect: non-scaling-stroke; }
-.map-label { fill: var(--fg); font: 11px var(--font-body); paint-order: stroke; stroke: var(--bg); stroke-width: 3px; stroke-linejoin: round; }
+.map-label { fill: var(--fg); font: 12px var(--font-body); paint-order: stroke; stroke: var(--bg); stroke-width: 3px; stroke-linejoin: round; }
 .map-node.is-selected .map-label { font-weight: 700; }
 .map-caption { font-size: .9em; }
 .map-alt summary { min-height: var(--row); display: flex; align-items: center; cursor: pointer; color: var(--accent); }
 .map-list .row { flex-wrap: wrap; column-gap: 8px; }
 
 /* The node full screen (the phone's "node" modal): the command line in thumb reach. */
+.node-modal-body { container: tile / inline-size; }
 .node-modal .node-view { height: auto; }
 .node-modal .cmd-line { position: sticky; bottom: 0; padding-bottom: calc(8px + env(safe-area-inset-bottom)); z-index: 1; }
+@media (width < 45em) {
+  /* The sheet's height less its close bar: the command line sits at the bottom even when the
+     node has little to show. */
+  .node-modal { display: flex; flex-direction: column; min-height: calc(100dvh - var(--tap) - 17px); }
+  :is(.node-modal-body, .node-modal .node-view) { flex: 1; display: flex; flex-direction: column; }
+  .node-modal .cmd-line { margin-top: auto; }
+}
 .node-modal-title { margin-bottom: 4px; }
 
 @media (forced-colors: active) {

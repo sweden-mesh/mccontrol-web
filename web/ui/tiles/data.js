@@ -7,7 +7,7 @@
 //   isSeen(event, seen), markSeen(seen, ids), markAllSeen(events)   RESULTS: kept until seen
 //   sparkPoints(values, w, h)     a sparkline's SVG points ('' when fewer than 2 known values)
 //   hourly(points, key, now)      24 hourly values of a telemetry field (null where unknown)
-//   frame(points, pad), project(frame, w), outlinePaths(geo, frame, proj)   the MAP's geometry
+//   frame(points, pad), fit(frame, aspect), project(frame, w), outlinePaths(geo, frame, proj)   the MAP
 import { needsAttention, lastHeard } from '../../lib/jobs/overview.js';
 
 export const STATES = Object.freeze(['alert', 'warn', 'unknown', 'ok']);
@@ -116,6 +116,17 @@ export function frame(points, { pad = 0.15, minKm = 30 } = {}) {
   if (e - w < minLng) { const c = (e + w) / 2; w = c - minLng / 2; e = c + minLng / 2; }
   const dl = (n - s) * pad; const dg = (e - w) * pad;
   return { s: s - dl, n: n + dl, w: w - dg, e: e + dg, k };
+}
+
+// The frame widened (in latitude or longitude) to a box `aspect` (width / height) wide, so the map
+// fills its tile without stretching.
+export function fit(f, aspect) {
+  if (!(aspect > 0)) return f;
+  const w = (f.e - f.w) * f.k;
+  const hgt = f.n - f.s;
+  if (w / hgt < aspect) { const extra = (hgt * aspect - w) / f.k / 2; return { ...f, w: f.w - extra, e: f.e + extra }; }
+  const extra = (w / aspect - hgt) / 2;
+  return { ...f, s: f.s - extra, n: f.n + extra };
 }
 
 // An equirectangular projection scaled by cos(latitude), `width` units wide: { x, y, height }.

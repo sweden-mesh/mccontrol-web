@@ -15,14 +15,13 @@ import { lowBatteryVolts, notHeardHours } from '../screens/settings-store.js';
 import { beaconBase } from '../../lib/stats/beacon.js';
 import { nameOf } from '../screens/node-kit.js';
 import { forKey, s, stateMark } from './kit.js';
-import { frame, mapModel, nodeStatus, outlinePaths, project } from './data.js';
+import { fit, frame, mapModel, nodeStatus, outlinePaths, project } from './data.js';
 import { onDataChanged } from './sources.js';
 
 export const id = 'map';
 export const title = 'tile.map';
 
 const MAX_AGE = 15 * 60000;
-const WIDTH = 400;
 let outline = null;
 const areas = new Map();   // region -> { at, promise of rows }
 
@@ -105,13 +104,17 @@ function fill(ctx, svc, body) {
       caption.textContent = failed ? ctx.t('tile.mapBeaconFailed') : ctx.t('tile.mapNoPositions');
       return;
     }
-    const proj = project(f, WIDTH);
+    // Drawn at the figure's own size in pixels, so labels and marks keep their size.
+    const box = figure.getBoundingClientRect();
+    const width = Math.max(200, Math.round(box.width));
+    const height = Math.max(160, Math.round(figure.classList.contains('fills') && box.height > 80 ? box.height : width * 0.7));
+    const proj = project(fit(f, width / height), width);
     const P = (n) => [Number(proj.x(n.lng).toFixed(1)), Number(proj.y(n.lat).toFixed(1))];
     const outlines = geo ? outlinePaths(geo, f, proj) : [];
     const own = new Set(model.links.map(([a]) => a.id));
     const sel = placedMine.find((m) => m.device.node === selected);
     const label = placedMine.length <= 8;
-    const svg = s('svg', { class: 'map-svg', viewBox: `0 0 ${WIDTH} ${proj.height}`, role: 'group', 'aria-labelledby': 'map-caption', preserveAspectRatio: 'xMidYMid meet' },
+    const svg = s('svg', { class: 'map-svg', viewBox: `0 0 ${width} ${proj.height}`, width, height: proj.height, role: 'group', 'aria-labelledby': 'map-caption', preserveAspectRatio: 'xMidYMid meet' },
       s('g', { class: 'map-outline', 'aria-hidden': 'true' }, outlines.map((o) => s('path', { d: o.d }))),
       s('g', { class: 'map-links', 'aria-hidden': 'true' }, model.links.map(([a, b]) => {
         const [x1, y1] = P(a); const [x2, y2] = P(b);
@@ -142,7 +145,16 @@ function fill(ctx, svc, body) {
   }
 
   const redraw = () => draw().catch((e) => { caption.textContent = e.message; });
+  // From 1100 px the figure takes the tile's height (tiles.css); redraw when its size changes.
+  let size = '';
+  const watch = new ResizeObserver(() => {
+    figure.classList.toggle('fills', matchMedia('(width >= 68.75em)').matches);
+    const r = figure.getBoundingClientRect();
+    const next = `${Math.round(r.width / 8)}x${figure.classList.contains('fills') ? Math.round(r.height / 8) : 0}`;
+    if (next !== size) { size = next; redraw(); }
+  });
+  watch.observe(figure);
+  ctx.signal.addEventListener('abort', () => watch.disconnect(), { once: true });
   ctx.board.on((st) => { if (st.what === 'selected') redraw(); });
   ctx.signal.addEventListener('abort', onDataChanged((what) => { if (what !== 'history') redraw(); }), { once: true });
-  redraw();
 }
