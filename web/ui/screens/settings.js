@@ -9,6 +9,7 @@ import {
   setMeshAfterMins, setNotHeardHours, setRegionBroker, validHost, validRegion,
 } from './settings-store.js';
 import { companionControl } from './road-kit.js';
+import { areaPicker } from '../area.js';
 import { loadAll } from '../../lib/data/load.js';
 
 export const route = 'settings';
@@ -87,24 +88,16 @@ function brokersBlock(ctx) {
     h('p', {}, h('a', { href: '#help/ownregion' }, t('settings.brokersHelp'))));
 }
 
-// Sections another stream adds to a tab (the area dropdown, W-20b): fn(ctx) -> element | null.
-const extra = { area: [], warnings: [] };
-export function addSection(tab, fn) {
-  if (!extra[tab]) throw new Error(`no settings tab ${tab}`);
-  extra[tab].push(fn);
-}
-const extras = (tab, ctx) => extra[tab].map((fn) => fn(ctx)).filter(Boolean);
-
 const tabSection = (id, title, ...children) => h('section', { 'aria-labelledby': id, class: 'scr key-screen' },
   h('h2', { id }, title), ...children);
 
-// Setup's "Area and brokers" tab: where commands go (a region's own broker) and the companion
-// radio the mesh road uses.
+// Setup's "Area and brokers" tab: the county (ui/area.js, W-20b), where commands go (a region's
+// own broker) and the companion radio the mesh road uses.
 export function renderArea(ctx) {
   useStyles();
   const { t } = ctx;
   return tabSection('area-title', t('setup.tab.area'),
-    ...extras('area', ctx),
+    block('area-label', t('area.label'), areaPicker(ctx, { id: 'area-choice' })),
     brokersBlock(ctx),
     block('companion-title', t('companion.title'), h('p', {}, t('companion.lede')),
       companionControl(ctx),
@@ -123,8 +116,7 @@ export function renderWarnings(ctx) {
     numberField(ctx, { id: 'not-heard', label: t('settings.notHeard'), unit: t('settings.hoursUnit'), step: 1, limits: LIMITS.notHeardHours,
       value: notHeardHours(), hint: t('settings.notHeardHint', { h: DEFAULTS.notHeardHours }), save: setNotHeardHours }),
     numberField(ctx, { id: 'mesh-after', label: t('settings.meshAfter'), unit: t('settings.minutesUnit'), step: 1, limits: LIMITS.meshAfterMins,
-      value: meshAfterMins(), hint: t('settings.meshAfterHint', { m: DEFAULTS.meshAfterMins }), save: setMeshAfterMins }),
-    ...extras('warnings', ctx));
+      value: meshAfterMins(), hint: t('settings.meshAfterHint', { m: DEFAULTS.meshAfterMins }), save: setMeshAfterMins }));
 }
 
 // The old settings screen (#/settings) is Setup's area tab now; kept for the screen list.

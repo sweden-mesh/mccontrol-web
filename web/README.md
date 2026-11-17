@@ -42,7 +42,7 @@ that says why.
 | `index.html` | the page: the CSP, the status line, `<main>` (the board), the key bar, the modal `<dialog>`, `ui/boot.js`, one module script | shell (W-6, W-20) |
 | `ui/` | `app.js` (shell, ctx, start), `boot.js` (theme before paint, start guard), `routes.js` (hashes, old routes), `board.js` (tile grid, status line, key bar), `board-state.js` (selection, tags), `keys.js`, `statusline.js`, `modal.js` (the modal frame), `prefs.js`, `appearance.js` (display settings form), `key-state.js` (key status interface), `notify.js`, `update.js`, `dom.js` (`h()`) | shell (W-6, W-20) |
 | `ui/tiles/` | one module per board tile (`nodes`, `node`, `status`, `map`, `results`); `index.js` registers them | each tile's owner (W-20) |
-| `ui/modals/` | `index.js` registers every modal (today's screens wrapped as modals), `setup.js` the Setup modal's tabs | shell, then Setup's owner (W-20) |
+| `ui/modals/` | `index.js` registers every modal (today's screens wrapped as modals); `setup.js` the Setup modal's seven tabs; `palette.js` the command palette and the `run` modal, `palette-entries.js` what it lists, `command-help.js` what each command does | shell, then Setup's owner (W-20) |
 | `ui/screens/` | one module per screen of beta.2, shown inside modals until the later waves replace them; `index.js` lists them. `key-session.js` holds the page's one keyring (header state, handle, holds, unlock-and-return links); `settings-store.js` the device's thresholds and brokers per region; `node-services.js` the stores, jobs, releases and fleet for a key; `node-kit.js`/`node-kit.css` and `key-kit.js` the shared pieces | screens (W-5, W-7, W-8, W-9, W-13, W-14, W-15, W-18, W-19) |
 | `styles/` | `tokens.css` (fonts, the four themes' colour tokens), `app.css` (shell: status line, board, tiles, key bar, modal), `key-screens.css` (unlock, key, set-up, settings, help) | shell (W-6, W-20), screens |
 | `fonts/`, `icon*` | IBM Plex (OFL) and the icons, copied from the regional template | shell |
@@ -51,6 +51,8 @@ that says why.
 | `lib/key/` | the key: `handle.js` (seed -> signing handle), storage, unlock, auto-lock, backup, passphrase change | key and security (W-5) |
 | `lib/store/` | IndexedDB stores per key: devices, history, groups, sets, meta | screens (W-7, W-9) |
 | `lib/jobs/` | send, run a set, discover, refresh, update; checks before signing; the overview's sums; Beacon fleet reads (through `lib/stats`); the firmware release list (GitHub) | screens (W-8, W-15, W-18, W-19) |
+| `lib/discovery/` | automatic discovery (`index.js`: on unlock, hourly per region, adds with undo, the broker's caps, mesh-only candidates) and the areas (`areas.js`: county, scope, IATA) | discovery (W-20a, W-20b) |
+| `lib/refresh/` | the status refresh: Beacon every 15 minutes, one signed `ver` per node per day | refresh (W-20e) |
 | `lib/stats/` | the Beacon client and the traffic arithmetic; the page's only Beacon | statistics (W-14) |
 | `lib/qr.js` | QR code, byte mode, level M, for the key screen (no network, no library) | key screen (W-5) |
 | `lib/data/` | `load.js` and the JSON exported from Python (generated: never edit) | W-2 |
@@ -222,7 +224,7 @@ closeModal();                         // back to the board
 Old routes map onto the board and the modals (`ui/routes.js`, `legacyHash`): `#/nodes` -> `#nodes`,
 `#/node/<id>` -> `#node/<id>`, `#/send`, `#/history`, `#/help`, `#/unlock`, `#/stats` likewise;
 `#/key`, `#/setup`, `#/settings`, `#/groups`, `#/sets` -> `#setup/key`, `#setup/node`,
-`#setup/settings`, `#setup/groups`, `#setup/sets`; `#/` -> the board; an unknown one -> `#notfound`.
+`#setup/settings` (Setup's alias for `#setup/area`), `#setup/groups`, `#setup/sets`; `#/` -> the board; an unknown one -> `#notfound`.
 The old screens' own links and `navigate()` calls therefore keep working inside the modals.
 
 ### Keys
@@ -231,8 +233,85 @@ The old screens' own links and `navigate()` calls therefore keep working inside 
 is a `KeyboardEvent.key` (`','`, `'?'`, `':'`, `'/'`, `'Enter'`) or `'ctrl+k'` (Ctrl or Cmd). A
 later binding of the same spec wins until it is unbound. Keys do nothing while focus is in a field
 or a modal is open. `bar: true` puts it in the key bar (on a phone: the big buttons at the bottom),
-by `order`. The shell binds `,` Setup (80) and `?` Help (90); the palette's owner binds `:` and
-`ctrl+k`.
+by `order`. The shell binds `,` Setup (80) and `?` Help (90), and through `bindPaletteKeys(t)` the
+palette's `:` (70, "Commands") and `ctrl+k`.
+
+### Setup and the command palette
+
+Setup (`ui/modals/setup.js`) has seven tabs, each its own address: `#setup/key` (public key, copy,
+QR, broker registration, lock and auto-lock, backup, private key behind the passphrase,
+passphrase, fingerprint, replace), `#setup/node` (put the key on a node: USB, and the lines to type,
+each with a Copy button, W-20h), `#setup/area` (the county, a region's own broker, the companion
+radio), `#setup/groups`, `#setup/sets` (what a set is, when to use one, the shipped example; every
+step says what it does, W-20i), `#setup/warnings` (battery, not heard, mesh road), `#setup/display`.
+`TABS` lists them; `ALIASES` maps the old names (`settings` -> `area`, `setup` -> `node`).
+
+Registration runs by itself (`ui/screens/key-register.js`): when a key is unlocked (made, imported
+or unlocked) that this browser has not registered with every broker it sends to, once per page,
+one signed publish per broker and nothing on the air. `registration()`/`onRegistration(fn)` give
+`{ state: 'none'|'running'|'ok'|'partial'|'failed', hosts: [{ host, state, detail, at }] }`;
+`registerNow()` is the "Register again" button (the Key tab; STATUS may offer it too).
+`brokerProblem(t, message)` / `brokerText(t, message)` turn a broker error from `lib/protocol`
+("cannot reach wss://… (1006)") into the page's words and a next step; use it wherever a broker
+error reaches a person.
+
+The palette (`:` or Ctrl+K on the board) is a non-modal `<dialog popover>` with a combobox: every
+Setup tab, Help, History, lock or unlock, every command line of the exported table with what it
+does (`palette.cmd.<command>` strings, one per table entry in both languages: a test fails when the
+table gains a command without them), the sets, the groups and "every node in a region". It never
+signs: a command or a set opens `#run/cmd/<target>/<command>` or `#run/set/<target>/<set>`, the old
+send form with its checks and confirmations (a region-wide send asks, naming the region and the
+count). `<target>` is `n:ID,ID`, `g:<group>`, `r:<region>` or `-`; the palette takes the tagged
+nodes, else the selected one.
+
+### Discovery, the area and the status refresh
+
+`ui/automation.js` runs them for the page (W-20a, W-20b, W-20e; the shell starts it once). It
+follows the key: Beacon is read with any key (it needs none), discovery and the daily `ver` run only
+while the key is unlocked. The logic is in `lib/discovery/` and `lib/refresh/` (no DOM, tested with a
+fake clock, fake jobs and a fake Beacon); everything they keep is per key, in the key's meta store.
+
+What the STATUS tile reads:
+
+```js
+import { automationState, onAutomation, lookNow, refreshNow, undoDiscovery } from '../automation.js';
+const s = automationState();          // frozen; onAutomation(fn) -> unsubscribe, fn(s) on every change
+s.owner, s.unlocked                   // no owner: no key, nothing runs
+s.area                                // { scb, county, scope, iatas, label: 'Jönköpings län · se-jkp' } | null
+s.discovery.running                   // and .progress { region, elapsed, total, answered } while it runs
+s.discovery.lastRun, .nextRun         // epoch ms or null (nextRun null: locked, stopped or nowhere to look)
+s.discovery.needsArea                 // no area and no node: "choose an area" (link '#setup/area')
+s.discovery.last                      // { at, regions, added: [{ node, name, region }], known, ignored,
+                                      //   rejected: [{ node, region, reason: 'forged'|'keyChanged' }],
+                                      //   failed: [{ region, code, detail }], skipped: [{ region, reason: 'recent'|'cap' }], undone }
+s.discovery.canUndo                   // undoDiscovery() removes them and keeps them out
+s.refresh.running                     // 'beacon' | 'ver' | null
+s.refresh.beacon                      // { lastRun, nextRun, updated, unknown, failed, error }
+s.refresh.ver                         // { lastRun, nextRun, sent: [{ node, name, ok, code }],
+                                      //   skipped: [{ node, name, reason: 'notHeard'|'budget'|'locked' }] }
+s.changed                             // 'key'|'area'|'discovery'|'refresh'|'nodes' ('nodes': reload the list)
+await lookNow();                      // "Look now": skips the cooldown, not the broker caps
+await refreshNow();                   // Beacon now, then `ver` where due
+```
+
+Rules it keeps: discovery at most once an hour per region (`get autoreply` then `get name`, 2 of the
+broker's 5 broadcasts an hour per region), "Look now" at most twice an hour per region, at most 8
+regions an hour per key; the regions are the area's IATA codes and those of every node in the list.
+It never adds a node whose answer failed its signature or whose key changed, nor one removed with
+undo. The daily `ver` goes over MQTT only, never to a mesh-only node, never to one not heard on MQTT
+in the last 2 hours, and never when the node has had 5 or more commands in the last hour (half its
+10 are the owner's). A new firmware on Beacon makes it due at once. Beacon's values are stored on the
+device as `fleet` (battery, seen, firmware, airtime, noise floor, uptime, neighbours and their
+Beacon ids, position, IATA codes); a node Beacon does not know has its fleet cleared.
+
+The area: `areaPicker(ctx, { id })` in `ui/area.js` (a county dropdown showing the scope, saved with a
+button because it starts a discovery), mounted in Setup's `area` tab (`#setup/area`); the status
+line's `area` item links there. The table is `lib/data/areas.json`, exported from `mccontrol/areas.py`,
+which is the regional template's counties (`tests/test_areas.py` compares it with a template
+checkout). Mesh-only nodes: `meshCandidates()` lists the repeaters in the connected companion's
+contacts that are not in the list, `addMeshNode(c)` adds one as mesh-only in the area.
+
+Strings: `area.*`, `disc.*`, `refresh.*`.
 
 ### Themes
 

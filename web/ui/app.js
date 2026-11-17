@@ -32,6 +32,7 @@ import {
 import { drawBoard, drawStatusLine, drawKeyBar } from './board.js';
 import { setStatusItem, statusItems, onStatusChange } from './statusline.js';
 import { bindKey, handleKey, onKeysChange } from './keys.js';
+import { startAutomation } from './automation.js';
 import './tiles/index.js';
 import './modals/index.js';
 
@@ -167,6 +168,8 @@ async function start() {
   useFrame($('modal'), { ctxFor: base, closeLabel: 'Close' });
   await relabel();
   document.documentElement.setAttribute('data-started', '');
+  // Discovery, the area and the status refresh (W-20a, W-20b, W-20e): never in the way of the start.
+  startAutomation({ t: () => t, notify }).catch((err) => console.warn('automatic discovery and refresh are off:', err));
 
   addEventListener('hashchange', () => route());
   route();
