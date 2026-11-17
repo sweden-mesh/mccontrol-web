@@ -232,6 +232,32 @@ test('fingerprint unlock is refused when the browser gives no or a changing secr
   await assert.rejects(none.enableFingerprint(PASS), /cannot unlock with a fingerprint/);
 });
 
+test('changing the passphrase: the old one is needed, then only the new one unlocks', async () => {
+  const { ring: r, storage, clock } = ring({ credentials: fakePasskeys() });
+  const handle = await r.create(PASS);
+  const key = handle.publicKeyHex;
+  await r.enableFingerprint(PASS);
+  const backup = await r.exportBackup(PASS);
+  await assert.rejects(r.changePassphrase('wrong passphrase', 'a new passphrase'));
+  await assert.rejects(r.changePassphrase(PASS, 'short'), /at least 8/);
+  clock.advance(MIN);
+  await r.changePassphrase(PASS, 'a new passphrase');
+  const s = await r.status();
+  assert.equal(s.passphraseChanged, new Date(clock.now()).toISOString());
+  assert.equal(s.gate, 'ok', 'the backup state is kept');
+  assert.equal(s.fingerprint, true, 'the fingerprint copy is kept');
+  assert.equal(s.locked, false, 'changing does not lock');
+  r.lock();
+  await assert.rejects(r.unlock(PASS));
+  assert.equal((await r.unlock('a new passphrase')).publicKeyHex, key);
+  // The backup saved before the change still opens with the old passphrase.
+  assert.equal(toHex(await openSealed(JSON.parse(backup.text), PASS)).length, 64);
+  const [record] = await storage.list();
+  assert.equal(record.wraps.passphrase.public_key, key);
+  r.lock();
+  assert.equal((await r.unlockWithFingerprint()).publicKeyHex, key);
+});
+
 test('listeners hear lock and unlock', async () => {
   const { ring: r } = ring();
   let heard = 0;
