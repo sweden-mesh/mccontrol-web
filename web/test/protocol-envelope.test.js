@@ -25,9 +25,10 @@ test('the constants are the ones Python exports', () => {
     node_hex_len: C.NODE_HEX_LEN, key_hex_len: C.KEY_HEX_LEN, v2_info: C.V2_INFO,
     v2_command_pads: [...C.V2_COMMAND_PADS], r3_pads: [...C.R3_PADS], tag_len: C.TAG_LEN,
     dir_command: C.DIR_COMMAND, dir_result: C.DIR_RESULT, register_topic: C.REGISTER_TOPIC,
-    register_version: C.REGISTER_VERSION, token: { ...C.TOKEN },
+    register_version: C.REGISTER_VERSION, token: { ...C.TOKEN }, mesh: { ...C.MESH },
   };
-  const { _source, ...exported } = p;
+  // keys that start with _ are for the reader (the source, the mesh road's layout in words)
+  const exported = Object.fromEntries(Object.entries(p).filter(([k]) => !k.startsWith('_')));
   assert.deepEqual(pairs, exported);
 });
 

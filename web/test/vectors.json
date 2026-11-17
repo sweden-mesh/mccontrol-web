@@ -2745,18 +2745,6 @@
   ]
  },
  "mesh": {
-  "constants": {
-   "subtype": 193,
-   "cmd_send_anon_req": 57,
-   "max_command": 59,
-   "head": 73,
-   "response_head": 9,
-   "mesh_only_region": "mesh",
-   "clock_set_from": 1735689600,
-   "request": "subtype(1) | counter(4 LE) | expiry(4 LE) | raw Ed25519 signature(64) | command UTF-8; the companion prepends its 4-byte tag",
-   "response": "after the tag: node clock(4 LE, unset below clock_set_from) | counter(4 LE) | code(1) | reply UTF-8, possibly cut inside a character (drop the partial one)",
-   "topic": "meshcore/{REGION upper}/{whole key upper}/cmd, or meshcore/mesh/{key}/cmd on a mesh-only node"
-  },
   "doc_seed": "1112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f30",
   "doc_node_seed": "a0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebf",
   "doc_public_key": "ED54A59FB1AC3A51239351362941B868E85A60E3D7B2485D828821DC7A69C279",
