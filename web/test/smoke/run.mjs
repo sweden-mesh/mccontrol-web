@@ -32,7 +32,7 @@ const WIDTHS = [360, 1280];
 const BOARD_WIDTHS = [1100, 1600];
 const LOOKS = { amber: {}, green: { 'mccontrol.theme': 'green' }, dark: { 'mccontrol.theme': 'dark' }, light: { 'mccontrol.theme': 'light' } };
 // Modals that take an argument are also opened with one: a node id from the fixture.
-const SAMPLE_ARGS = { node: ['13B58595'], stats: ['13B58595'], help: ['signing', 'codes'], unlock: ['replace', 'to/nodes'],
+const SAMPLE_ARGS = { node: ['13B58595'], nodeinfo: ['13B58595'], result: ['none'], stats: ['13B58595'], help: ['signing', 'codes'], unlock: ['replace', 'to/nodes'],
   setup: ['key', 'node', 'settings', 'groups', 'sets', 'display'] };
 // Old routes and where they must land.
 const LEGACY = { '#/nodes': '#nodes', '#/key': '#setup/key', '#/node/13B58595': '#node/13B58595', '#/no-such-page': '#notfound', '#/': '' };

@@ -13,6 +13,8 @@ import * as help from '../screens/help.js';
 import * as stats from '../screens/stats.js';
 import * as notfound from '../screens/notfound.js';
 import { setupModal } from './setup.js';
+import { nodeModal } from '../tiles/node.js';
+import { resultModal } from '../tiles/results.js';
 import { provideTrafficBlock } from '../screens/dashboard.js';
 import { trafficBlock } from '../screens/dashboard-traffic.js';
 
@@ -26,9 +28,13 @@ export const fromScreen = (screen, route = screen.route) => (ctx) => screen.rend
 export const MODALS = [
   { name: 'overview', title: dashboard.title, render: fromScreen(dashboard), closedby: 'any' },
   { name: 'nodes', title: nodes.title, render: fromScreen(nodes) },
-  { name: 'node', title: node.title, render: fromScreen(node) },
+  // #node/<id>: the NODE tile's view full screen (the phone's node, W-20c); beta.2's node screen,
+  // with the firmware update, name, region and forget, is #nodeinfo/<id>.
+  nodeModal,
+  { name: 'nodeinfo', title: node.title, render: fromScreen(node) },
   { name: 'send', title: send.title, render: fromScreen(send) },
   { name: 'history', title: history.title, render: fromScreen(history), closedby: 'any' },
+  resultModal,
   { name: 'unlock', title: unlock.title, render: fromScreen(unlock) },
   { name: 'help', title: help.title, render: fromScreen(help), closedby: 'any' },
   { name: 'stats', title: stats.title, render: fromScreen(stats), closedby: 'any' },
