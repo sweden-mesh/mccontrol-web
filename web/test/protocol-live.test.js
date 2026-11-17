@@ -2,7 +2,7 @@
 //
 // 1. The live command broker (wss://mqtt-meshcore.louie.se/, plan §16): sign in with a token
 //    from a throwaway seed made here, subscribe to that key's register-ack topic and a result
-//    topic, disconnect. Nothing is published there, ever. MCCONTROL_LIVE=0 skips it (offline).
+//    topic, disconnect. Nothing is published there, ever. It runs only with MCCONTROL_LIVE=1, so offline runs and CI stay green.
 // 2. A local mosquitto with a websockets listener, spawned on a free port, for publish and
 //    subscribe round trips. Skipped with a message when mosquitto is not installed.
 import { test } from 'node:test';
@@ -23,7 +23,7 @@ import { data } from './protocol-helpers.js';
 const throwaway = () => keyFromSeed(globalThis.crypto.getRandomValues(new Uint8Array(32)));
 
 test('live broker: token login, register-ack and result topics granted, no publish', {
-  skip: process.env.MCCONTROL_LIVE === '0' ? 'MCCONTROL_LIVE=0' : (!globalThis.WebSocket && 'no WebSocket in this node'),
+  skip: process.env.MCCONTROL_LIVE !== '1' ? 'set MCCONTROL_LIVE=1 to run' : (!globalThis.WebSocket && 'no WebSocket in this node'),
   timeout: 30000,
 }, async () => {
   const handle = throwaway();
