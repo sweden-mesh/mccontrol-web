@@ -9,12 +9,17 @@
 //   brokerConfig(brokers, region)   the connection config for a region (transport.configFor's
 //                       shape): the region's own broker when this device names one, else the
 //                       exported table's, else the shared broker; wss on 443, path "/"
+//   meshAfterMins()     15 unless set: the auto road takes the mesh for a node not heard over
+//                       MQTT this long (W-16)
+//   companionKind()     'bluetooth' | 'usb' | '': how this device reaches the companion radio
 //   onSettingsChange(fn)  fn() after a change here or in another tab
 import { configFor } from '../../lib/protocol/transport.js';
 
-export const DEFAULTS = Object.freeze({ lowBatteryVolts: 3.5, notHeardHours: 24 });
-export const LIMITS = Object.freeze({ lowBatteryVolts: [2.8, 4.4], notHeardHours: [1, 720] });
-const KEYS = { lowBatteryVolts: 'mccontrol.lowBatteryV', notHeardHours: 'mccontrol.notHeardHours', brokers: 'mccontrol.brokers' };
+export const DEFAULTS = Object.freeze({ lowBatteryVolts: 3.5, notHeardHours: 24, meshAfterMins: 15 });
+export const LIMITS = Object.freeze({ lowBatteryVolts: [2.8, 4.4], notHeardHours: [1, 720], meshAfterMins: [1, 1440] });
+const KEYS = { lowBatteryVolts: 'mccontrol.lowBatteryV', notHeardHours: 'mccontrol.notHeardHours', brokers: 'mccontrol.brokers',
+  meshAfterMins: 'mccontrol.meshAfterMins', companionKind: 'mccontrol.companion' };
+export const COMPANION_KINDS = Object.freeze(['bluetooth', 'usb']);
 const EVENT = 'mccontrol:settings';
 const REGION = /^[A-Z0-9]{2,8}$/;
 const HOST = /^(?=.{1,253}(:|$))[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+(:\d{1,5})?$/;
@@ -60,6 +65,19 @@ export const lowBatteryVolts = (store) => number('lowBatteryVolts', store);
 export const notHeardHours = (store) => number('notHeardHours', store);
 export const setLowBatteryVolts = (v, store) => setNumber('lowBatteryVolts', v, store);
 export const setNotHeardHours = (h, store) => setNumber('notHeardHours', h, store);
+
+export const meshAfterMins = (store) => number('meshAfterMins', store);
+export const setMeshAfterMins = (m, store) => setNumber('meshAfterMins', m, store);
+
+export function companionKind(store) {
+  const v = read('companionKind', store);
+  return COMPANION_KINDS.includes(v) ? v : '';
+}
+export function setCompanionKind(kind, store) {
+  if (kind && !COMPANION_KINDS.includes(kind)) throw new RangeError('companion');
+  write('companionKind', kind || null, store);
+  return kind || '';
+}
 
 export function regionBrokers(store) {
   try {

@@ -1,15 +1,16 @@
 // Settings: the display (the shell's form), auto-lock (kept with the key), when the overview warns
-// (low battery, not heard) and a broker per region, the last three on this device only
-// (settings-store.js). Every change applies at once and says so in a status line.
+// (low battery, not heard), a broker per region and the companion radio for the mesh road
+// (W-16), the last four on this device only (settings-store.js). Every change applies at once and says so in a status line.
 import { h } from '../dom.js';
 import { useStyles } from './key-kit.js';
 import { keyring, keyStatus, onKeyStatus } from './key-session.js';
 import { AUTO_LOCK_CHOICES } from '../../lib/key/keyring.js';
 import { autoLockText } from './key.js';
 import {
-  DEFAULTS, LIMITS, lowBatteryVolts, notHeardHours, regionBrokers, removeRegionBroker, setLowBatteryVolts,
-  setNotHeardHours, setRegionBroker, validHost, validRegion,
+  DEFAULTS, LIMITS, lowBatteryVolts, meshAfterMins, notHeardHours, regionBrokers, removeRegionBroker, setLowBatteryVolts,
+  setMeshAfterMins, setNotHeardHours, setRegionBroker, validHost, validRegion,
 } from './settings-store.js';
+import { companionControl } from './road-kit.js';
 import { loadAll } from '../../lib/data/load.js';
 
 export const route = 'settings';
@@ -126,5 +127,10 @@ export function render(ctx) {
         value: lowBatteryVolts(), hint: t('settings.lowBatteryHint', { v: DEFAULTS.lowBatteryVolts }), save: setLowBatteryVolts }),
       numberField(ctx, { id: 'not-heard', label: t('settings.notHeard'), unit: t('settings.hoursUnit'), step: 1, limits: LIMITS.notHeardHours,
         value: notHeardHours(), hint: t('settings.notHeardHint', { h: DEFAULTS.notHeardHours }), save: setNotHeardHours })),
-    brokersBlock(ctx));
+    brokersBlock(ctx),
+    block('companion-title', t('companion.title'), h('p', {}, t('companion.lede')),
+      companionControl(ctx),
+      numberField(ctx, { id: 'mesh-after', label: t('settings.meshAfter'), unit: t('settings.minutesUnit'), step: 1, limits: LIMITS.meshAfterMins,
+        value: meshAfterMins(), hint: t('settings.meshAfterHint', { m: DEFAULTS.meshAfterMins }), save: setMeshAfterMins }),
+      h('p', {}, h('a', { href: '#/help/mesh' }, t('road.help')))));
 }

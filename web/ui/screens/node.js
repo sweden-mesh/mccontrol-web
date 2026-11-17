@@ -90,17 +90,23 @@ function editForm(ctx, svc, device, redraw) {
   const region = h('input', { type: 'text', value: device.region, autocomplete: 'off', maxlength: '8', class: 'short' });
   const notes = h('textarea', { rows: '3' });
   notes.value = device.notes || '';
+  // W-16: whether the node is mesh only (no Wi-Fi, no MQTT); by default its version says
+  const meshOnly = h('select', {},
+    ['auto', 'yes', 'no'].map((v) => h('option', { value: v }, ctx.t(`node.meshOnly.${v}`, { guess: ctx.t(svc.rules.meshOnly(device.ver) ? 'node.meshOnly.yes' : 'node.meshOnly.no') }))));
+  meshOnly.value = device.meshOnly === true ? 'yes' : device.meshOnly === false ? 'no' : 'auto';
   const out = h('p', { 'aria-live': 'polite' });
   const forget = h('button', { type: 'button', class: 'tool tool-danger' }, ctx.t('node.forget'));
   const form = h('form', { class: 'stack' },
     field(ctx.t('nodes.name'), name, ctx.t('node.nameHint')),
     field(ctx.t('nodes.region'), region, ctx.t('node.regionHint')),
     field(ctx.t('node.notes'), notes),
+    field(ctx.t('node.meshOnlyLabel'), meshOnly, ctx.t('node.meshOnlyHint')),
     h('div', { class: 'row wrap' }, h('button', { type: 'submit', class: 'button' }, ctx.t('node.save')), forget), out);
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     try {
-      await svc.stores.devices.update(device.node, { name: name.value, region: region.value, notes: notes.value.trim() });
+      await svc.stores.devices.update(device.node, { name: name.value, region: region.value, notes: notes.value.trim(),
+        meshOnly: { yes: true, no: false }[meshOnly.value] ?? null });
       out.textContent = ctx.t('node.saved');
       redraw();
     } catch (err) { out.textContent = err.message; }
@@ -144,7 +150,7 @@ export function render(ctx) {
       const recent = events.slice(0, 8).map((e) => {
         const x = explainEvent(ctx, svc, e);
         return h('li', { class: `res res-${x.kind}` }, h('span', { class: 'res-name' }, when(ctx, e.at)), outcomeTag(ctx, x.kind),
-          ...resLine(x, e.command));
+          ...resLine(x, e.command), e.road === 'mesh' ? h('span', { class: 'res-help road-mark' }, ctx.t('road.overMesh')) : null);
       });
       if (!panel) {
         panel = sendPanel(ctx, svc, { devices: [device] }, { onDone: () => draw() });
