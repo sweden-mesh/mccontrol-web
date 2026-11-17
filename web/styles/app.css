@@ -145,6 +145,8 @@ main:focus { outline: none; }
 .foot { margin: 0; color: var(--muted); }
 @media (width < 45em) {
   body { padding-bottom: calc(var(--tap) + 16px + env(safe-area-inset-bottom)); }
+  /* A focused row is scrolled clear of the fixed bar, not behind it. */
+  html { scroll-padding-bottom: calc(var(--tap) + 24px + env(safe-area-inset-bottom)); }
   .keys {
     position: fixed; inset: auto 0 0 0; z-index: 10; margin: 0; gap: 8px;
     display: grid; grid-auto-flow: column; grid-auto-columns: 1fr;

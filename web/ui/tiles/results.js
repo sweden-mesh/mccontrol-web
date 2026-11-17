@@ -127,15 +127,16 @@ export const resultModal = Object.freeze({
       const pair = (k, v) => (v === null || v === undefined || v === '' ? null : [h('dt', {}, k), h('dd', {}, v)]);
       const open = e.node ? h('button', { type: 'button', class: 'tool' }, ctx.t('tile.openOnBoard', { name: who })) : null;
       open?.addEventListener('click', () => { setSelected(e.node); if (matchMedia('(width < 45em)').matches) ctx.modal.open('node', e.node); else ctx.close(); });
+      const signature = e.verified === true ? ctx.t('send.res.signed') : e.verified === false ? ctx.t('send.res.forged') : e.code === null ? null : ctx.t('send.res.unsigned');
       body.replaceChildren(
         h('p', { class: `row${KIND_STATE[kind] === 'alert' ? ' alert' : ''}` }, stateMark(ctx, KIND_STATE[kind], ctx.t(`history.kind.${kind}`))),
         e.reply ? h('pre', { class: 'result-reply' }, e.reply) : null,
-        x.help ? h('p', {}, x.help) : null,
+        x.help && x.help !== signature ? h('p', {}, x.help) : null,   // said once, in the facts, when it is the signature
         h('dl', { class: 'facts result-facts' },
           pair(ctx.t('tile.when'), h('time', { datetime: at.toISOString() }, at.toLocaleString(ctx.lang))),
           pair(ctx.t('tile.command'), h('code', {}, e.command)),
           pair(ctx.t('tile.code'), e.code === null ? null : `${e.code}${e.codeName ? ` ${e.codeName}` : ''}`),
-          pair(ctx.t('tile.signature'), e.verified === true ? ctx.t('send.res.signed') : e.verified === false ? ctx.t('send.res.forged') : e.code === null ? null : ctx.t('send.res.unsigned')),
+          pair(ctx.t('tile.signature'), signature),
           pair(ctx.t('tile.road'), ctx.t(e.road === 'mesh' ? 'tile.roadMesh' : 'tile.roadMqtt')),
           pair(ctx.t('tile.topic'), e.topic ? h('code', {}, e.topic) : null)),
         h('p', { class: 'row wrap' }, open, e.node ? h('a', { class: 'tool', href: `#history/${e.node}` }, ctx.t('tile.history')) : null));

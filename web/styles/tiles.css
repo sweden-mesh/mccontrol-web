@@ -83,7 +83,8 @@
   .tile[data-tile="node"] { display: flex; }
   .tile[data-tile="node"] .tile-body { overflow: hidden; }
 }
-.node-meta { color: var(--muted); flex-wrap: wrap; }
+.node-meta { color: var(--muted); flex-wrap: wrap; column-gap: .5em; }
+.meta-part { white-space: nowrap; }
 .rule { border: 0; border-top: 1px dashed var(--line); margin: 4px 0; }
 .fact-list .fact { display: grid; grid-template-columns: 14ch minmax(0, 1fr) auto; gap: 8px; }
 .fact-list .spark-row { grid-template-columns: 14ch 9ch 96px minmax(0, 1fr); }
@@ -205,6 +206,8 @@
   .node-modal { display: flex; flex-direction: column; min-height: calc(100dvh - var(--tap) - 17px); }
   :is(.node-modal-body, .node-modal .node-view) { flex: 1; display: flex; flex-direction: column; }
   .node-modal .cmd-line { margin-top: auto; }
+  /* The sheet scrolls; a focused line stays clear of the pinned command line. */
+  .modal:has(.node-modal) { scroll-padding-bottom: 7rem; }
 }
 .node-modal-title { margin-bottom: 4px; }
 
