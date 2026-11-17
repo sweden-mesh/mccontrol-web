@@ -7,6 +7,7 @@
 //   const c = await openCompanion(link)        // app start; c.self = { publicKey, name }
 //   await c.contact(keyHex)                    // { name, hops } (hops -1: no path, floods) | null
 //   await c.addContact(keyHex, name)
+//   await c.contacts()                         // [{ publicKey, type, name, hops }]
 //   const sent = await c.send(keyHex, body)    // { tag, flood, timeoutMs }
 //   const data = await c.response(sent.tag, ms, signal)   // the bytes after the tag, or null
 //
@@ -120,6 +121,12 @@ export async function openCompanion(link, { appName = 'mccontrol', timeoutMs = C
         return hit ? asContact(hit) : null;
       }
       throw new CompanionError(`the companion could not look the node up (error ${f.error ?? f.code})`, 'refused');
+    },
+
+    // Every contact the companion holds: [{ publicKey, type, name, hops }] (type 2: a repeater).
+    // Reads the radio's own list; nothing is transmitted (W-20a: mesh-only nodes).
+    async contacts() {
+      return (await askList(getContacts())).map((f) => ({ publicKey: f.publicKey, type: f.type, name: f.name, hops: f.hops }));
     },
 
     async addContact(keyHex, name) {
