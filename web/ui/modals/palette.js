@@ -91,7 +91,7 @@ function draw() {
   e.hint ? h('span', { class: 'palette-hint' }, e.hint) : null)));
   const active = p.shown[p.active];
   if (active) p.input.setAttribute('aria-activedescendant', active.id); else p.input.removeAttribute('aria-activedescendant');
-  p.count.textContent = p.shown.length ? strings('palette.count', { n: p.shown.length }) : strings('palette.none');
+  p.count.textContent = p.shown.length ? strings(p.shown.length === 1 ? 'palette.countOne' : 'palette.count', { n: p.shown.length }) : strings('palette.none');
 }
 
 function move(by) {

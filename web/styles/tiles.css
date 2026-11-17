@@ -59,8 +59,14 @@
   .node-row { grid-template-columns: 2ch minmax(6ch, 1fr) 6ch 6ch 6ch; }
   .node-reg { display: none; }
 }
-@container tile (width < 20em) {
+/* Under 23em the battery goes too (a low one is the row's second line), so a name such as
+   SE-JKG-Ekbacken still shows whole on a phone; under 20em the firmware. */
+@container tile (width < 23em) {
   .node-row { grid-template-columns: 2ch minmax(6ch, 1fr) 6ch 6ch; }
+  .node-batt { display: none; }
+}
+@container tile (width < 20em) {
+  .node-row { grid-template-columns: 2ch minmax(6ch, 1fr) 6ch; }
   .node-ver { display: none; }
 }
 
@@ -77,7 +83,8 @@
   .tile[data-tile="node"] { display: flex; }
   .tile[data-tile="node"] .tile-body { overflow: hidden; }
 }
-.node-meta { color: var(--muted); flex-wrap: wrap; }
+.node-meta { color: var(--muted); flex-wrap: wrap; column-gap: .5em; }
+.meta-part { white-space: nowrap; }
 .rule { border: 0; border-top: 1px dashed var(--line); margin: 4px 0; }
 .fact-list .fact { display: grid; grid-template-columns: 14ch minmax(0, 1fr) auto; gap: 8px; }
 .fact-list .spark-row { grid-template-columns: 14ch 9ch 96px minmax(0, 1fr); }
@@ -112,6 +119,11 @@
 .cmd { flex: 1; min-width: 6ch; width: auto; }
 .road { flex: 0 0 auto; width: auto; }
 .cmd-send.button { min-height: var(--row); padding: 0 12px; font-size: inherit; }
+/* A narrow node view (the phone's sheet): the prompt on its own line, the field gets the width. */
+@container tile (width < 30rem) {
+  .cmd-row { flex-wrap: wrap; row-gap: 4px; }
+  .cmd-prompt { flex-basis: 100%; max-width: none; }
+}
 .cmd-check { margin: 4px 0 0; }
 .cmd-check[data-kind="alert"] { background: var(--alert-bg); color: var(--alert-fg); font-weight: 600; padding-inline: 4px; }
 .cmd-check[data-kind="warn"] { color: var(--warn); }
@@ -194,6 +206,8 @@
   .node-modal { display: flex; flex-direction: column; min-height: calc(100dvh - var(--tap) - 17px); }
   :is(.node-modal-body, .node-modal .node-view) { flex: 1; display: flex; flex-direction: column; }
   .node-modal .cmd-line { margin-top: auto; }
+  /* The sheet scrolls; a focused line stays clear of the pinned command line. */
+  .modal:has(.node-modal) { scroll-padding-bottom: 7rem; }
 }
 .node-modal-title { margin-bottom: 4px; }
 

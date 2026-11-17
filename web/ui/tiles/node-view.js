@@ -112,10 +112,12 @@ export function nodeView(ctx, svc, nodeId, { heading = null } = {}) {
     line.use(device);
     const events = await svc.stores.history.list({ node: device.node, limit: 60 });
     const heard = lastHeard(device);
+    // Each part keeps its dot at its end, so a wrapped line never starts with one.
+    const meta = [device.region, device.ver ? shortVersion(svc.rules, device.ver) : ctx.t('nodes.verUnknown'),
+      [`${ctx.t('tile.heard')} `, heard ? age(ctx, heard) : ctx.t('nodes.heardUnknown')],
+      device.key && svc.rules.speaksV2(device.ver) ? ctx.t('tile.v2') : ctx.t('tile.v1')];
     head.replaceChildren(h('p', { class: 'row node-meta' },
-      [device.region, device.ver ? shortVersion(svc.rules, device.ver) : ctx.t('nodes.verUnknown')].join(' · '), ' · ',
-      ctx.t('tile.heard'), ' ', heard ? age(ctx, heard) : ctx.t('nodes.heardUnknown'), ' · ',
-      device.key && svc.rules.speaksV2(device.ver) ? ctx.t('tile.v2') : ctx.t('tile.v1')));
+      meta.map((m, i) => h('span', { class: 'meta-part' }, m, i < meta.length - 1 ? '\u00a0·' : ''))));
     // facts with their age, the configured labels first
     const { facts: f, raw } = deriveFacts(device, events, svc.rules.parseFacts);
     const order = svc.data.facts.labels.map(([k]) => k);

@@ -29,7 +29,7 @@ import { fileURLToPath } from 'node:url';
 const HERE = fileURLToPath(new URL('.', import.meta.url));
 const WIDTHS = [360, 1280];
 // The board alone is also drawn at the grid's other widths.
-const BOARD_WIDTHS = [1100, 1600];
+const BOARD_WIDTHS = [390, 1100, 1600];
 const LOOKS = { amber: {}, green: { 'mccontrol.theme': 'green' }, dark: { 'mccontrol.theme': 'dark' }, light: { 'mccontrol.theme': 'light' } };
 // Modals that take an argument are also opened with one: a node id from the fixture.
 const SAMPLE_ARGS = { node: ['13B58595'], nodeinfo: ['13B58595'], result: ['none'], stats: ['13B58595'], help: ['signing', 'codes'], unlock: ['replace', 'to/nodes'],

@@ -13,7 +13,7 @@ export const title = 'tile.node';
 export function render(ctx) {
   const body = h('div', { class: 'tile-fill node-tile' });
   forKey(ctx, body, (svc) => {
-    let shown = null;
+    let shown;                 // undefined until the first draw, so "no node selected" is drawn too
     let leave = null;
     const draw = () => {
       const sel = ctx.board.selected();

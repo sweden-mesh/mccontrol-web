@@ -11,7 +11,7 @@ import { lowBatteryVolts, notHeardHours } from '../screens/settings-store.js';
 import { lastHeard, shortVersion } from '../../lib/jobs/overview.js';
 import { nameOf } from '../screens/node-kit.js';
 import { age, everyMinute, forKey, stateMark, volts } from './kit.js';
-import { byAttention, matches, nodeStatus } from './data.js';
+import { byAttention, matches, nodeStatus, sharedPrefix } from './data.js';
 import { onDataChanged } from './sources.js';
 
 export const id = 'nodes';
@@ -55,17 +55,20 @@ function fill(ctx, svc, body) {
     const selected = ctx.board.selected();
     const tags = new Set(ctx.board.tagged());
     if (!focusId || !shown.some((r) => r.device.node === focusId)) focusId = selected && shown.some((r) => r.device.node === selected) ? selected : shown[0]?.device.node;
-    list.replaceChildren(...(shown.length ? shown.map((r) => row(ctx, svc, r, { now, selected, tags, focusId }))
+    const prefix = sharedPrefix(devices.map(nameOf));
+    list.replaceChildren(...(shown.length ? shown.map((r) => row(ctx, svc, r, { now, selected, tags, focusId, prefix }))
       : [h('li', { class: 'row muted', role: 'status' }, ctx.t('nodes.noMatch'))]));
     foot.textContent = [
-      shown.length === devices.length ? ctx.t('tile.nodesCount', { n: devices.length }) : ctx.t('nodes.count', { n: shown.length, of: devices.length }),
+      shown.length === devices.length ? ctx.t(devices.length === 1 ? 'tile.nodesCountOne' : 'tile.nodesCount', { n: devices.length }) : ctx.t('nodes.count', { n: shown.length, of: devices.length }),
       tags.size ? ctx.t('tile.taggedCount', { n: tags.size }) : ctx.t('tile.nodesKeys'),
     ].join(' · ');
   }
 
   // A row: [tag box] [button: glyph word · name · region · firmware · battery · heard] [reason]
-  function row(ctx, svc, { device: d, status }, { now, selected, tags, focusId: f }) {
+  function row(ctx, svc, { device: d, status }, { now, selected, tags, focusId: f, prefix = '' }) {
     const name = nameOf(d);
+    // The part that tells it apart: what every name shares at the start says nothing (data.js).
+    const short = prefix && name.startsWith(prefix) ? name.slice(prefix.length) : name;
     const tagged = tags.has(d.node);
     const box = h('input', { type: 'checkbox', class: 'tag-box', checked: tagged, tabindex: '-1',
       'aria-label': ctx.t('tile.tagNode', { name }) });
@@ -76,7 +79,7 @@ function fill(ctx, svc, body) {
     const button = h('button', { type: 'button', class: 'node-row', 'data-node': d.node, tabindex: d.node === f ? '0' : '-1',
       'aria-current': d.node === selected ? 'true' : null, 'aria-describedby': reasonText ? `why-${d.node}` : null },
     stateMark(ctx, status.state),
-    h('span', { class: 'node-name' }, name),
+    h('span', { class: 'node-name', title: name }, short),
     h('span', { class: 'node-reg' }, d.region),
     h('span', { class: 'node-ver' }, d.ver ? shortVersion(svc.rules, d.ver) : '–'),
     h('span', { class: 'node-batt' }, volts(d.fleet?.batteryMv)),

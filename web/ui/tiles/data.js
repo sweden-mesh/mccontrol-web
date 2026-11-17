@@ -31,6 +31,19 @@ export function byAttention(rows, lang = 'sv') {
     || name(a.device).localeCompare(name(b.device), lang));
 }
 
+// What the owner's node names share at the start, up to and including a '-', '_' or ' ' (e.g.
+// 'SE-JKG-' for SE-JKG-Ekbacken and SE-JKG-Torpa), so a narrow column can show the part that
+// tells them apart. '' for fewer than two names or nothing shared.
+export function sharedPrefix(names) {
+  const list = names.filter(Boolean);
+  if (list.length < 2) return '';
+  let p = list[0];
+  for (const n of list) while (!n.startsWith(p)) p = p.slice(0, -1);
+  const cut = Math.max(p.lastIndexOf('-'), p.lastIndexOf('_'), p.lastIndexOf(' '));
+  const prefix = p.slice(0, cut + 1);
+  return list.every((n) => n.length > prefix.length) ? prefix : '';
+}
+
 export function matches(device, query) {
   const q = String(query || '').trim().toLowerCase();
   if (!q) return true;

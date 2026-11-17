@@ -11,7 +11,7 @@ import { setSelected } from '../board-state.js';
 import { explainEvent, nameOf } from '../screens/node-kit.js';
 import { resultKind } from '../../lib/store/index.js';
 import { clockTime, everyMinute, forKey, stateMark } from './kit.js';
-import { isSeen, markAllSeen, markSeen } from './data.js';
+import { isSeen, markAllSeen, markSeen, sharedPrefix } from './data.js';
 import { jobs, onDataChanged, onJobs } from './sources.js';
 
 export const id = 'results';
@@ -47,7 +47,10 @@ function fill(ctx, svc, body) {
     const [all, devices, seen] = await Promise.all([
       svc.stores.history.list({ limit: 200 }), svc.stores.devices.list(), svc.stores.meta.get('resultsSeen')]);
     if (ctx.signal.aborted) return;
-    const names = Object.fromEntries(devices.map((d) => [d.node, nameOf(d)]));
+    // The column is narrow: the part of each name that tells it apart (the whole one in its title).
+    const full = Object.fromEntries(devices.map((d) => [d.node, nameOf(d)]));
+    const prefix = sharedPrefix(Object.values(full));
+    const names = Object.fromEntries(Object.entries(full).map(([k, v]) => [k, v.startsWith(prefix) ? v.slice(prefix.length) : v]));
     events = all;
     const fresh = all.filter((e) => !isSeen(e, seen));
     const old = all.filter((e) => isSeen(e, seen)).slice(0, Math.max(0, SHOWN - fresh.length));
@@ -61,7 +64,7 @@ function fill(ctx, svc, body) {
       const what = kind === 'ok' ? x.text : kind === 'refused' ? x.text : kind === 'summary' ? e.note : '';
       const button = h('button', { type: 'button', class: 'result-row', 'data-id': e.id },
         h('span', { class: 'res-time' }, clockTime(ctx, e.at, now)),
-        h('span', { class: 'res-who' }, who),
+        h('span', { class: 'res-who', title: e.node ? full[e.node] || e.node : e.region }, who),
         stateMark(ctx, KIND_STATE[kind], ctx.t(`history.kind.${kind}`)),
         h('span', { class: 'res-what' }, h('code', {}, e.command), what ? ` ${what}` : ''),
         isNew ? h('span', { class: 'visually-hidden' }, ctx.t('tile.new')) : null);
@@ -124,15 +127,16 @@ export const resultModal = Object.freeze({
       const pair = (k, v) => (v === null || v === undefined || v === '' ? null : [h('dt', {}, k), h('dd', {}, v)]);
       const open = e.node ? h('button', { type: 'button', class: 'tool' }, ctx.t('tile.openOnBoard', { name: who })) : null;
       open?.addEventListener('click', () => { setSelected(e.node); if (matchMedia('(width < 45em)').matches) ctx.modal.open('node', e.node); else ctx.close(); });
+      const signature = e.verified === true ? ctx.t('send.res.signed') : e.verified === false ? ctx.t('send.res.forged') : e.code === null ? null : ctx.t('send.res.unsigned');
       body.replaceChildren(
         h('p', { class: `row${KIND_STATE[kind] === 'alert' ? ' alert' : ''}` }, stateMark(ctx, KIND_STATE[kind], ctx.t(`history.kind.${kind}`))),
         e.reply ? h('pre', { class: 'result-reply' }, e.reply) : null,
-        x.help ? h('p', {}, x.help) : null,
+        x.help && x.help !== signature ? h('p', {}, x.help) : null,   // said once, in the facts, when it is the signature
         h('dl', { class: 'facts result-facts' },
           pair(ctx.t('tile.when'), h('time', { datetime: at.toISOString() }, at.toLocaleString(ctx.lang))),
           pair(ctx.t('tile.command'), h('code', {}, e.command)),
           pair(ctx.t('tile.code'), e.code === null ? null : `${e.code}${e.codeName ? ` ${e.codeName}` : ''}`),
-          pair(ctx.t('tile.signature'), e.verified === true ? ctx.t('send.res.signed') : e.verified === false ? ctx.t('send.res.forged') : e.code === null ? null : ctx.t('send.res.unsigned')),
+          pair(ctx.t('tile.signature'), signature),
           pair(ctx.t('tile.road'), ctx.t(e.road === 'mesh' ? 'tile.roadMesh' : 'tile.roadMqtt')),
           pair(ctx.t('tile.topic'), e.topic ? h('code', {}, e.topic) : null)),
         h('p', { class: 'row wrap' }, open, e.node ? h('a', { class: 'tool', href: `#history/${e.node}` }, ctx.t('tile.history')) : null));

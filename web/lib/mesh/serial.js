@@ -6,10 +6,41 @@ import { SERIAL_BAUD, serialDeframer, serialFrame } from './frames.js';
 
 export const serialAvailable = (nav = globalThis.navigator) => Boolean(nav?.serial?.requestPort);
 
-export async function connectSerial({ serial = globalThis.navigator?.serial, baudRate = SERIAL_BAUD } = {}) {
+// DTR and RTS after open (W-21). Chrome opens a port with both asserted; on an ESP32-S3's native
+// USB (USB-Serial/JTAG, e.g. the Heltec V4) those are esptool's reset and boot lines, and the
+// board boot-loops until its reset button is pressed. Both are dropped right after open. A bench
+// override in the address, ?usbsignals=dtr0rts0|dtr1rts0|dtr0rts1|dtr1rts1|none, tries the other
+// combinations ('none' leaves the browser's defaults).
+export const USB_SIGNALS = Object.freeze({
+  dtr0rts0: { dataTerminalReady: false, requestToSend: false },
+  dtr1rts0: { dataTerminalReady: true, requestToSend: false },
+  dtr0rts1: { dataTerminalReady: false, requestToSend: true },
+  dtr1rts1: { dataTerminalReady: true, requestToSend: true },
+  none: null,
+});
+export const DEFAULT_USB_SIGNALS = 'dtr0rts0';
+
+// The signals to set for an address's query string: the default when absent or unknown.
+export function usbSignals(search = globalThis.location?.search || '') {
+  let choice = null;
+  try { choice = new URLSearchParams(search).get('usbsignals'); } catch { /* not a query */ }
+  const name = Object.hasOwn(USB_SIGNALS, choice || '') ? choice : DEFAULT_USB_SIGNALS;
+  return { name, signals: USB_SIGNALS[name] };
+}
+
+// Open `port` and set the chosen signals at once. A browser without setSignals keeps its defaults.
+export async function openQuiet(port, baudRate, search) {
+  await port.open({ baudRate });
+  const { signals } = usbSignals(search);
+  if (signals && typeof port.setSignals === 'function') {
+    try { await port.setSignals(signals); } catch { /* the port refused: keep going with its defaults */ }
+  }
+}
+
+export async function connectSerial({ serial = globalThis.navigator?.serial, baudRate = SERIAL_BAUD, search } = {}) {
   if (!serial?.requestPort) throw new Error('this browser has no Web Serial');
   const port = await serial.requestPort();
-  await port.open({ baudRate });
+  await openQuiet(port, baudRate, search);
   const writer = port.writable.getWriter();
   const reader = port.readable.getReader();
   const deframer = serialDeframer();

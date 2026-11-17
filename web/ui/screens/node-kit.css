@@ -10,7 +10,6 @@
 .warn-text { color: var(--warn); font-weight: 600; }
 .mono, .cmd-input, code { font-family: var(--font-mono); }
 code { font-size: .9em; overflow-wrap: anywhere; }
-.plain { padding-left: 1.25rem; }
 
 /* Rows of controls, and stacked forms. */
 .row { display: flex; gap: .5rem; align-items: center; margin: .75rem 0; }
@@ -115,21 +114,11 @@ details.block[open] > summary { margin-bottom: .5rem; }
   .cell-label { display: block; color: var(--muted); font-size: .875rem; }
 }
 
-/* Facts and counts: label and value on one line, wrapping on a phone. */
-.facts, .counts { display: grid; grid-template-columns: minmax(8rem, max-content) minmax(0, 1fr); gap: .25rem 1.25rem; margin: .5rem 0; }
-.facts dt, .counts dt { color: var(--muted); }
-.facts dd, .counts dd { margin: 0; overflow-wrap: anywhere; }
-.counts dd { font-weight: 600; }
+/* Facts: label and value on one line, wrapping on a phone. */
+.facts { display: grid; grid-template-columns: minmax(8rem, max-content) minmax(0, 1fr); gap: .25rem 1.25rem; margin: .5rem 0; }
+.facts dt { color: var(--muted); }
+.facts dd { margin: 0; overflow-wrap: anywhere; }
 .node-meta { color: var(--muted); margin-top: 0; overflow-wrap: anywhere; }
-
-/* Needs attention: one line per node, the reason in words. */
-.attention { list-style: none; padding: 0; margin: .5rem 0; }
-.attention li { padding: .5rem 0; border-bottom: 1px solid var(--line); }
-.attention a { font-weight: 600; }
-.reasons { list-style: none; padding: 0; margin: .125rem 0 0; display: flex; flex-wrap: wrap; gap: .125rem 1.25rem; }
-.reasons li { padding: 0; border: 0; }
-.att-notHeard .reason, .att-battery .reason, .att-refused .reason { color: var(--warn); font-weight: 600; }
-.att-forged .reason { color: var(--danger); font-weight: 600; }
 
 /* Sets and groups. */
 .steps { margin: .25rem 0 .5rem; padding-left: 1.5rem; }

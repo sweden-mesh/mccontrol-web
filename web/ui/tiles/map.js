@@ -15,7 +15,7 @@ import { lowBatteryVolts, notHeardHours } from '../screens/settings-store.js';
 import { beaconBase } from '../../lib/stats/beacon.js';
 import { nameOf } from '../screens/node-kit.js';
 import { forKey, s, stateMark } from './kit.js';
-import { fit, frame, mapModel, nodeStatus, outlinePaths, project } from './data.js';
+import { fit, frame, mapModel, nodeStatus, outlinePaths, project, sharedPrefix } from './data.js';
 import { onDataChanged } from './sources.js';
 
 export const id = 'map';
@@ -114,6 +114,19 @@ function fill(ctx, svc, body) {
     const own = new Set(model.links.map(([a]) => a.id));
     const sel = placedMine.find((m) => m.device.node === selected);
     const label = placedMine.length <= 8;
+    // Labels: the part of the name that tells the nodes apart, and none that would sit on top of
+    // one already drawn (the selected node's first); the list below has every name whole.
+    const prefix = sharedPrefix(placedMine.map((m) => nameOf(m.device)));
+    const short = (m) => { const n = nameOf(m.device); return n.startsWith(prefix) ? n.slice(prefix.length) : n; };
+    const taken = [];
+    const fits = (x, y, text) => {
+      const box = [x + 9, y - 8, x + 9 + text.length * 7, y + 6];
+      if (taken.some((b) => box[0] < b[2] && b[0] < box[2] && box[1] < b[3] && b[1] < box[3])) return false;
+      taken.push(box);
+      return true;
+    };
+    const order = [...placedMine].sort((a, b) => (b.device.node === selected) - (a.device.node === selected));
+    const labelled = new Set(order.filter((m) => (label || m.device.node === selected) && fits(...P(m.node), short(m))).map((m) => m.device.node));
     const svg = s('svg', { class: 'map-svg', viewBox: `0 0 ${width} ${proj.height}`, width, height: proj.height, role: 'group', 'aria-labelledby': 'map-caption', preserveAspectRatio: 'xMidYMid meet' },
       s('g', { class: 'map-outline', 'aria-hidden': 'true' }, outlines.map((o) => s('path', { d: o.d }))),
       s('g', { class: 'map-links', 'aria-hidden': 'true' }, model.links.map(([a, b]) => {
@@ -134,7 +147,7 @@ function fill(ctx, svc, body) {
           s('circle', { class: 'hit', cx: x, cy: y, r: 12 }),
           m.device.node === selected ? s('circle', { class: 'ring', cx: x, cy: y, r: 9 }) : null,
           mark(st, x, y),
-          label || m.device.node === selected ? s('text', { x: x + 9, y: y + 4, class: 'map-label' }, name) : null);
+          labelled.has(m.device.node) ? s('text', { x: x + 9, y: y + 4, class: 'map-label' }, short(m)) : null);
         const pick = () => ctx.board.select(m.device.node);
         g.addEventListener('click', pick);
         g.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } });

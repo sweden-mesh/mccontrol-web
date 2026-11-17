@@ -15,7 +15,9 @@ admits `ota update` over the control plane.
 **Redesign (W-20, `planning/mccontrol/web-redesign-proposal-20261117.md`):** wave 1 is in: one board
 (NODES | NODE | STATUS + MAP + RESULTS) with the status line and the key bar, everything else in a
 modal in front of it, four themes as one setting. Wave 2 filled the tiles (below, "What the tiles
-do"); today's other screens still open as modals until the later waves replace them.
+do"); beta.2's other screens open as modals. Wave 3: the phone pass (360 to 412 px and landscape,
+checked with fake data by `test/smoke/filled.mjs`), the strings, the old overview and menu list
+removed, USB opened with DTR and RTS dropped (W-21).
 
 ## Run it
 
@@ -43,7 +45,7 @@ that says why.
 | `ui/` | `app.js` (shell, ctx, start), `boot.js` (theme before paint, start guard), `routes.js` (hashes, old routes), `board.js` (tile grid, status line, key bar), `board-state.js` (selection, tags), `keys.js`, `statusline.js`, `modal.js` (the modal frame), `prefs.js`, `appearance.js` (display settings form), `key-state.js` (key status interface), `notify.js`, `update.js`, `dom.js` (`h()`) | shell (W-6, W-20) |
 | `ui/tiles/` | one module per board tile (`nodes`, `node`, `status`, `map`, `results`); `index.js` registers them | each tile's owner (W-20) |
 | `ui/modals/` | `index.js` registers every modal (today's screens wrapped as modals); `setup.js` the Setup modal's seven tabs; `palette.js` the command palette and the `run` modal, `palette-entries.js` what it lists, `command-help.js` what each command does | shell, then Setup's owner (W-20) |
-| `ui/screens/` | one module per screen of beta.2, shown inside modals until the later waves replace them; `index.js` lists them. `key-session.js` holds the page's one keyring (header state, handle, holds, unlock-and-return links); `settings-store.js` the device's thresholds and brokers per region; `node-services.js` the stores, jobs, releases and fleet for a key; `node-kit.js`/`node-kit.css` and `key-kit.js` the shared pieces | screens (W-5, W-7, W-8, W-9, W-13, W-14, W-15, W-18, W-19) |
+| `ui/screens/` | one module per screen of beta.2, shown inside modals (`ui/modals/index.js` registers them); beta.2's overview is gone, folded into the board (wave 3). `key-session.js` holds the page's one keyring (header state, handle, holds, unlock-and-return links); `settings-store.js` the device's thresholds and brokers per region; `node-services.js` the stores, jobs, releases and fleet for a key; `node-kit.js`/`node-kit.css` and `key-kit.js` the shared pieces | screens (W-5, W-7, W-8, W-9, W-13, W-14, W-15, W-18, W-19) |
 | `styles/` | `tokens.css` (fonts, the four themes' colour tokens), `app.css` (shell: status line, board, tiles, key bar, modal), `key-screens.css` (unlock, key, set-up, settings, help) | shell (W-6, W-20), screens |
 | `fonts/`, `icon*` | IBM Plex (OFL) and the icons, copied from the regional template | shell |
 | `_headers`, `manifest.webmanifest`, `sw.js`, `version.json` | the hosted copy: headers, install, offline copy | shell (W-10) |
@@ -389,7 +391,7 @@ another one has installed; it switches only when the owner presses it. A copy wi
 
 `node web/test/smoke/run.mjs` opens the board and every modal (with sample arguments: a node id
 from the fixture, help topics, the unlock variants, every Setup tab) in headless Chrome, at 360 and
-1280 px, in all four themes, and the board alone at 1100 and 1600 px. It fails on any console
+1280 px, in all four themes, and the board alone at 390, 1100 and 1600 px. It fails on any console
 error, uncaught page error, CSP violation, sideways page scroll, a board without the tiles that
 width shows, or a modal that did not open labelled by its heading. Then it checks the frame: old
 routes land where `legacyHash` says, `,` and `?` open Setup and Help, Back, Esc and the close
@@ -397,6 +399,18 @@ button return to the board, and the start (W-20k): with Trusted Types refusing e
 board still starts and says the offline copy failed; with the strings or `ui/app.js` failing to
 load the page shows the start error. A screenshot of each lands in a new directory under the
 system's temp dir (`--out DIR` to choose).
+
+`node web/test/smoke/filled.mjs [--shots]` draws the board with fake data (`test/smoke/fake.mjs`: an
+invented key stored locked, eight invented nodes, their history and Beacon answers; no broker, the
+WebSocket is a stub) in all four themes at 360, 390 and 412 px, landscape 740 x 360 and 1280 px, and
+checks what only a filled board shows: rows and buttons at least 44 px on a phone, nothing sideways,
+nothing cut off or on top of another control, room under the fixed key bar, the node sheet's command
+line at the bottom. `--shots` adds the beta notes' screenshots.
+
+USB (W-21): `lib/mesh/serial.js`'s `openQuiet` drops DTR and RTS right after `port.open`, for the
+companion and for Setup's node tab, because on an ESP32-S3's native USB they reset the board into a
+boot loop. On the bench, `?usbsignals=dtr0rts0|dtr1rts0|dtr0rts1|dtr1rts1|none` in the address picks
+another combination (`none`: the browser's defaults).
 
 The modals come from `ui/modal.js`'s registry, so a new modal is covered without editing the runner.
 `--only board,help` limits the hashes. Firefox is not run: Puppeteer would need a Firefox download

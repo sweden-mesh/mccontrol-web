@@ -44,7 +44,11 @@
 .palette-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .palette-title { margin: 0; font-size: 1rem; }
 .palette-close { min-height: 32px; }
-.palette input { width: 100%; min-height: var(--tap); font-family: var(--font-mono); }
+.palette input {
+  width: 100%; min-height: var(--tap); padding: 0 12px; font: 1rem var(--font-mono);
+  color: var(--fg); background: var(--bg); border: 1px solid var(--field-border); border-radius: var(--radius-xs);
+}
+.palette input::placeholder { color: var(--muted); opacity: 1; }
 .palette-count { margin: 0; color: var(--muted); font-size: var(--tile-text); }
 .palette-list { margin: 0; padding: 0; list-style: none; overflow-y: auto; overscroll-behavior: contain; min-height: 0; }
 .palette-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 12px; min-height: var(--row);

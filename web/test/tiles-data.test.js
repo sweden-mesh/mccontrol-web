@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   byAttention, fit, frame, hourly, isSeen, mapModel, markAllSeen, markSeen, matches, nodeStatus,
-  outlinePaths, project, sparkRuns,
+  outlinePaths, project, sharedPrefix, sparkRuns,
 } from '../ui/tiles/data.js';
 import {
   brokerReport, dataChanged, jobs, onDataChanged, onJobs, onSources, provideSource, reportBroker, source, startJob,
@@ -184,4 +184,14 @@ test('registration as a STATUS line', async () => {
   assert.equal(part.state, 'warn');
   assert.equal(part.detail, 'b: no ack');
   assert.equal(registrationLine({ state: 'failed', hosts: [] }).state, 'alert');
+});
+
+test('RESULTS: the shared start of the names, cut at a separator, so a narrow column tells them apart', () => {
+  assert.equal(sharedPrefix(['SE-JKG-Ekbacken', 'SE-JKG-Torpa', 'SE-JKG-Kvarnberget']), 'SE-JKG-');
+  assert.equal(sharedPrefix(['SE-JKG-Habo-D21C', 'SE-JKG-Habo-E630']), 'SE-JKG-Habo-');
+  assert.equal(sharedPrefix(['SE-JKG-Habo', 'SE-JKP-Lekeryd']), 'SE-');
+  assert.equal(sharedPrefix(['Kvarnen', 'Kvarnberget']), '');        // no separator: nothing cut
+  assert.equal(sharedPrefix(['SE-JKG-A', 'SE-JKG-']), '');            // a name would be left empty
+  assert.equal(sharedPrefix(['SE-JKG-Ekbacken']), '');
+  assert.equal(sharedPrefix([]), '');
 });

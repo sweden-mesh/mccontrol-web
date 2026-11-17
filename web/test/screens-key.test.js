@@ -200,7 +200,7 @@ test('key session: one keyring for the page, the header state, holds and unlock 
 test('every string the new screens use exists in both languages', () => {
   const sv = json('../i18n/sv.json');
   const en = json('../i18n/en.json');
-  const files = ['unlock', 'key', 'setup', 'settings', 'help', 'key-kit', 'dashboard-traffic'];
+  const files = ['unlock', 'key', 'setup', 'settings', 'help', 'key-kit'];
   const literal = new Set();
   for (const f of files) {
     const src = readFileSync(new URL(`../ui/screens/${f}.js`, import.meta.url), 'utf8');

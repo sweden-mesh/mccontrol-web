@@ -1,4 +1,4 @@
-// Shared by the dashboard, node, send, group, set and history screens: their stylesheet, the
+// Shared by the node, send, group, set and history screens: their stylesheet, the
 // key gate, ages, a result in words, the confirmation dialog, a progress line and downloads.
 import { h } from '../dom.js';
 import { codeHelp, codeName } from '../../lib/protocol/results.js';

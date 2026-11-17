@@ -4,7 +4,6 @@ import { readFileSync } from 'node:fs';
 import { parseHash, legacyHash, targetHash, modalHash, INTO_SETUP } from '../ui/routes.js';
 import { isModal, modalNames, registerModal } from '../ui/modal.js';
 import { TILES, tileDef, registerTile } from '../ui/board.js';
-import { SCREENS } from '../ui/screens/index.js';
 import { MODALS } from '../ui/modals/index.js';
 import { TABS, tabFor } from '../ui/modals/setup.js';
 import '../ui/tiles/index.js';
@@ -31,11 +30,11 @@ test('every old route lands somewhere sensible', () => {
     '#/no-such-page': '#notfound',
   };
   for (const [from, to] of Object.entries(cases)) assert.equal(legacyHash(from, isModal), to, from);
-  // Every old screen's route is covered: a modal of its own or a Setup tab.
-  for (const s of SCREENS) {
-    if (s.route === '') continue;
-    assert.ok(isModal(s.route) || INTO_SETUP[s.route], `old route ${s.route}`);
-    if (INTO_SETUP[s.route]) assert.ok(tabFor(INTO_SETUP[s.route]), `setup tab for ${s.route}`);
+  // Every route of beta.2's menu and screens is covered: a modal of its own or a Setup tab.
+  const OLD_ROUTES = ['nodes', 'node', 'send', 'groups', 'history', 'sets', 'setup', 'key', 'unlock', 'settings', 'help', 'stats'];
+  for (const route of OLD_ROUTES) {
+    assert.ok(isModal(route) || INTO_SETUP[route], `old route ${route}`);
+    if (INTO_SETUP[route]) assert.ok(tabFor(INTO_SETUP[route]), `setup tab for ${route}`);
   }
   assert.equal(targetHash('#/key', isModal), '#setup/key');
   assert.equal(targetHash('#/', isModal), '');
