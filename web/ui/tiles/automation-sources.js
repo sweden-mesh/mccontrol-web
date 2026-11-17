@@ -23,9 +23,11 @@ export function refreshLine(s) {
 export function discoveryLine(s) {
   const d = s?.discovery;
   if (!s?.owner || !d) return { state: 'unknown', last: null, next: null, detail: null, needsArea: false, canUndo: false };
+  const failed = !d.running && d.last && !d.last.undone ? d.last.failed || [] : [];
   return {
-    state: d.running ? 'running' : d.needsArea ? 'warn' : d.lastRun ? 'ok' : 'unknown',
-    last: d.lastRun, next: d.nextRun, detail: null, needsArea: d.needsArea, canUndo: d.canUndo,
+    state: d.running ? 'running' : d.needsArea ? 'warn' : failed.length ? 'alert' : d.lastRun ? 'ok' : 'unknown',
+    last: d.lastRun, next: d.nextRun, needsArea: d.needsArea, canUndo: d.canUndo,
+    detail: failed.length ? failed.map((f) => `${f.region}: ${f.detail}`).join('; ') : null,
   };
 }
 

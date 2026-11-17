@@ -64,7 +64,7 @@ export function render(ctx) {
   const clock = (st, fallbackWord) => {
     const parts = [];
     if (st.state === 'running') return ctx.t('tile.running');
-    if (st.last) parts.push(ctx.t('tile.ago', { age: shortAge(ctx, st.last) }));
+    if (st.last) parts.push(Date.now() - st.last < 60000 ? ctx.t('node.justNow') : ctx.t('tile.ago', { age: shortAge(ctx, st.last) }));
     if (st.next) parts.push(ctx.t('tile.next', { when: shortUntil(ctx, st.next) }));
     return parts.join(', ') || fallbackWord;
   };

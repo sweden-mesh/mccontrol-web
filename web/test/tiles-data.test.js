@@ -171,4 +171,7 @@ test('the automation as STATUS lines: refresh and discovery', async () => {
   assert.equal(discoveryLine({ owner: 'K', discovery: { ...d, needsArea: true } }).state, 'warn');
   assert.equal(discoveryLine({ owner: 'K', discovery: { ...d, lastRun: 5, canUndo: true } }).canUndo, true);
   assert.equal(discoveryLine({ owner: 'K', discovery: { ...d, running: true } }).state, 'running');
+  const bad = discoveryLine({ owner: 'K', discovery: { ...d, lastRun: 5, last: { failed: [{ region: 'JKG', detail: 'no broker' }] } } });
+  assert.equal(bad.state, 'alert');
+  assert.equal(bad.detail, 'JKG: no broker');
 });
