@@ -91,7 +91,8 @@ function discoverForm(ctx, svc, devices, redraw) {
         });
         return h('li', {}, h('code', {}, f.node), ' ',
           f.knownAs ? h('span', {}, ctx.t('nodes.knownAs', { name: f.knownAs })) : [field(ctx.t('nodes.nameFor', { node: f.node }), name), add],
-          f.verified === false ? h('span', { class: 'err' }, ctx.t('send.res.forged')) : null);
+          f.verified === false ? h('span', { class: 'err' }, ctx.t('send.res.forged')) : null,
+          f.keyChanged ? h('span', { class: 'err' }, ctx.t('nodes.keyChanged')) : null);
       })));
     } catch (err) {
       put(out, h('p', { class: 'err', role: 'alert' }, err.code === 'locked' ? lockedNote(ctx) : err.message));

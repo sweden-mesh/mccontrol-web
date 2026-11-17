@@ -257,8 +257,16 @@ export function createJobs({
       const entries = [];
       for (const e of found) {
         const mine = known.get(e.node);
-        if (mine && e.key && mine.key !== e.key) await stores.devices.update(e.node, { key: e.key });
-        entries.push({ ...e, knownAs: mine ? label(mine) : null, name: '' });
+        // The key in an answer's topic is the broker's word, not the node's: a hostile broker
+        // can name any key with the node's prefix. A stored key is never replaced from here (that
+        // would send v2 commands sealed to the broker's key); a missing one is learnt only from
+        // an answer that was not forged. A different key is reported, not adopted.
+        let keyChanged = false;
+        if (mine && e.key && mine.key !== e.key) {
+          if (mine.key) keyChanged = true;
+          else if (e.verified !== false) await stores.devices.update(e.node, { key: e.key });
+        }
+        entries.push({ ...e, keyChanged, knownAs: mine ? label(mine) : null, name: '' });
       }
       if (entries.length && !signal?.aborted) {
         try {
@@ -283,7 +291,8 @@ export function createJobs({
     const base = String(name || entry.name || '').trim();
     let chosen = base;
     for (let n = 2; chosen && all.some((d) => d.name.toLowerCase() === chosen.toLowerCase()); n += 1) chosen = `${base}-${n}`;
-    return stores.devices.add({ node: entry.node, key: entry.key || null, region: entry.region, name: chosen, notes: '' });
+    const key = entry.verified === false ? null : (entry.key || null);   // never a key from a forged answer
+    return stores.devices.add({ node: entry.node, key, region: entry.region, name: chosen, notes: '' });
   }
 
   // `get name` and `ver` to each node, one signed read each: an unnamed node takes its own

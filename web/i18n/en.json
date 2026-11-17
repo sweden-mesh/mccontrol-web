@@ -193,6 +193,7 @@
   "nodes.discoverButton": "Find",
   "nodes.discoverWait": "{n} answered, {secs} s left",
   "nodes.discoverNone": "No node in {region} answered. A node answers only when it holds your key and is connected to the broker.",
+  "nodes.keyChanged": "answered under another key: the stored key is kept",
   "nodes.knownAs": "already yours: {name}",
   "nodes.nameFor": "Name for {node}",
   "nodes.adopt": "Add",

@@ -193,6 +193,7 @@
   "nodes.discoverButton": "Sök",
   "nodes.discoverWait": "{n} har svarat, {secs} s kvar",
   "nodes.discoverNone": "Ingen nod i {region} svarade. En nod svarar bara när den har din nyckel och är ansluten till brokern.",
+  "nodes.keyChanged": "svarade med en annan nyckel: den sparade nyckeln behålls",
   "nodes.knownAs": "redan din: {name}",
   "nodes.nameFor": "Namn för {node}",
   "nodes.adopt": "Lägg till",
