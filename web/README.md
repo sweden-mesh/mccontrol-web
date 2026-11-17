@@ -219,6 +219,8 @@ the `.alert` class (inverse in Amber and Green).
   links and the area's other repeaters (`/nodes?iatas=<region>&neighbors=true`), "As a list" as
   the text alternative. Under the outlines, faintly, lakes and the coast (`ui/tiles/se-water.json`,
   Natural Earth 1:10m, made by `scripts/water-outline.py`, W-23c). No map tiles, no new origin.
+  The frame is the owner's own nodes (`mapFrame` in `data.js`, W-25c); the region's nodes frame it
+  only when none of the owner's has a position.
 
 What the tiles share besides the selection is `ui/tiles/sources.js` (no DOM): `provideSource(name,
 { state, on, run, undo })` for STATUS's `broker`, `registration`, `refresh` and `discovery` lines

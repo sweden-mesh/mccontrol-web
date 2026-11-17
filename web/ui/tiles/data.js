@@ -131,6 +131,13 @@ export function frame(points, { pad = 0.15, minKm = 30 } = {}) {
   return { s: s - dl, n: n + dl, w: w - dg, e: e + dg, k };
 }
 
+// The map's frame (W-25c): the nodes the key controls, so the owner's own nodes fill the map; the
+// region's other nodes and the links run off its edge. Only when none of them has a position does
+// it fall back to the region's nodes.
+export function mapFrame(model) {
+  return frame(model.mine.map((m) => m.node).filter(Boolean)) || frame(model.others);
+}
+
 // The frame widened (in latitude or longitude) to a box `aspect` (width / height) wide, so the map
 // fills its tile without stretching.
 export function fit(f, aspect) {

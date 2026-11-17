@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
-  byAttention, fit, frame, hourly, isSeen, mapModel, markAllSeen, markSeen, matches, nodeStatus,
+  byAttention, fit, frame, hourly, mapFrame, isSeen, mapModel, markAllSeen, markSeen, matches, nodeStatus,
   outlinePaths, project, sharedPrefix, sparkRuns, waterPaths,
 } from '../ui/tiles/data.js';
 import {
@@ -106,6 +106,18 @@ test('the map frame, its fit to the box, the projection and the outlines', () =>
   assert.ok(ids.includes('06'), ids.join());
   assert.ok(!ids.includes('25'), ids.join());
   for (const o of outlinePaths(geo, wide, proj)) assert.match(o.d, /^M[\d.-]+,[\d.-]+(L[\d.-]+,[\d.-]+)+Z/);
+});
+
+// W-25c: the frame is the owner's nodes; the region's (others) only when none of them is placed.
+test('the map frames the owner\'s nodes, the region only when none is placed', () => {
+  const mineA = { lat: 57.70, lng: 14.10 };
+  const mineB = { lat: 57.75, lng: 14.20 };
+  const far = { lat: 58.6, lng: 16.2 };
+  const f = mapFrame({ mine: [{ node: mineA }, { node: mineB }, { node: null }], others: [far] });
+  assert.deepEqual(f, frame([mineA, mineB]));
+  assert.ok(f.n < far.lat && f.e < far.lng, 'a far neighbour stays outside the frame');
+  assert.deepEqual(mapFrame({ mine: [{ node: null }], others: [far, mineA] }), frame([far, mineA]));
+  assert.equal(mapFrame({ mine: [], others: [] }), null);
 });
 
 test('the lakes and the coast: small, Sweden only, Vättern near Jönköping (W-23c)', () => {
