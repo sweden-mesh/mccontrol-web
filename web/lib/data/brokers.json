@@ -13,7 +13,7 @@
  "region_rule": "2 to 8 ASCII letters or digits, upper case",
  "ttl_secs": 300,
  "wait_secs": 20,
- "beacon_url": "https://beacon.meshat.se/api/v1",
+ "beacon_url": "https://beacon.meshcore-jkp.se/api/v1",
  "default_sets": {
   "add-scope": [
    "region put {arg} *",
