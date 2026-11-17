@@ -173,6 +173,25 @@ export function outlinePaths(geo, f, proj) {
   return out;
 }
 
+// The lakes and the coast (se-water.json, W-23c) inside the frame `f` as two path strings:
+// { lakes, coast }, '' where none is near. Lakes are closed rings, the coast open lines.
+export function waterPaths(geo, f, proj) {
+  const near = ([lng, lat]) => lat >= f.s - 0.5 && lat <= f.n + 0.5 && lng >= f.w - 1 && lng <= f.e + 1;
+  const pt = ([lng, lat]) => `${proj.x(lng).toFixed(1)},${proj.y(lat).toFixed(1)}`;
+  const out = { lakes: '', coast: '' };
+  for (const feature of geo?.features || []) {
+    const g = feature.geometry;
+    const kind = feature.properties?.kind;
+    if (kind === 'lake' && g?.type === 'MultiPolygon') {
+      out.lakes += g.coordinates.map((poly) => poly[0] || []).filter((r) => r.length > 2 && r.some(near))
+        .map((r) => `M${r.map(pt).join('L')}Z`).join('');
+    } else if (kind === 'coast' && g?.type === 'MultiLineString') {
+      out.coast += g.coordinates.filter((l) => l.length > 1 && l.some(near)).map((l) => `M${l.map(pt).join('L')}`).join('');
+    }
+  }
+  return out;
+}
+
 // Beacon's /nodes rows against the owner's devices: { mine: [{ device, node }], others: [node],
 // links: [[a, b]] } where a node is { id, name, lat, lng, neighborIds }. A device is matched by
 // the start of its key; links are the owner's nodes' neighbours that have a position.

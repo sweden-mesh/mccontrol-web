@@ -178,6 +178,11 @@
 .map-figure { display: flex; justify-content: center; }
 .map-svg { display: block; max-width: 100%; height: auto; }
 @media (width >= 68.75em) {
+/* Lakes and the coast, faint and under the county lines (W-23c): the coast a wide soft line so
+   the sea edge reads apart from a county border, lakes a light fill. */
+.map-water path { vector-effect: non-scaling-stroke; stroke-linejoin: round; stroke-linecap: round; }
+.map-coast { fill: none; stroke: var(--muted); stroke-width: 3; opacity: .22; }
+.map-lakes { fill: var(--muted); fill-opacity: .14; stroke: var(--muted); stroke-width: 1; stroke-opacity: .3; }
   .map-tile { display: flex; flex-direction: column; height: 100%; }
   .map-figure { flex: 1; min-height: 6rem; overflow: hidden; }
   .map-figure.fills .map-svg { position: absolute; }

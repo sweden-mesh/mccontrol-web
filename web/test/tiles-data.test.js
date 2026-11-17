@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   byAttention, fit, frame, hourly, isSeen, mapModel, markAllSeen, markSeen, matches, nodeStatus,
-  outlinePaths, project, sharedPrefix, sparkRuns,
+  outlinePaths, project, sharedPrefix, sparkRuns, waterPaths,
 } from '../ui/tiles/data.js';
 import {
   brokerReport, dataChanged, jobs, onDataChanged, onJobs, onSources, provideSource, reportBroker, source, startJob,
@@ -106,6 +106,21 @@ test('the map frame, its fit to the box, the projection and the outlines', () =>
   assert.ok(ids.includes('06'), ids.join());
   assert.ok(!ids.includes('25'), ids.join());
   for (const o of outlinePaths(geo, wide, proj)) assert.match(o.d, /^M[\d.-]+,[\d.-]+(L[\d.-]+,[\d.-]+)+Z/);
+});
+
+test('the lakes and the coast: small, Sweden only, Vättern near Jönköping (W-23c)', () => {
+  const url = new URL('../ui/tiles/se-water.json', import.meta.url);
+  assert.ok(readFileSync(url).length < 64 * 1024, 'se-water.json stays under 64 KB');
+  const geo = JSON.parse(readFileSync(url, 'utf8'));
+  assert.deepEqual(geo.features.map((f) => f.properties.kind), ['lake', 'coast']);
+  const near = fit(frame([{ lat: 57.78, lng: 14.16 }, { lat: 58.0, lng: 14.5 }]), 1.4);
+  const proj = project(near, 400);
+  const w = waterPaths(geo, near, proj);
+  assert.match(w.lakes, /^M[\d.-]+,[\d.-]+(L[\d.-]+,[\d.-]+)+Z/);    // Vättern
+  assert.equal(w.coast, '');                                           // Jönköping is inland
+  const north = fit(frame([{ lat: 65.6, lng: 22.1 }, { lat: 65.9, lng: 22.4 }]), 1.4);   // Luleå
+  assert.match(waterPaths(geo, north, project(north, 400)).coast, /^M[\d.-]+,[\d.-]+L/);
+  assert.deepEqual(waterPaths(null, near, proj), { lakes: '', coast: '' });
 });
 
 test('the map model: my nodes by key prefix, neighbour links once, companions left out', () => {
