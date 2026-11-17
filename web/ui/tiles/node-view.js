@@ -20,13 +20,14 @@ import { lastHeard, shortVersion } from '../../lib/jobs/overview.js';
 import { blocker, preflight } from '../../lib/jobs/checks.js';
 import { beaconBase, beaconClient } from '../../lib/stats/beacon.js';
 import { CompanionError } from '../../lib/mesh/companion.js';
-import { meshAfterMins } from '../screens/settings-store.js';
+import { lowBatteryVolts, meshAfterMins, notHeardHours } from '../screens/settings-store.js';
 import { confirm, nameOf } from '../screens/node-kit.js';
 import { companionBrief } from '../screens/road-kit.js';
 import { whyText } from '../screens/send.js';
 import { tagged as taggedIds, onBoardChange, clearTags } from '../board-state.js';
 import { age, s } from './kit.js';
-import { hourly, known, sparkRuns } from './data.js';
+import { GLYPH } from '../statusline.js';
+import { hourly, known, nodeStatus, sparkRuns } from './data.js';
 import { dataChanged, onDataChanged, reportBroker, startJob } from './sources.js';
 
 const TELEMETRY_MAX_AGE = 15 * 60000;
@@ -119,8 +120,12 @@ export function nodeView(ctx, svc, nodeId, { heading = null } = {}) {
     const meta = [device.region, device.ver ? shortVersion(svc.rules, device.ver) : ctx.t('nodes.verUnknown'),
       [`${ctx.t('tile.heard')} `, heard ? age(ctx, heard) : ctx.t('nodes.heardUnknown')],
       device.key && svc.rules.speaksV2(device.ver) ? ctx.t('tile.v2') : ctx.t('tile.v1')];
+    // Why it needs attention, whole: NODES cuts it to fit its row (W-23d).
+    const st = nodeStatus(device, { now: Date.now(), hours: notHeardHours(), thresholdMv: lowBatteryVolts() * 1000, rules: svc.rules });
+    const why = st.reasons.map((r) => ctx.t(`dash.att.${r.kind}`, r.vars)).join('; ');
     head.replaceChildren(h('p', { class: 'row node-meta' },
-      meta.map((m, i) => h('span', { class: 'meta-part' }, m, i < meta.length - 1 ? '\u00a0·' : ''))));
+      meta.map((m, i) => h('span', { class: 'meta-part' }, m, i < meta.length - 1 ? '\u00a0·' : ''))),
+    why ? h('p', { class: `row node-why-line${st.state === 'alert' ? ' alert' : ''}` }, h('span', { class: 'glyph', 'aria-hidden': 'true' }, GLYPH[st.state]), h('span', {}, why)) : null);
     // facts with their age, the configured labels first
     const { facts: f, raw } = deriveFacts(device, events, svc.rules.parseFacts);
     const order = svc.data.facts.labels.map(([k]) => k);

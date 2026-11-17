@@ -1,8 +1,8 @@
 // NODES (W-20c): one row per node, what needs attention first. Each row, on ONE line (W-23d): the
 // status glyph, the name, the reason it needs attention (else the status word), region, firmware,
 // battery and when it was last heard; the row is tinted by severity. The reason is cut to fit,
-// whole in its tooltip and to a screen reader, and whole (wrapped) on the selected row, which is
-// the way in on a touch screen. The title says "4 · 1 needs attention".
+// whole in its tooltip and to a screen reader, and whole in NODE (on a phone the node opens full
+// screen, the way in on a touch screen). The title says "4 · 1 needs attention".
 //
 // Pointer: a click on a row selects it (the NODE tile follows; on a phone the node opens full
 // screen); the box at the row's start tags it for a send to several. Keyboard: '/' searches,

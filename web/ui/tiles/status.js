@@ -122,7 +122,7 @@ export function render(ctx) {
     const state = c.status === 'connected' ? 'ok' : c.status === 'error' ? 'alert' : 'unknown';
     const word = c.status === 'connected' ? c.name || ctx.t(`companion.kind.${c.kind}`)
       : c.status === 'error' ? ctx.t('tile.companionError') : ctx.t('tile.notConnected');
-    const open = h('button', { type: 'button', class: 'link-button status-word', 'aria-haspopup': 'dialog' }, stateMark(ctx, state, word));
+    const open = h('button', { type: 'button', class: 'link-button status-pick', 'aria-haspopup': 'dialog' }, stateMark(ctx, state, word));
     open.addEventListener('click', () => companionChooser(ctx));
     return h('li', { class: `row status-row${state === 'alert' ? ' alert' : ''}`, 'data-line': 'companion', title: c.error || null },
       h('span', { class: 'row-name' }, ctx.t('tile.line.companion')), open);
