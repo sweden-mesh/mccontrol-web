@@ -156,3 +156,13 @@ details.block[open] > summary { margin-bottom: .5rem; }
 .companion-state { margin: .25rem 0 0; }
 .companion .row { margin: .5rem 0; }
 .road-mark { color: var(--muted); font-size: .875rem; }
+/* The companion chooser (W-23a): one button per way in, why one is missing under it. */
+.chooser-list { list-style: none; padding: 0; margin: 0; display: grid; gap: .75rem; }
+.chooser-list .button { min-width: 10rem; }
+.chooser-list .hint-line { margin: .25rem 0 0; }
+/* Possible mesh-only nodes (W-24): name, id, where it was found, Check; the outcome under it. */
+.mesh-found { list-style: none; padding: 0; margin: .5rem 0; display: grid; gap: .5rem; }
+.mesh-found-row { gap: .25rem .75rem; align-items: center; }
+.mesh-found-name { font-weight: 600; }
+.mesh-found .mesh-check { margin-inline-start: auto; }
+.mesh-found .hint-line:empty { display: none; }

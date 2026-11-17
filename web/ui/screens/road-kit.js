@@ -62,6 +62,71 @@ export function companionControl(ctx) {
   return h('div', { class: 'companion' }, status, buttons, note);
 }
 
+// Why this browser cannot reach a companion one way, or '' when it can (W-23a).
+function missingWhy(ctx, can, kind) {
+  if (can[kind]) return '';
+  if (can.ios) return ctx.t('companion.ios');
+  if (can.secure === false) return ctx.t('companion.insecure');
+  return ctx.t(kind === 'bluetooth' ? 'companion.noBluetooth' : 'companion.noUsb');
+}
+
+// The small chooser (W-23a): "Bluetooth" and "USB", each with why it is missing in this browser;
+// once connected, the radio and Disconnect.
+// A button's click is the gesture the browser's own device list needs, so connect() runs in it.
+export function companionChooser(ctx) {
+  useStyles();
+  const can = support();
+  const id = `cc-${count += 1}`;
+  const order = companionKind() === 'usb' ? ['usb', 'bluetooth'] : ['bluetooth', 'usb'];
+  const cancel = h('button', { type: 'button', class: 'tool' }, ctx.t('node.cancel'));
+  const s = state();
+  let body;
+  if (s.status === 'connected') {
+    const kindWord = s.kind ? ctx.t(`companion.kind.${s.kind}`) : '';
+    const off = h('button', { type: 'button', class: 'button' }, ctx.t('companion.disconnect'));
+    off.addEventListener('click', () => { dialog.close(); disconnect(); });
+    body = [h('p', {}, ctx.t('companion.connected', { name: s.name || kindWord, kind: kindWord })), h('p', {}, off)];
+  } else {
+    body = [s.status === 'error' ? h('p', { class: 'hint-line' }, ctx.t('companion.error', { error: s.error })) : null,
+      h('ul', { class: 'chooser-list' }, order.map((kind) => {
+        const why = missingWhy(ctx, can, kind);
+        const b = h('button', { type: 'button', class: 'button', disabled: Boolean(why), 'aria-describedby': why ? `${id}-${kind}` : null },
+          ctx.t(`companion.kind.${kind}`));
+        b.addEventListener('click', () => { dialog.close(); connect(kind); });
+        return h('li', {}, b, why ? h('p', { class: 'hint-line', id: `${id}-${kind}` }, why) : null);
+      }))];
+  }
+  const dialog = h('dialog', { class: 'dlg companion-chooser', 'aria-labelledby': id, closedby: 'any' },
+    h('h2', { id }, ctx.t('companion.chooseTitle')), ...body,
+    h('div', { class: 'row-end' }, cancel));
+  cancel.addEventListener('click', () => dialog.close());
+  dialog.addEventListener('close', () => dialog.remove(), { once: true });
+  document.body.append(dialog);
+  dialog.showModal();
+  (dialog.querySelector('.chooser-list button:not([disabled]), .dlg > p > .button') || cancel).focus();
+  return dialog;
+}
+
+// One line for the NODE tile's command area (W-23a, W-23i): "Companion: not connected" as a
+// button that opens the chooser (the radio's name once connected; the error in its title).
+export function companionBrief(ctx) {
+  const button = h('button', { type: 'button', class: 'link-button companion-brief' });
+  button.addEventListener('click', () => companionChooser(ctx), { signal: ctx.signal });
+  function draw(s) {
+    const kind = s.kind ? ctx.t(`companion.kind.${s.kind}`) : '';
+    const word = s.status === 'connected' ? ctx.t('companion.briefConnected', { name: s.name || kind, kind })
+      : s.status === 'connecting' ? ctx.t('companion.connecting')
+        : s.status === 'error' ? ctx.t('companion.briefError') : ctx.t('companion.briefNone');
+    button.textContent = word;
+    button.disabled = s.status === 'connecting';
+    button.title = s.status === 'error' ? ctx.t('companion.error', { error: s.error }) : '';
+  }
+  draw(state());
+  const stop = onCompanion(draw);
+  ctx.signal.addEventListener('abort', stop, { once: true });
+  return button;
+}
+
 // The sentence for how an outcome travelled, or null for a plain MQTT send.
 export function roadLine(ctx, o) {
   const why = o.why ? ctx.t(`road.why.${o.why.code}`, o.why.vars) : '';
