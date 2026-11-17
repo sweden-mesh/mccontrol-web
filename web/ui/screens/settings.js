@@ -10,6 +10,7 @@ import {
 } from './settings-store.js';
 import { companionControl } from './road-kit.js';
 import { areaPicker } from '../area.js';
+import { meshFindBlock } from './mesh-find.js';
 import { loadAll } from '../../lib/data/load.js';
 
 export const route = 'settings';
@@ -101,7 +102,8 @@ export function renderArea(ctx) {
     brokersBlock(ctx),
     block('companion-title', t('companion.title'), h('p', {}, t('companion.lede')),
       companionControl(ctx),
-      h('p', {}, h('a', { href: '#help/mesh' }, t('road.help')))));
+      h('p', {}, h('a', { href: '#help/mesh' }, t('road.help')))),
+    block('mesh-find-title', t('mesh.find.title'), ...meshFindBlock(ctx)));
 }
 
 // Setup's "Warnings" tab: when a node is listed as needing attention, and when the auto road

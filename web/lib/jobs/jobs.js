@@ -355,6 +355,40 @@ export function createJobs({
     });
   }
 
+  // W-24's "Check": ONE signed `ver` over the mesh, through the companion, to a possible
+  // mesh-only node that is not in the list. A mesh-only node signs and is signed for on
+  // meshcore/mesh/{PUBKEY}/cmd, so no IATA is needed. Only on the owner's press, never by itself.
+  // An answer (any code: a refusal is signed by the node too) proves the node holds this key: it
+  // is added as mesh-only in `region` (the area's IATA, for the list) and the answer lands in
+  // history like any send. Silence adds nothing. { answered, result, device | null, info }
+  async function checkMeshNode({ candidate, region, signal, onProgress } = {}) {
+    const key = String(candidate?.key || '').toUpperCase();
+    const name = String(candidate?.name || '').trim();
+    if (!/^[0-9A-F]{64}$/.test(key)) throw new JobError('meshNoKey', { name: name || candidate?.node || '?' });
+    const r = String(region || '').toUpperCase();
+    if (!r) throw new JobError('noRegion', { name: name || key.slice(0, 8) });
+    return withKey(async (handle) => {
+      const radio = companion();
+      if (!radio || radio.closed) throw new JobError('noCompanion', {}, 'no companion is connected');
+      const node = key.slice(0, 8);
+      onProgress?.({ phase: 'sending', road: 'mesh', node, name: name || node, index: 0, count: 1 });
+      const out = await meshSend({
+        companion: radio, handle, keyHex: key, region: r, meshOnly: true, name, command: 'ver',
+        ttl: brokers.ttl_secs ?? undefined, waitSecs: wait(), signal,
+        progress: (elapsed, total) => {
+          onProgress?.({ phase: 'waiting', road: 'mesh', node, name: name || node, index: 0, count: 1, elapsed, total, answered: 0 });
+          return Boolean(signal?.aborted);
+        },
+      });
+      if (!out.result) return { answered: false, result: null, device: null, info: out.info };
+      const existing = await stores.devices.get(node);
+      const device = existing || await adopt({ node, key, region: r, name, verified: null });
+      await stores.devices.update(device.node, { meshOnly: true });
+      await land(await stores.devices.get(device.node), 'ver', out.topic, out.result, batchId(), 'mesh-only check', 'mesh');
+      return { answered: true, result: out.result, device: await stores.devices.get(device.node), info: out.info };
+    });
+  }
+
   // Remember a discovered node. A taken name gets -2, -3 ...
   async function adopt(entry, name = '') {
     const all = await stores.devices.list();
@@ -437,5 +471,5 @@ export function createJobs({
     });
   }
 
-  return Object.freeze({ send, runSet, discover, adopt, refresh, update, DISCOVERY_COMMAND });
+  return Object.freeze({ send, runSet, discover, adopt, refresh, update, checkMeshNode, DISCOVERY_COMMAND });
 }

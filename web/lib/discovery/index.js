@@ -267,7 +267,7 @@ export function createDiscovery({
     const ignored = new Set(await readIgnored());
     return (await companion.contacts())
       .filter((c) => c.type === 2 && /^[0-9A-F]{64}$/.test(c.publicKey))
-      .map((c) => ({ node: c.publicKey.slice(0, 8), key: c.publicKey, name: c.name, hops: c.hops }))
+      .map((c) => ({ node: c.publicKey.slice(0, 8), key: c.publicKey, name: c.name, hops: c.hops, source: 'companion' }))
       .filter((c) => !known.has(c.node) && !ignored.has(c.node));
   }
 
