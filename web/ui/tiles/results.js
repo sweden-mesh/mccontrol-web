@@ -11,7 +11,7 @@ import { setSelected } from '../board-state.js';
 import { explainEvent, nameOf } from '../screens/node-kit.js';
 import { resultKind } from '../../lib/store/index.js';
 import { clockTime, everyMinute, forKey, stateMark } from './kit.js';
-import { isSeen, markAllSeen, markSeen } from './data.js';
+import { isSeen, markAllSeen, markSeen, sharedPrefix } from './data.js';
 import { jobs, onDataChanged, onJobs } from './sources.js';
 
 export const id = 'results';
@@ -47,7 +47,10 @@ function fill(ctx, svc, body) {
     const [all, devices, seen] = await Promise.all([
       svc.stores.history.list({ limit: 200 }), svc.stores.devices.list(), svc.stores.meta.get('resultsSeen')]);
     if (ctx.signal.aborted) return;
-    const names = Object.fromEntries(devices.map((d) => [d.node, nameOf(d)]));
+    // The column is narrow: the part of each name that tells it apart (the whole one in its title).
+    const full = Object.fromEntries(devices.map((d) => [d.node, nameOf(d)]));
+    const prefix = sharedPrefix(Object.values(full));
+    const names = Object.fromEntries(Object.entries(full).map(([k, v]) => [k, v.startsWith(prefix) ? v.slice(prefix.length) : v]));
     events = all;
     const fresh = all.filter((e) => !isSeen(e, seen));
     const old = all.filter((e) => isSeen(e, seen)).slice(0, Math.max(0, SHOWN - fresh.length));
@@ -61,7 +64,7 @@ function fill(ctx, svc, body) {
       const what = kind === 'ok' ? x.text : kind === 'refused' ? x.text : kind === 'summary' ? e.note : '';
       const button = h('button', { type: 'button', class: 'result-row', 'data-id': e.id },
         h('span', { class: 'res-time' }, clockTime(ctx, e.at, now)),
-        h('span', { class: 'res-who' }, who),
+        h('span', { class: 'res-who', title: e.node ? full[e.node] || e.node : e.region }, who),
         stateMark(ctx, KIND_STATE[kind], ctx.t(`history.kind.${kind}`)),
         h('span', { class: 'res-what' }, h('code', {}, e.command), what ? ` ${what}` : ''),
         isNew ? h('span', { class: 'visually-hidden' }, ctx.t('tile.new')) : null);
