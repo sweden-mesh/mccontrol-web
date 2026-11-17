@@ -1,0 +1,251 @@
+// lib/jobs: send, groups (RM-4), region broadcasts, sets, discover/adopt, refresh and the
+// firmware update, against a fake keyring and a fake transport. Plus the checks, releases,
+// Beacon fleet reads, the dashboard's sums, and the history CSV.
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { memoryDb } from '../lib/store/db.js';
+import { openStores } from '../lib/store/index.js';
+import { rulesFrom } from '../lib/protocol/rules.js';
+import { createJobs, JobError } from '../lib/jobs/jobs.js';
+import { blocker, fillSteps, preflight } from '../lib/jobs/checks.js';
+import { latestRelease, newestRelease, updateAvailable } from '../lib/jobs/releases.js';
+import { refreshFleet } from '../lib/jobs/fleet.js';
+import { fleetCounts, needsAttention, recentSince } from '../lib/jobs/overview.js';
+import { csvCell, toCsv } from '../ui/screens/history.js';
+import { data } from './protocol-helpers.js';
+import { fakeRing, fakeTransport, FIXTURE_NODES, fixtureBehaviour, seedFixture } from './jobs-fakes.js';
+
+const all = Object.fromEntries(['brokers', 'cautions', 'commands', 'denylist', 'facts', 'firmware', 'results'].map((n) => [n, data(n)]));
+const rules = rulesFrom(all);
+const OWNER = 'C'.repeat(64);
+const LOU18 = 'v1.18.0-lou-18-arrc-observer-1a2b3c4d';
+const AR10 = 'v1.17.1-ar-10-observer-42f48ce9';
+const A = `AAAA0001${'1'.repeat(56)}`;
+const B = `BBBB0002${'2'.repeat(56)}`;
+const C = `CCCC0003${'3'.repeat(56)}`;
+
+async function setup({ behaviour = null, ring = fakeRing(), jobsRules = rules } = {}) {
+  const stores = openStores(memoryDb(), OWNER, { defaultSets: all.brokers.default_sets });
+  await stores.devices.add({ node: A, key: A, region: 'JKG', name: 'alpha' });
+  await stores.devices.add({ node: B, key: B, region: 'JKG', name: 'bravo' });
+  await stores.devices.add({ node: C.slice(0, 8), region: 'GOT', name: 'charlie' });
+  await stores.devices.update('AAAA0001', { ver: LOU18 });
+  await stores.devices.update('BBBB0002', { ver: AR10 });
+  const transport = fakeTransport(behaviour || {
+    AAAA0001: { ver: LOU18, name: 'alpha' }, BBBB0002: { ver: AR10 }, CCCC0003: { ver: LOU18, name: 'charlie' },
+  });
+  const jobs = createJobs({ ring, stores, rules: jobsRules, brokers: all.brokers, results: all.results, transport,
+    sleep: async () => {} });
+  return { stores, transport, jobs, ring };
+}
+
+test('checks: deny list, broadcast rules, ASCII before lou-17, and what the firmware admits', () => {
+  assert.equal(blocker(rules, { command: 'set prv.key 00' , device: { region: 'JKG' } }).code, 'denied');
+  assert.equal(blocker(rules, { command: '  ', device: null }).code, 'empty');
+  assert.equal(blocker(rules, { command: 'trigger test', region: 'JKG' }).code, 'broadcastTransmit');
+  assert.equal(blocker(rules, { command: 'set name Väster', region: 'JKG' }).code, 'broadcastAscii');
+  assert.equal(blocker(rules, { command: 'set name Väster', device: { region: 'JKG', ver: AR10 } }).code, 'oldAscii');
+  assert.equal(blocker(rules, { command: 'set name Väster', device: { region: 'JKG', ver: 'v1.18.0-lou-17-arrc-observer-1' } }), null);
+  assert.equal(blocker(rules, { command: 'ver', device: { region: 'JKG' } }), null);
+  const p = preflight(rules, { command: 'region', device: { region: 'JKG', ver: AR10, key: A } });
+  assert.equal(p.admits, false);
+  assert.equal(p.needs, 'ar-11');
+  assert.equal(p.v2, false);
+  assert.equal(preflight(rules, { command: 'reboot', device: { region: 'JKG', ver: LOU18, key: A } }).v2, true);
+  assert.ok(preflight(rules, { command: 'reboot', device: { region: 'JKG' } }).caution);
+  assert.deepEqual(fillSteps(['region put {arg} *', 'region save'], ' se-jkp '), ['region put se-jkp *', 'region save']);
+  assert.throws(() => fillSteps(['region put {arg} *'], ''), (e) => e.code === 'needsArg');
+});
+
+test('send to one node: v2 with the whole keys, holds the key, lands in history and on the device', async () => {
+  const { stores, transport, jobs, ring } = await setup();
+  const out = await jobs.send({ command: 'ver', nodes: ['AAAA0001'] });
+  assert.equal(out.answered, 1);
+  const call = transport.calls[0];
+  assert.equal(call.topic, `meshcore/JKG/${A}/cmd`);
+  assert.equal(call.v2Key, A);
+  assert.deepEqual(call.keys, { AAAA0001: A, BBBB0002: B });
+  assert.deepEqual(call.nodesToHear, ['AAAA0001']);
+  assert.equal(ring.holds, 1);
+  assert.equal(ring.released, 1);
+  assert.equal(ring.touched, 1);
+  const [event] = await stores.history.list();
+  assert.equal(event.command, 'ver');
+  assert.equal(event.codeName, 'ok');
+  assert.equal(event.verified, true);
+  const d = await stores.devices.get('AAAA0001');
+  assert.equal(d.ver, LOU18);
+  assert.equal(d.lastResult.code, 0);
+  assert.ok(d.lastHeard);
+  assert.equal(d.reads.ver.reply, `> ${LOU18}`);
+  // ar-10 speaks v1 only
+  await jobs.send({ command: 'get radio', nodes: ['BBBB0002'] });
+  assert.equal(transport.calls[1].v2Key, null);
+});
+
+test('a locked key signs nothing; a denied command is refused before signing', async () => {
+  const { jobs, transport } = await setup({ ring: fakeRing({ unlocked: false }) });
+  await assert.rejects(jobs.send({ command: 'ver', nodes: ['AAAA0001'] }), (e) => e instanceof JobError && e.code === 'locked');
+  const open = await setup();
+  await assert.rejects(open.jobs.send({ command: 'set prv.key 00', nodes: ['AAAA0001'] }), (e) => e.code === 'denied');
+  await assert.rejects(open.jobs.send({ command: 'trigger test', region: 'JKG' }), (e) => e.code === 'broadcastTransmit');
+  assert.equal(transport.calls.length + open.transport.calls.length, 0);
+});
+
+test('a group: one signed per-node command each; a member that cannot take it is reported, the rest go', async () => {
+  const { stores, transport, jobs } = await setup();
+  await stores.groups.create('mixed', ['AAAA0001', 'BBBB0002']);
+  const out = await jobs.send({ command: 'set name Väster', group: 'mixed' });
+  assert.equal(transport.calls.length, 1);
+  assert.equal(transport.calls[0].topic, `meshcore/JKG/${A}/cmd`);
+  const b = out.outcomes.find((o) => o.node === 'BBBB0002');
+  assert.equal(b.sent, false);
+  assert.equal(b.reason.code, 'oldAscii');
+  assert.equal(out.asked, 1);
+  assert.equal(out.answered, 1);
+});
+
+test('silence and refusal are recorded as such; a forged answer is not heard', async () => {
+  const { stores, jobs } = await setup({ behaviour: {
+    AAAA0001: { ver: LOU18, answer: () => ({ code: 14, reply: '' }) }, BBBB0002: { silent: true }, CCCC0003: { forged: true, ver: LOU18 },
+  } });
+  const out = await jobs.send({ command: 'neighbors', nodes: ['AAAA0001', 'BBBB0002', 'CCCC0003'] });
+  const by = Object.fromEntries(out.outcomes.map((o) => [o.node, o]));
+  assert.equal(by.AAAA0001.result.code, 14);
+  assert.equal(by.BBBB0002.result, null);
+  assert.equal(by.CCCC0003.result.verified, false);
+  assert.equal((await stores.devices.get('CCCC0003')).lastHeard, null);
+  assert.equal((await stores.devices.get('BBBB0002')).lastResult.code, null);
+  assert.deepEqual((await stores.history.list({ result: 'forged' })).map((e) => e.node), ['CCCC0003']);
+  assert.equal((await stores.devices.get('AAAA0001')).reads.neighbors, undefined);
+});
+
+test('a region-wide send: one broadcast, every known node in the region heard, a count line', async () => {
+  const { stores, transport, jobs } = await setup();
+  const out = await jobs.send({ command: 'get radio', region: 'jkg' });
+  assert.equal(transport.calls.length, 1);
+  assert.equal(transport.calls[0].topic, 'meshcore/JKG/all/cmd');
+  assert.equal(transport.calls[0].v2Key, undefined);
+  assert.deepEqual(transport.calls[0].nodesToHear.sort(), ['AAAA0001', 'BBBB0002']);
+  assert.equal(out.asked, 2);
+  const [summary] = await stores.history.list({ node: 'all' });
+  assert.equal(summary.note, '2 of 2 answered');
+});
+
+test('a set stops at the first refusal; the steps after are not sent', async () => {
+  const { transport, jobs } = await setup({ behaviour: {
+    AAAA0001: { ver: LOU18, answer: (c) => (c === 'region save' ? { code: 14, reply: '' } : undefined) },
+  } });
+  const out = await jobs.runSet({ steps: all.brokers.default_sets['add-scope'], arg: 'se-jkp', nodes: ['AAAA0001'] });
+  assert.equal(out.runs[0].stoppedAt, 2);
+  assert.deepEqual(transport.calls.map((c) => c.command), ['region put se-jkp *', 'region allowf se-jkp', 'region save']);
+  await assert.rejects(jobs.runSet({ steps: ['region put {arg} *'], nodes: ['AAAA0001'] }), (e) => e.code === 'needsArg');
+});
+
+test('discover marks known nodes, learns whole keys, reads names; adopt avoids a taken name', async () => {
+  const { stores, jobs } = await setup({ behaviour: {
+    CCCC0003: { region: 'GOT', key: C, ver: LOU18, name: 'charlie' }, DDDD0004: { region: 'GOT', name: 'bravo', ver: LOU18 },
+  } });
+  const found = await jobs.discover({ region: 'got' });
+  assert.deepEqual(found.map((f) => [f.node, f.knownAs, f.name]), [['CCCC0003', 'charlie', 'charlie'], ['DDDD0004', null, 'bravo']]);
+  assert.equal((await stores.devices.get('CCCC0003')).key, C);
+  const added = await jobs.adopt(found[1]);
+  assert.equal(added.name, 'bravo-2');
+  assert.equal(added.region, 'GOT');
+  await assert.rejects(jobs.discover({ region: 'x' }), (e) => e.code === 'badRegion');
+});
+
+test('refresh reads name and version: an unnamed node takes its own name', async () => {
+  const { stores, jobs } = await setup();
+  await stores.devices.update('CCCC0003', { name: '' });
+  const r = await jobs.refresh({ nodes: ['CCCC0003', 'BBBB0002'] });
+  assert.equal(r.versioned, 2);
+  assert.equal(r.named, 1);
+  assert.equal((await stores.devices.get('CCCC0003')).name, 'charlie');
+  assert.equal((await stores.devices.get('CCCC0003')).ver, LOU18);
+});
+
+test('firmware update: refused while the deny list holds ota update; with it admitted, polls ver until the new version', async () => {
+  const { jobs } = await setup();
+  await assert.rejects(jobs.update({ node: 'AAAA0001', target: 'v1.18.0-lou-19' }), (e) => e.code === 'otaRefused');
+  let polls = 0;
+  const admitting = { ...rules, refusal: (c) => (c === 'ota update' ? null : rules.refusal(c)), admits: () => true };
+  const fresh = await setup({ jobsRules: admitting, behaviour: {
+    AAAA0001: { answer: (c) => {
+      if (c === 'ota update') return { code: 0, reply: 'OK - updating' };
+      polls += 1;
+      return { code: 0, reply: polls < 2 ? `> ${LOU18}` : '> v1.18.0-lou-19-arrc-observer-0' };
+    } },
+  } });
+  const stages = [];
+  const res = await fresh.jobs.update({ node: 'AAAA0001', target: 'v1.18.0-lou-19', pollSecs: 0, onStage: (s) => stages.push(s.stage) });
+  assert.equal(res.ok, true);
+  assert.equal(res.version, 'v1.18.0-lou-19-arrc-observer-0');
+  assert.deepEqual(stages, ['asking', 'restarting', 'checking', 'checking', 'done']);
+  assert.equal((await fresh.stores.devices.get('AAAA0001')).ver, 'v1.18.0-lou-19-arrc-observer-0');
+});
+
+test('releases: the newest real release, cached for an hour; the mark compares revisions', async () => {
+  const list = [{ tag_name: 'v1.18.0-lou-19', draft: true }, { tag_name: 'v1.18.0-lou-19-rc', prerelease: true },
+    { tag_name: 'v1.18.0-lou-18', name: 'v1.18.0-lou-18', html_url: 'x' }];
+  assert.equal(newestRelease(list).tag, 'v1.18.0-lou-18');
+  const stores = openStores(memoryDb(), OWNER);
+  let reads = 0; let t = 0;
+  const read = async () => { reads += 1; return list; };
+  const source = { api: 'fake', cache_secs: 3600 };
+  await latestRelease({ meta: stores.meta, read, now: () => t, source });
+  t = 3599000;
+  await latestRelease({ meta: stores.meta, read, now: () => t, source });
+  assert.equal(reads, 1);
+  t = 3601000;
+  const failing = async () => { throw new Error('offline'); };
+  assert.equal((await latestRelease({ meta: stores.meta, read: failing, now: () => t, source })).tag, 'v1.18.0-lou-18');
+  assert.equal(await latestRelease({ read: failing, source }), null);
+  const rel = newestRelease(list);
+  assert.equal(updateAvailable(rules, AR10, rel), true);
+  assert.equal(updateAvailable(rules, LOU18, rel), false);
+  assert.equal(updateAvailable(rules, null, rel), null);
+});
+
+test('fleet: battery and last status from Beacon; a node Beacon does not know keeps nothing stale', async () => {
+  const { stores } = await setup();
+  await stores.devices.update('BBBB0002', { fleet: { batteryMv: 1, seen: 'old' } });
+  const read = async (url) => {
+    if (url.includes('/nodes?iata=JKG')) return { items: [{ publicKey: A, observerId: 'obs-a' }] };
+    if (url.endsWith('/observers/obs-a')) return { lastStatusAt: 1763370000000, firmwareVersion: LOU18, statusMetadata: { stats: { battery_mv: 3999 } } };
+    throw new Error('404');
+  };
+  const r = await refreshFleet({ stores, brokers: all.brokers, read });
+  assert.deepEqual(r, { updated: 1, failed: 2 });
+  assert.equal((await stores.devices.get('AAAA0001')).fleet.batteryMv, 3999);
+  assert.equal((await stores.devices.get('BBBB0002')).fleet, null);
+});
+
+test('overview: attention in order, counts, recent since the last visit', async () => {
+  const stores = openStores(memoryDb(), OWNER);
+  const now = Date.parse('2026-11-17T12:00:00Z');
+  await seedFixture(stores, now);
+  const devices = await stores.devices.list();
+  assert.equal(devices.length, 12);
+  const items = needsAttention(devices, { now, hours: 24, thresholdMv: 3500, release: { tag: 'v1.18.0-lou-18' }, rules });
+  const kinds = items.map((i) => i.kind);
+  assert.deepEqual([...new Set(kinds)], ['notHeard', 'battery', 'refused', 'outdated']);
+  assert.equal(items.find((i) => i.kind === 'notHeard').name, 'SE-JKG-Lekeryd');
+  assert.deepEqual(items.filter((i) => i.kind === 'battery').map((i) => i.name).sort(), ['SE-JKG-Jöransberg', 'SE-JKG-Norrängen']);
+  const c = fleetCounts(devices, { now, hours: 24, rules });
+  assert.equal(c.total, 12);
+  assert.equal(c.quiet, 1);
+  assert.equal(c.unknown, 1);
+  assert.deepEqual(c.regions, [['JKG', 10], ['GOT', 2]]);
+  const events = await stores.history.list();
+  assert.equal(recentSince(events, new Date(now - 2 * 3600000).toISOString()).length, 3);
+  assert.equal(FIXTURE_NODES.length, 12);
+  assert.ok(Object.keys(fixtureBehaviour()).length === 12);
+});
+
+test('history CSV: quoted, and formulas made inert', () => {
+  assert.equal(csvCell('=HYPERLINK("x")'), '"\'=HYPERLINK(""x"")"');
+  assert.equal(csvCell(null), '""');
+  const csv = toCsv([{ id: '1', at: 't', node: 'AAAA0001', command: 'ver', code: 0, reply: '> v', verified: true, note: '' }], { AAAA0001: 'alpha' });
+  assert.match(csv, /^id,at,node,name,region,command,result,code,codeName,verified,reply,note,batch\r\n"1","t","AAAA0001","alpha","","ver","ok","0","","true","> v","",""\r\n$/);
+});

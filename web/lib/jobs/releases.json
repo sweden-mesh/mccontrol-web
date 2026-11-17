@@ -1,0 +1,6 @@
+{
+  "_note": "Where the firmware releases are listed. The origin must be in the CSP's connect-src (index.html and _headers).",
+  "api": "https://api.github.com/repos/sweden-mesh/MeshCore-lou/releases?per_page=10",
+  "page": "https://github.com/sweden-mesh/MeshCore-lou/releases",
+  "cache_secs": 3600
+}
