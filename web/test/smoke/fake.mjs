@@ -120,3 +120,43 @@ export function noBroker() {
     close() {}
   };
 }
+
+// The longest values a person meets (beta.3's overlap in STATUS): node names at the firmware's
+// 31 bytes, a long companion error, and a companion with a long name. `renameLong(page)` renames
+// the stored nodes (then reload); `companionLong(page, how)` sets the companion line, in the page,
+// through the app's own session with a stand-in navigator.serial: 'error' fails with a long
+// sentence, 'connected' answers app start with a long name. Nothing is opened or transmitted.
+export const LONG_NAME = 'SE-JKG-Kvarnbergets-Vattentorn1';
+export const LONG_ERROR = 'the companion did not answer after it restarted: is it running companion firmware for USB? (port 303a:1001, Heltec WiFi LoRa 32 V4, 115200 baud)';
+export const LONG_COMPANION = 'SE-JKG-LouHome-Kvarnbergsvägen 🏡';
+
+export async function renameLong(page) {
+  await page.evaluate(async ({ seed, name }) => {
+    const { keyFromSeed } = await import('./lib/key/handle.js');
+    const { indexedDb } = await import('./lib/store/db.js');
+    const { openStores } = await import('./lib/store/index.js');
+    const owner = keyFromSeed(Uint8Array.from(seed.match(/../g).map((b) => parseInt(b, 16)))).publicKeyHex.toUpperCase();
+    const stores = openStores(indexedDb(indexedDB), owner);
+    for (const [i, d] of (await stores.devices.list()).entries()) await stores.devices.update(d.node, { name: `${name.slice(0, 29)}${i}` });
+  }, { seed: FAKE_SEED, name: LONG_NAME });
+}
+
+export async function companionLong(page, how) {
+  await page.evaluate(async ({ how, error, name }) => {
+    const enc = new TextEncoder();
+    const port = {
+      open: async () => {}, setSignals: async () => {}, close: async () => {}, getInfo: () => ({}),
+      writable: { getWriter: () => ({ releaseLock() {}, write: async (b) => {
+        if (b[3] !== 1) return;
+        const body = [5, 1, 22, 22, ...new Array(32).fill(0xab), ...new Array(22).fill(0), ...enc.encode(name)];
+        feed?.({ value: Uint8Array.from([0x3e, body.length & 0xff, body.length >> 8, ...body]), done: false });
+      } }) },
+      readable: { getReader: () => ({ read: () => new Promise((r) => { feed = r; }), cancel: async () => feed?.({ done: true }), releaseLock() {} }) },
+    };
+    let feed = null;
+    const serial = { requestPort: async () => { if (how === 'error') throw new Error(error); return port; } };
+    Object.defineProperty(navigator, 'serial', { value: serial, configurable: true });
+    const session = await import('./ui/companion-session.js');
+    await session.connect('usb');
+  }, { how, error: LONG_ERROR, name: LONG_COMPANION });
+}

@@ -14,11 +14,13 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { existsSync, readFileSync } from 'node:fs';
 import { serve, puppeteer } from './run.mjs';
-import { seedFake, fakeBeacon, noBroker, FAKE_NODES } from './fake.mjs';
+import { seedFake, fakeBeacon, noBroker, renameLong, companionLong, FAKE_NODES } from './fake.mjs';
 
 const HERE = fileURLToPath(new URL('.', import.meta.url));
 const LOOKS = ['amber', 'green', 'dark', 'light'];
 const PHONES = [[360, 780], [390, 844], [412, 915]];
+// The long-values pass (beta.3: "failed" over "Connect by USB" in STATUS): every tile at these.
+const LONG_WIDTHS = [[1100, 800], [1280, 800], [1600, 900], [360, 780]];
 
 function options(argv) {
   const o = { root: resolve(HERE, '../..'), out: null, shots: false };
@@ -53,6 +55,12 @@ const inspect = () => {
     const r = el.getBoundingClientRect();
     const x = r.left + r.width / 2; const y = r.top + r.height / 2;
     if (x < 0 || y < 0 || x > innerWidth || y > innerHeight) return false;
+    // scrolled out of a tile that scrolls inside itself: not shown, though the hit is an ancestor
+    for (let e = el.parentElement; e; e = e.parentElement) {
+      if (getComputedStyle(e).overflow === 'visible') continue;
+      const c = e.getBoundingClientRect();
+      if (x < c.left || x > c.right || y < c.top || y > c.bottom) return false;
+    }
     const hit = document.elementFromPoint(x, y);
     return Boolean(hit && (el === hit || el.contains(hit) || hit.contains(el)));
   };
@@ -88,6 +96,42 @@ const inspect = () => {
     if (!r) out.push('the node sheet has no command line');
     else if (!phone && r.bottom > dialog.getBoundingClientRect().bottom + 1) out.push('the command line is below the dialog');
     else if (phone && Math.abs(r.bottom - innerHeight) > 2) out.push(`the command line ends ${Math.round(innerHeight - r.bottom)}px above the bottom`);
+  }
+  return [...new Set(out)];
+};
+
+// Inside a tile's row, two boxes on top of each other, or one sticking out of its tile (clipped).
+// A row: a list item or a row of columns. Its pieces: what shows text or takes a click.
+const rowOverlaps = () => {
+  const out = [];
+  const visible = (el) => { const r = el.getBoundingClientRect(); const cs = getComputedStyle(el);
+    return r.width > 0 && r.height > 0 && cs.visibility !== 'hidden' && cs.clipPath === 'none' && !el.closest('[hidden]'); };
+  const ellipsed = (el, row) => { for (let e = el.parentElement; e && e !== row.parentElement; e = e.parentElement) if (getComputedStyle(e).textOverflow === 'ellipsis' && getComputedStyle(e).overflow !== 'visible') return true; return false; };
+  const label = (el) => `"${(el.textContent || el.tagName).trim().slice(0, 18)}"`;
+  for (const tile of document.querySelectorAll('.tile')) {
+    const body = tile.querySelector('.tile-body')?.getBoundingClientRect();
+    if (!body?.width) continue;
+    for (const row of tile.querySelectorAll('li, .row, .node-row, .result-row, .status-row, .tile-foot')) {
+      const parts = [...row.querySelectorAll('.row-name, .mark-word, .glyph, button, a, input, .muted, span:not(:has(*)), code')]
+        .filter((el) => visible(el) && !ellipsed(el, row) && el.closest('li, .row, .node-row, .result-row, .status-row, .tile-foot') === row);
+      const boxes = parts.map((el) => [el, el.getBoundingClientRect()]);
+      for (const [el] of boxes) {
+        const cs = getComputedStyle(el);
+        if (cs.display !== 'inline' && cs.overflow === 'visible' && el.scrollWidth > el.clientWidth + 1) out.push(`${tile.dataset.tile}: ${label(el)} runs out of its box by ${el.scrollWidth - el.clientWidth}px`);
+      }
+      for (const [el, r] of boxes) {
+        if (r.right > body.right + 1 || r.left < body.left - 1) out.push(`${tile.dataset.tile}: ${label(el)} sticks out of the tile by ${Math.round(Math.max(r.right - body.right, body.left - r.left))}px`);
+      }
+      for (let i = 0; i < boxes.length; i += 1) {
+        for (let j = i + 1; j < boxes.length; j += 1) {
+          const [a, ra] = boxes[i]; const [b, rb] = boxes[j];
+          if (a.contains(b) || b.contains(a)) continue;
+          const w = Math.min(ra.right, rb.right) - Math.max(ra.left, rb.left);
+          const hgt = Math.min(ra.bottom, rb.bottom) - Math.max(ra.top, rb.top);
+          if (w > 1 && hgt > 1) out.push(`${tile.dataset.tile}: ${label(a)} overlaps ${label(b)}`);
+        }
+      }
+    }
   }
   return [...new Set(out)];
 };
@@ -256,6 +300,27 @@ async function main() {
           await page.keyboard.press('Escape');
           if (id) { await go(page, `result/${id}`, 1280, 800); } else { await page.click('.result-row'); await new Promise((ok) => setTimeout(ok, 500)); }
           await shot(page, 'beta-result');
+        }
+      }
+      // The long values: names at 31 bytes, a long companion error, then a long companion name.
+      await renameLong(page);
+      for (const [w, hh] of LONG_WIDTHS) {
+        for (const how of ['error', 'connected']) {
+          problems.length = 0;
+          const where = `${look} ${w}x${hh} long values, companion ${how}`;
+          try {
+            await go(page, '', w, hh);
+            if (w >= 720) { await page.click('.node-row'); await wait(); }
+            await companionLong(page, how);
+            await wait();
+            const word = await page.evaluate(() => document.querySelector('.status-row[data-line="companion"] .mark-word')?.textContent || '');
+            const seen = [...await page.evaluate(inspect), ...await page.evaluate(rowOverlaps)];
+            if (how === 'connected' ? !word.includes('Kvarnbergsvägen') : word.length > 30 || !word) seen.push(`the companion line says "${word}"`);
+            const status = await page.$('.tile[data-tile="status"]');
+            await status.screenshot({ path: join(o.out, `long-${look}-${w}-status-${how}.png`) });
+            if (how === 'error') await shot(page, `long-${look}-${w}x${hh}-board`, w < 720);
+            report(where, [...problems, ...seen]);
+          } catch (err) { report(where, [err.message]); }
         }
       }
       await ctx.close();
