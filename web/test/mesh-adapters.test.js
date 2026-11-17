@@ -179,3 +179,143 @@ test('USB: a board that never answers is reported after the wait, with the reaso
   assert.equal(port.written.filter((b) => b[3] === 1).length, 5);   // 0, 400, 600, 800, 1000 ms
   await link.close();
 });
+
+// W-25b: an ESP32-S3 on native USB that restarts leaves the bus and comes back as a new device; the
+// opened port dies (its read fails, 'disconnect' fires). Fakes for that: a port whose read can be
+// killed, and a navigator.serial whose getPorts() shows what is plugged in now.
+const selfFrame = (name) => {
+  const text = new TextEncoder().encode(name);
+  const body = new Uint8Array([5, 1, 22, 22, ...new Array(32).fill(0xab), ...new Array(22).fill(0), ...text]);
+  return new Uint8Array([0x3e, body.length & 0xff, body.length >> 8, ...body]);
+};
+function deadPort({ answers = true, failOpens = 0, name = 'Heltec V4' } = {}) {
+  const listeners = {};
+  const port = {
+    written: [], opens: 0, closed: false,
+    getInfo: () => ({ usbVendorId: 0x303a, usbProductId: 0x1001 }),
+    addEventListener: (type, fn) => { listeners[type] = fn; },
+    removeEventListener: (type) => { delete listeners[type]; },
+    async open() { port.opens += 1; if (failOpens-- > 0) { const e = new Error('Failed to open serial port.'); e.name = 'NetworkError'; throw e; } },
+    setSignals: async () => {},
+    close: async () => { port.closed = true; },
+    writable: { getWriter: () => ({ write: async (b) => {
+      if (port.dead) throw new Error('The device has been lost.');
+      port.written.push([...b]);
+      if (answers && b[3] === 1) setTimeout(() => push(selfFrame(name)), 10);
+    }, releaseLock() {} }) },
+    readable: { getReader: () => ({
+      read: () => (pending.length ? Promise.resolve({ value: pending.shift(), done: false }) : new Promise((r, j) => { feed = r; fail = j; })),
+      cancel: async () => feed?.({ done: true }), releaseLock() {},
+    }) },
+    // The board restarts: the read fails and the port says it is gone.
+    restart() {
+      port.dead = true;
+      const e = new Error('The device has been lost.'); e.name = 'NetworkError';
+      fail?.(e); feed = null; fail = null;
+      listeners.disconnect?.({ target: port });
+    },
+  };
+  let feed = null;
+  let fail = null;
+  const pending = [];
+  const push = (bytes) => { if (feed) { const f = feed; feed = null; f({ value: bytes, done: false }); } else pending.push(bytes); };
+  return port;
+}
+const fastReopen = { reopenWithinMs: 1500, pollMs: 50, settleMs: 50 };
+const fastStart = { startWithinMs: 1500, startFirstMs: 200, startEveryMs: 100 };
+
+test('USB: the board restarts after open, the port comes back as a new one, app start follows it', async () => {
+  const { openCompanion } = await import('../lib/mesh/companion.js');
+  const { createUsbLog } = await import('../lib/mesh/usblog.js');
+  const log = createUsbLog({ enabled: true });
+  const first = deadPort({ answers: false });       // restarts before it answers
+  const second = deadPort();
+  let plugged = [first];
+  const serial = { requestPort: async () => first, getPorts: async () => plugged };
+  const link = await connectSerial({ serial, log, ...fastReopen });
+  const seen = [];
+  link.onStatus((s) => seen.push(s.state));
+  setTimeout(() => { plugged = []; first.restart(); }, 100);
+  setTimeout(() => { plugged = [second]; }, 400);
+  const c = await openCompanion(link, fastStart);
+  assert.equal(c.self.name, 'Heltec V4');
+  assert.deepEqual(seen, ['reconnecting', 'open']);
+  assert.equal(first.closed, true, 'the dead port is let go');
+  assert.equal(second.opens, 1);
+  assert.ok(second.written.some((b) => b[3] === 1), 'app start asked on the new port');
+  const text = log.text();
+  for (const want of ['chosen', 'open', 'signals', 'out', 'lost', 'NetworkError', 'reopened', ' in ']) assert.ok(text.includes(want), `${want} in the capture`);
+  assert.match(text, /3c [0-9a-f]{2} 00 01/);   // app start in hex
+  await c.close();
+});
+
+test('USB: the same port object comes back; an open that fails while it settles is retried', async () => {
+  const { openCompanion } = await import('../lib/mesh/companion.js');
+  const port = deadPort();
+  let plugged = [port];
+  const serial = { requestPort: async () => port, getPorts: async () => plugged };
+  const link = await connectSerial({ serial, ...fastReopen });
+  const c = await openCompanion(link, fastStart);
+  // a restart once connected: the link follows it, the companion stays usable
+  plugged = [];
+  port.restart();
+  assert.equal(link.reconnecting, true);
+  await link.write(Uint8Array.of(1));   // dropped, not thrown, while it reconnects
+  port.dead = false;
+  let failOnce = true;
+  const open = port.open;
+  port.open = async (o) => { if (failOnce) { failOnce = false; throw new Error('InvalidStateError'); } return open(o); };
+  setTimeout(() => { plugged = [port]; }, 200);
+  await new Promise((r) => { link.onStatus((s) => { if (s.state === 'open') r(); }); });
+  assert.equal(link.reconnecting, false);
+  assert.equal(c.closed, false);
+  await c.close();
+});
+
+test('USB: a board that does not come back fails with the reason, after the wait', async () => {
+  const { openCompanion, CompanionError } = await import('../lib/mesh/companion.js');
+  const port = deadPort({ answers: false });
+  const serial = { requestPort: async () => port, getPorts: async () => [] };
+  const link = await connectSerial({ serial, ...fastReopen, reopenWithinMs: 400 });
+  let closed = false;
+  link.onStatus((s) => { if (s.state === 'gone') closed = true; });
+  setTimeout(() => port.restart(), 50);
+  const began = Date.now();
+  await assert.rejects(openCompanion(link, fastStart), (e) => {
+    assert.ok(e instanceof CompanionError);
+    assert.equal(e.code, 'closed');
+    assert.match(e.message, /restarted and did not come back/);
+    return true;
+  });
+  assert.ok(Date.now() - began >= 400);
+  assert.equal(closed, true);
+});
+
+test('USB: a board that restarts on every open is followed only a few times', async () => {
+  const port = deadPort({ answers: false });
+  const serial = { requestPort: async () => port, getPorts: async () => [port] };
+  const link = await connectSerial({ serial, ...fastReopen, reopens: 2 });
+  let reopened = 0;
+  let gone = false;
+  link.onStatus((s) => { if (s.state === 'open') { reopened += 1; setTimeout(() => port.restart(), 20); } if (s.state === 'gone') gone = true; });
+  port.restart();
+  await new Promise((r) => { const t = setInterval(() => { if (gone) { clearInterval(t); r(); } }, 20); });
+  assert.equal(reopened, 2);
+});
+
+test('USB debug capture: off by default, hex and text, the header, ?usbdebug=1', async () => {
+  const { createUsbLog, hexAscii, usbDebugOn } = await import('../lib/mesh/usblog.js');
+  assert.equal(hexAscii(Uint8Array.of(0x3e, 0x41, 0x0a)), '3e 41 0a | >A.');
+  const off = createUsbLog();
+  off.add('open', 'x');
+  assert.equal(off.lines.length, 0);
+  let t = 1000;
+  const on = createUsbLog({ enabled: true, now: () => t });
+  on.add('open', 'baudRate 115200');
+  t = 1250;
+  on.bytes('in', Uint8Array.of(0x3e));
+  assert.deepEqual(on.lines, ['      0 ms  open      baudRate 115200', '    250 ms  in        1 B  3e | >']);
+  assert.match(on.text(), /^mccontrol USB capture/);
+  assert.equal(usbDebugOn('?usbdebug=1'), true);
+  assert.equal(usbDebugOn('?usbsignals=none'), false);
+});

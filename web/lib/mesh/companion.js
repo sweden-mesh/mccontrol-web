@@ -3,7 +3,8 @@
 // meshcore_py: start, find the node as a contact, add it when it is not one, send the request,
 // wait for the answer with the request's tag.
 //
-//   link     { write(bytes): Promise, onFrame(fn), onClose(fn), close(): Promise, kind, label, startWithinMs? }
+//   link     { write(bytes): Promise, onFrame(fn), onClose(fn), close(): Promise, kind, label, startWithinMs?,
+//              onStatus?(fn) -> unsubscribe: { state: 'reconnecting' | 'open' | 'gone' } (serial.js) }
 //   const c = await openCompanion(link)        // app start; c.self = { publicKey, name }
 //   await c.contact(keyHex)                    // { name, hops } (hops -1: no path, floods) | null
 //   await c.addContact(keyHex, name)
@@ -110,6 +111,8 @@ export async function openCompanion(link, {
   // inside open(), before serial.js can drop them, W-21) and spends a second or two booting, so
   // the first ask can go unheard: ask again every `startEveryMs` after `startFirstMs`, until
   // `startWithinMs`, taking only SELF_INFO as the answer (a boot log's stray frame is not one).
+  // On an ESP32-S3's native USB that restart drops the port: while the link reopens it (W-25b) the
+  // asking pauses, and once it is open again it starts over with a fresh `startWithinMs`.
   function start() {
     const frame = appStart(appName);
     return new Promise((resolve, reject) => {
@@ -117,7 +120,9 @@ export async function openCompanion(link, {
       let writeError = null;
       let retry = null;
       let sent = 0;
-      const stop = () => { clearTimeout(retry); clearTimeout(deadline); waiting = null; };
+      let deadline = null;
+      let unwatch = () => {};
+      const stop = () => { clearTimeout(retry); clearTimeout(deadline); unwatch(); waiting = null; };
       const fail = (e) => { stop(); reject(e); };
       const take = (f) => {
         if (f.kind === 'selfInfo') { stop(); resolve(f); return; }
@@ -129,13 +134,19 @@ export async function openCompanion(link, {
         Promise.resolve(link.write(frame)).then(() => { writeError = null; }, (e) => { writeError = e; });
         retry = setTimeout(send, sent++ ? startEveryMs : startFirstMs);
       };
-      const deadline = setTimeout(() => {
+      const late = () => {
         stop();
         if (other) reject(new CompanionError('the device did not answer as a MeshCore companion'));
         else if (writeError) reject(new CompanionError(`cannot write to the companion: ${writeError?.message || writeError}`));
         else if (link.kind === 'usb') reject(new CompanionError("the companion didn't answer after it restarted: is it running companion firmware for USB?", 'timeout'));
         else reject(new CompanionError(`the companion did not answer in ${Math.round(startWithinMs / 1000)} s`, 'timeout'));
-      }, startWithinMs);
+      };
+      unwatch = link.onStatus?.((st) => {
+        if (st.state === 'reconnecting') { clearTimeout(retry); clearTimeout(deadline); return; }
+        if (st.state === 'open') { other = null; writeError = null; sent = 0; deadline = setTimeout(late, startWithinMs); send(); return; }
+        if (st.state === 'gone') fail(new CompanionError('the companion restarted and did not come back over USB', 'closed'));
+      }) || (() => {});
+      deadline = setTimeout(late, startWithinMs);
       waiting = { resolve: take, reject: fail, timer: null };
       send();
     });

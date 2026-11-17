@@ -424,7 +424,17 @@ line at the bottom. `--shots` adds the beta notes' screenshots.
 USB (W-21): `lib/mesh/serial.js`'s `openQuiet` drops DTR and RTS right after `port.open`, for the
 companion and for Setup's node tab, because on an ESP32-S3's native USB they reset the board into a
 boot loop. On the bench, `?usbsignals=dtr0rts0|dtr1rts0|dtr0rts1|dtr1rts1|none` in the address picks
-another combination (`none`: the browser's defaults).
+another combination (`none`: the browser's defaults, which is all meshcore.js, the official web
+clients' library, does: `open({ baudRate: 115200 })`, no `setSignals`, app start at once).
+
+When the board restarts anyway (W-25b), an ESP32-S3 on native USB leaves the bus and comes back as a
+new device, so the opened port dies: its read fails and `disconnect` fires. `connectSerial` then lets
+go of it and looks every 250 ms in `navigator.serial.getPorts()` (ports already granted, so no new
+click) for the same USB vendor and product, reopens it after 300 ms, and app start begins again; up
+to 15 s, and at most 3 restarts per connection. Meanwhile the companion line says "The companion
+restarted, reconnecting…". With `?usbdebug=1` in the address a box in the top corner records every
+step (open, signals, bytes in and out as hex and text, lost, retries, reopened) with the milliseconds
+since the first, and "Copy" puts it on the clipboard (`lib/mesh/usblog.js`, `ui/usb-debug.js`).
 
 The modals come from `ui/modal.js`'s registry, so a new modal is covered without editing the runner.
 `--only board,help` limits the hashes. Firefox is not run: Puppeteer would need a Firefox download

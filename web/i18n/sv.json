@@ -525,6 +525,8 @@
   "companion.title": "Companion-radio",
   "companion.none": "Companion-radio: inte ansluten.",
   "companion.connecting": "Ansluter. Välj radion i webbläsarens lista.",
+  "companion.reconnecting": "Radion startade om, ansluter igen…",
+  "companion.reconnectingBrief": "startade om, ansluter igen…",
   "companion.connected": "Ansluten till {name} via {kind}.",
   "companion.error": "Kunde inte ansluta: {error}",
   "companion.bluetooth": "Anslut via Bluetooth",

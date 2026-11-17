@@ -44,7 +44,7 @@ export function companionControl(ctx) {
   function draw(s) {
     const kind = s.kind ? ctx.t(`companion.kind.${s.kind}`) : '';
     status.textContent = s.status === 'connected' ? ctx.t('companion.connected', { name: s.name || kind, kind })
-      : s.status === 'connecting' ? ctx.t('companion.connecting')
+      : s.status === 'connecting' ? ctx.t(s.phase === 'reconnecting' ? 'companion.reconnecting' : 'companion.connecting')
         : s.status === 'error' ? ctx.t('companion.error', { error: s.error }) : ctx.t('companion.none');
     const list = s.status === 'connected' ? [off]
       : [can.bluetooth ? bt : null, can.usb ? usb : null].filter(Boolean);
@@ -115,7 +115,7 @@ export function companionBrief(ctx) {
   function draw(s) {
     const kind = s.kind ? ctx.t(`companion.kind.${s.kind}`) : '';
     const word = s.status === 'connected' ? ctx.t('companion.briefConnected', { name: s.name || kind, kind })
-      : s.status === 'connecting' ? ctx.t('companion.connecting')
+      : s.status === 'connecting' ? ctx.t(s.phase === 'reconnecting' ? 'companion.reconnecting' : 'companion.connecting')
         : s.status === 'error' ? ctx.t('companion.briefError') : ctx.t('companion.briefNone');
     button.textContent = word;
     button.disabled = s.status === 'connecting';

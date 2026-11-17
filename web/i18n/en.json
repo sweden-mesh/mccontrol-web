@@ -525,6 +525,8 @@
   "companion.title": "Companion radio",
   "companion.none": "Companion radio: not connected.",
   "companion.connecting": "Connecting. Choose the radio in the browser's list.",
+  "companion.reconnecting": "The companion restarted, reconnecting…",
+  "companion.reconnectingBrief": "restarted, reconnecting…",
   "companion.connected": "Connected to {name} by {kind}.",
   "companion.error": "Could not connect: {error}",
   "companion.bluetooth": "Connect by Bluetooth",

@@ -218,3 +218,13 @@ main:focus { outline: none; }
   .tile, .modal { border-color: CanvasText; }
   .alert { forced-color-adjust: none; background: Mark; color: MarkText; }
 }
+
+/* The USB debug capture (W-25b, ?usbdebug=1 only): a box in the top corner, closed until opened. */
+.usb-debug {
+  position: fixed; inset-block-start: 8px; inset-inline-end: 8px; z-index: 20; max-inline-size: min(48rem, calc(100vw - 16px));
+  padding: 4px 8px; background: var(--bg); color: var(--fg); border: 1px solid var(--field-border); border-radius: var(--radius-xs);
+  font-size: .8125rem;
+}
+.usb-debug summary { cursor: pointer; min-height: 24px; }
+.usb-debug .row { gap: 8px; margin: 4px 0; align-items: center; }
+.usb-debug-log { max-block-size: 50vh; overflow: auto; margin: 0; white-space: pre; font-family: var(--font-mono, monospace); }
