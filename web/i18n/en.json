@@ -550,5 +550,5 @@
   "keyscreen.seedWarn": "Anyone with this key can command every node set up with it.",
   "keyscreen.seedCopy": "Copy the private key",
   "keyscreen.seedHide": "Hide",
-  "keyscreen.seedWhen": "Hidden again after 60 seconds, when the key locks, or when you leave this page."
+  "keyscreen.seedWhen": "Hidden again after 60 seconds, when the key locks, when you switch away from this tab or leave this page. A copied key is then cleared from the clipboard."
 }

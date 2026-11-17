@@ -550,5 +550,5 @@
   "keyscreen.seedWarn": "Den som har nyckeln kan styra varje nod som är inställd med den.",
   "keyscreen.seedCopy": "Kopiera den privata nyckeln",
   "keyscreen.seedHide": "Dölj",
-  "keyscreen.seedWhen": "Döljs igen efter 60 sekunder, när nyckeln låses eller när du lämnar sidan."
+  "keyscreen.seedWhen": "Döljs igen efter 60 sekunder, när nyckeln låses, när du byter flik eller lämnar sidan. En kopierad nyckel töms då ur urklipp."
 }

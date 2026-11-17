@@ -143,6 +143,20 @@ test('key screen: the shown private key hides itself after a minute, and on hide
   r.show('ef'.repeat(32));
   r.show('01'.repeat(32));                           // shown again: one timer, the new value
   assert.deepEqual([r.value(), hidden, due.size], ['01'.repeat(32), 3, 1]);
+
+  // W-12: a copied key is cleared from the clipboard when it hides; an uncopied one leaves it.
+  const writes = [];
+  const c = revealer(() => {}, { timers, clipboard: () => ({ writeText: async (x) => { writes.push(x); } }) });
+  c.show('ab'.repeat(32));
+  c.hide();
+  assert.deepEqual(writes, []);
+  c.show('cd'.repeat(32));
+  assert.equal(c.copy(), 'cd'.repeat(32));
+  advance(REVEAL_MS);
+  assert.deepEqual(writes, ['']);
+  c.hide();
+  assert.deepEqual(writes, [''], 'cleared once');
+  assert.equal(c.copy(), '', 'nothing to copy once hidden');
 });
 
 test('help: links between topics, and every result code with mesh-closed', () => {

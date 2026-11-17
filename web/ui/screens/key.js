@@ -28,13 +28,20 @@ export function brokerChoices(brokers, regions = {}) {
 export const REVEAL_MS = 60000;
 
 // The shown private key: show(hex) holds it and hides it again after `ms`; hide() drops it and
-// calls onHide once. value() is the hex while shown, else null.
-export function revealer(onHide, { ms = REVEAL_MS, timers = globalThis } = {}) {
+// calls onHide once. value() is the hex while shown, else null. copy() is the hex for the Copy
+// button and remembers it was copied, so hiding also empties the clipboard (W-12): the key is not
+// left there for the next paste. Best effort: a browser without focus may refuse the write.
+export function revealer(onHide, { ms = REVEAL_MS, timers = globalThis, clipboard = () => globalThis.navigator?.clipboard } = {}) {
   let value = null;
   let timer = null;
+  let copied = false;
   const hide = () => {
     if (timer !== null) timers.clearTimeout(timer);
     timer = null;
+    if (copied) {
+      copied = false;
+      try { Promise.resolve(clipboard()?.writeText('')).catch(() => {}); } catch { /* no clipboard */ }
+    }
     if (value === null) return;
     value = null;
     onHide();
@@ -43,6 +50,7 @@ export function revealer(onHide, { ms = REVEAL_MS, timers = globalThis } = {}) {
     show(hex) { hide(); value = hex; timer = timers.setTimeout(hide, ms); },
     hide,
     value: () => value,
+    copy() { if (value !== null) copied = true; return value ?? ''; },
   };
 }
 
@@ -167,7 +175,7 @@ export function render(ctx) {
         slot.replaceChildren(
           h('p', { class: 'warn-text' }, t('keyscreen.seedWarn')),
           h('p', { class: 'pubkey' }, h('code', { translate: 'no' }, seed.value())),
-          h('div', { class: 'row wrap' }, copyButton(t, () => seed.value() ?? '', t('keyscreen.seedCopy')), hide),
+          h('div', { class: 'row wrap' }, copyButton(t, () => seed.copy(), t('keyscreen.seedCopy')), hide),
           h('p', { class: 'hint-line' }, t('keyscreen.seedWhen')));
         hide.focus();
       } catch { err.textContent = t('unlock.wrong'); } finally { busy(go, false); }
@@ -290,6 +298,8 @@ export function render(ctx) {
     }
     draw(s);
   });
+  // A tab sent to the background hides it too: it is not left on screen behind another window.
+  document.addEventListener('visibilitychange', () => { if (document.hidden) seed.hide(); }, { signal: ctx.signal });
   ctx.signal.addEventListener('abort', () => { stop(); seed.hide(); }, { once: true });
   return section;
 }
