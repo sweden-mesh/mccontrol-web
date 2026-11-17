@@ -11,6 +11,8 @@
 //   refresh       the newest Beacon read stored on a device, the next due 15 minutes after it;
 //                 Refresh now reads Beacon (no transmission)
 //   discovery     "not run here": Look now opens today's discovery form
+// The page's automation (ui/automation.js) provides 'refresh' and 'discovery' (automation-sources.js,
+// with Undo for what discovery last added); registration by itself provides 'registration'.
 import { h } from '../dom.js';
 import { setStatusItem } from '../statusline.js';
 import { keyStatus, keyring, currentHandle } from '../screens/key-session.js';
@@ -139,7 +141,10 @@ export function render(ctx) {
     const src = source('discovery');
     if (!src) return line('discovery', 'unknown', ctx.t('tile.notRunHere'), h('a', { href: '#nodes', class: 'status-act' }, ctx.t('tile.lookNow')));
     const st = src.state();
-    return line('discovery', st.state, clock(st, ctx.t('tile.notYet')), src.run ? act(ctx.t('tile.lookNow'), () => src.run()) : null, st.detail);
+    if (st.needsArea) return line('discovery', 'warn', ctx.t('disc.needsArea'), h('a', { href: '#setup/area', class: 'status-act' }, ctx.t('tile.chooseArea')));
+    const acts = [src.run && ctx.key.state().status === 'unlocked' ? act(ctx.t('tile.lookNow'), () => src.run()) : null,
+      src.undo && st.canUndo ? act(ctx.t('disc.undo'), async () => { await src.undo(); ctx.announce(ctx.t('disc.undone')); }) : null].filter(Boolean);
+    return line('discovery', st.state, clock(st, ctx.t('tile.notYet')), acts.length ? h('span', { class: 'status-acts' }, acts) : null, st.detail);
   }
 
   function draw() {

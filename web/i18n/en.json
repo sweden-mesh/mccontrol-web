@@ -706,6 +706,7 @@
   "tile.refreshNow": "Refresh now",
   "tile.notRunHere": "not run here yet",
   "tile.lookNow": "Look now",
+  "tile.chooseArea": "Choose",
   "tile.mapList": "As a list",
   "tile.mapEmpty": "Your nodes appear here once you have some.",
   "tile.mapNoPositions": "Beacon has no position for your nodes yet.",

@@ -7,5 +7,9 @@ import * as node from './node.js';
 import * as status from './status.js';
 import * as map from './map.js';
 import * as results from './results.js';
+import { useAutomation } from './automation-sources.js';
 
 for (const tile of [nodes, node, status, map, results]) registerTile(tile);
+
+// STATUS's discovery and refresh lines come from the page's automation (ui/automation.js).
+useAutomation();

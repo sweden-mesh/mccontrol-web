@@ -706,6 +706,7 @@
   "tile.refreshNow": "Läs nu",
   "tile.notRunHere": "inte körd här än",
   "tile.lookNow": "Sök nu",
+  "tile.chooseArea": "Välj",
   "tile.mapList": "Som lista",
   "tile.mapEmpty": "Dina noder visas här när du har några.",
   "tile.mapNoPositions": "Beacon har ingen position för dina noder än.",

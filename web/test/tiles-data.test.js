@@ -158,3 +158,17 @@ test('jobs run, report progress and end; data changes reach the listeners', () =
   dataChanged('devices');
   assert.deepEqual(what, ['history', 'any']);
 });
+
+test('the automation as STATUS lines: refresh and discovery', async () => {
+  const { refreshLine, discoveryLine } = await import('../ui/tiles/automation-sources.js');
+  assert.equal(refreshLine(null).state, 'unknown');
+  const beacon = { lastRun: 10, nextRun: 20, error: null };
+  assert.deepEqual(refreshLine({ owner: 'K', refresh: { running: null, beacon } }), { state: 'ok', last: 10, next: 20, detail: null });
+  assert.equal(refreshLine({ owner: 'K', refresh: { running: 'beacon', beacon } }).state, 'running');
+  assert.equal(refreshLine({ owner: 'K', refresh: { running: null, beacon: { ...beacon, error: 'down' } } }).detail, 'down');
+  const d = { running: false, needsArea: false, lastRun: null, nextRun: null, canUndo: false };
+  assert.equal(discoveryLine({ owner: 'K', discovery: d }).state, 'unknown');
+  assert.equal(discoveryLine({ owner: 'K', discovery: { ...d, needsArea: true } }).state, 'warn');
+  assert.equal(discoveryLine({ owner: 'K', discovery: { ...d, lastRun: 5, canUndo: true } }).canUndo, true);
+  assert.equal(discoveryLine({ owner: 'K', discovery: { ...d, running: true } }).state, 'running');
+});
