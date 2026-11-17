@@ -79,6 +79,8 @@
  },
  "v2_from": 13,
  "utf8_from": 17,
+ "mesh_from": 19,
+ "mesh_only_rule": "a version containing -lou- whose features have rc and which does not contain -observer (lower case); a device's own mesh_only (true/false) wins when set",
  "private_subtype": {
   "old": 4,
   "new": 240,

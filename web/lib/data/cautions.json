@@ -65,6 +65,18 @@
   {
    "prefix": "set name",
    "why": "renames the node as the whole mesh sees it in every advert."
+  },
+  {
+   "prefix": "set wifi.ssid",
+   "why": "moves the node to another Wi-Fi network; a wrong one keeps it off MQTT until the mesh road sets it again."
+  },
+  {
+   "prefix": "set wifi.pwd",
+   "why": "changes the Wi-Fi password the node uses; a wrong one keeps it off MQTT until the mesh road sets it again."
+  },
+  {
+   "prefix": "set mqtt.cmd on",
+   "why": "points the node's command slot at a broker; a wrong one keeps it off the control plane until the mesh road sets it again."
   }
  ]
 }
