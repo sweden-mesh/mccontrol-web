@@ -193,6 +193,7 @@
   "nodes.discoverButton": "Sök",
   "nodes.discoverWait": "{n} har svarat, {secs} s kvar",
   "nodes.discoverNone": "Ingen nod i {region} svarade. En nod svarar bara när den har din nyckel och är ansluten till brokern.",
+  "nodes.keyChanged": "svarade med en annan nyckel: den sparade nyckeln behålls",
   "nodes.knownAs": "redan din: {name}",
   "nodes.nameFor": "Namn för {node}",
   "nodes.adopt": "Lägg till",
@@ -549,5 +550,5 @@
   "keyscreen.seedWarn": "Den som har nyckeln kan styra varje nod som är inställd med den.",
   "keyscreen.seedCopy": "Kopiera den privata nyckeln",
   "keyscreen.seedHide": "Dölj",
-  "keyscreen.seedWhen": "Döljs igen efter 60 sekunder, när nyckeln låses eller när du lämnar sidan."
+  "keyscreen.seedWhen": "Döljs igen efter 60 sekunder, när nyckeln låses, när du byter flik eller lämnar sidan. En kopierad nyckel töms då ur urklipp."
 }

@@ -55,7 +55,7 @@ export function fakeTransport(behaviour = {}) {
       const c = (counter += 1);
       calls.push({ kind: 'discover', ...args, counter: c });
       return Object.entries(behaviour).filter(([, b]) => b.region === args.region && !b.silent)
-        .map(([node, b]) => ({ node, region: args.region, code: 0, reply: 'on', key: b.key || null, verified: true }));
+        .map(([node, b]) => ({ node, region: args.region, code: 0, reply: 'on', key: b.key || null, verified: b.forged ? false : (b.unsigned ? null : true) }));
     },
   };
 }

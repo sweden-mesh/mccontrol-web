@@ -46,8 +46,18 @@ export function shellState(s) {
   return { status: s.locked ? 'locked' : 'unlocked', publicKeyHex: s.publicKeyHex };
 }
 
+// Other tabs of this page share the stored key but each holds its own handle. When the stored
+// key changes here (made, replaced, passphrase, fingerprint, auto-lock) the others are told, and
+// each re-reads it and locks a handle that no longer matches (W-12). Locking itself stays per tab.
+let channel = null;
+const identity = (s) => JSON.stringify([s.exists, s.publicKeyHex, s.fingerprint, s.passphraseChanged, s.autoLockMinutes, s.backup]);
+
 async function refresh() {
+  const before = identity(status);
   status = Object.freeze(await ring.status());
+  if (channel && before !== identity(status)) {
+    try { channel.postMessage('key-changed'); } catch { /* the channel is closed */ }
+  }
   for (const fn of listeners) { try { fn(status); } catch { /* a listener's problem */ } }
   shellListeners.forEach((fn) => fn());
 }
@@ -67,6 +77,10 @@ export async function startKeySession(options = {}) {
   });
   ring.subscribe(() => { refresh(); });
   await refresh();
+  if (typeof globalThis.BroadcastChannel === 'function' && globalThis.document) {
+    channel = new BroadcastChannel('mccontrol-key');
+    channel.addEventListener('message', () => { ring.reconcile().catch(() => {}); });
+  }
   provideKeySource({
     state: () => shellState(status),
     subscribe: (fn) => { shellListeners.add(fn); return () => shellListeners.delete(fn); },

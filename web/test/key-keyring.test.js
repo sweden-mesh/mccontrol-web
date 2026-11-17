@@ -296,3 +296,19 @@ test('outside lib/key nothing imports the modules that handle raw seeds', () => 
     if (rel !== join('ui', 'screens', 'key.js')) assert.ok(!/revealSeed/.test(src), `${rel}: only the key screen shows the private key`);
   }
 });
+
+test('another tab replaced the key: reconcile locks the old handle here (W-12)', async () => {
+  const storage = memoryStorage();
+  const { ring: here } = ring({ storage });
+  const { ring: there } = ring({ storage });
+  const old = await here.create(PASS);
+  await there.unlock(PASS);
+  await there.setAutoLock(5);
+  await here.reconcile();
+  assert.equal(here.handle(), old, 'the same key stays unlocked');
+  assert.equal((await here.status()).autoLockMinutes, 5);
+  await there.create(PASS, { replace: true });
+  await here.reconcile();
+  assert.equal(here.handle(), null);
+  assert.throws(() => old.sign(utf8('x')), /locked/);
+});

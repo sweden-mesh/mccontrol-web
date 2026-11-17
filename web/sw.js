@@ -13,6 +13,7 @@ const hex = (buf) => Array.from(new Uint8Array(buf), (b) => b.toString(16).padSt
 async function install() {
   const res = await fetch('integrity.json', { cache: 'no-store' });
   if (!res.ok) throw new Error(`integrity.json: HTTP ${res.status}`);
+  const kept = res.clone();             // the list the files were checked against, not a second fetch
   const manifest = await res.json();
   if (manifest.version !== VERSION) throw new Error(`integrity.json is ${manifest.version}, not ${VERSION}`);
   const cache = await caches.open(CACHE);
@@ -25,8 +26,7 @@ async function install() {
     if (got !== sha) throw new Error(`${path}: SHA-256 differs from integrity.json`);
     await cache.put(url, file);
   }));
-  const copy = await fetch('integrity.json', { cache: 'reload' });
-  await cache.put('integrity.json', copy);
+  await cache.put('integrity.json', kept);
 }
 
 self.addEventListener('install', (event) => {

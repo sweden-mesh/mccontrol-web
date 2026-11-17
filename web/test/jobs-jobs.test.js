@@ -268,3 +268,19 @@ test('history CSV: quoted, and formulas made inert', () => {
   const csv = toCsv([{ id: '1', at: 't', node: 'AAAA0001', command: 'ver', code: 0, reply: '> v', verified: true, note: '' }], { AAAA0001: 'alpha' });
   assert.match(csv, /^id,at,node,name,region,command,result,code,codeName,verified,reply,note,batch\r\n"1","t","AAAA0001","alpha","","ver","ok","0","","true","> v","",""\r\n$/);
 });
+
+test('discover never replaces a stored key and learns none from a forged answer (W-12)', async () => {
+  const OTHER = `AAAA0001${'9'.repeat(56)}`;
+  const { stores, jobs } = await setup({ behaviour: {
+    AAAA0001: { region: 'JKG', key: OTHER, ver: LOU18, name: 'alpha' },
+    CCCC0003: { region: 'GOT', key: C, ver: LOU18, forged: true },
+    EEEE0005: { region: 'GOT', key: `EEEE0005${'5'.repeat(56)}`, forged: true },
+  } });
+  const jkg = await jobs.discover({ region: 'JKG' });
+  assert.equal(jkg[0].keyChanged, true);
+  assert.equal((await stores.devices.get('AAAA0001')).key, A);
+  const got = await jobs.discover({ region: 'GOT' });
+  assert.equal((await stores.devices.get('CCCC0003')).key, null);
+  const added = await jobs.adopt(got.find((f) => f.node === 'EEEE0005'));
+  assert.equal(added.key, null);
+});

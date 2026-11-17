@@ -105,6 +105,14 @@ test('history: append-only events with stable ids, filters, and an import that n
     { added: 0, skipped: 5, foreign: 1 });
   assert.deepEqual((await fresh.history.list()).map((e) => e.id), exported.map((e) => e.id));
   await assert.rejects(fresh.history.import({}), /list/);
+  // W-12: a crafted file cannot smuggle odd types into the history.
+  const good = { id: 'x1', at: '2026-11-17T10:00:00.000Z', node: '4AC61A7F', command: 'ver', code: 0, reply: 'v1', verified: true };
+  const bad = [
+    { ...good, id: 'b1', verified: 'yes' }, { ...good, id: 'b2', node: '<img>' }, { ...good, id: 'b3', code: '0' },
+    { ...good, id: 'b4', reply: 'x'.repeat(5000) }, { ...good, id: 'b5', at: 'soon' }, { ...good, id: 'b 6' },
+    { ...good, id: 'b7', reply: { toString: 1 } },
+  ];
+  assert.deepEqual(await fresh.history.import([good, ...bad]), { added: 1, skipped: bad.length, foreign: 0 });
 });
 
 test('event ids sort by time', () => {

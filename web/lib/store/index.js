@@ -199,6 +199,22 @@ export function openStores(db, owner, { now = () => Date.now(), defaultSets = {}
     if (out.node) out.node = String(out.node).toUpperCase();
     return out;
   };
+  // An imported event, or null when a field is not what this app writes (W-12): a crafted file
+  // cannot put a non-boolean `verified`, a node id that is not 8 hex, or kilobytes of text into
+  // the history the node screen derives its facts from.
+  const str = (v, max) => v === null || v === undefined || (typeof v === 'string' && v.length <= max);
+  const importable = (r) => {
+    if (!r || typeof r !== 'object') return null;
+    if (typeof r.id !== 'string' || !/^[\w.-]{1,64}$/.test(r.id)) return null;
+    if (typeof r.at !== 'string' || !/^\d{4}-\d\d-\d\dT[\d:.]+(Z|[+-]\d\d:\d\d)$/.test(r.at)) return null;
+    if (typeof r.command !== 'string' || r.command.length > 400) return null;
+    if (r.node != null && !NODE.test(String(r.node).toUpperCase())) return null;
+    if (r.code != null && !(Number.isInteger(r.code) && r.code >= 0)) return null;
+    if (![true, false, null, undefined].includes(r.verified)) return null;
+    if (!(str(r.reply, 4000) && str(r.note, 400) && str(r.region, 8) && str(r.topic, 200)
+      && str(r.codeName, 60) && str(r.batch, 64))) return null;
+    return r;
+  };
   const newestFirst = (a, b) => (a.at === b.at ? (a.id < b.id ? 1 : -1) : (a.at < b.at ? 1 : -1));
 
   const history = Object.freeze({
@@ -227,13 +243,13 @@ export function openStores(db, owner, { now = () => Date.now(), defaultSets = {}
       if (!Array.isArray(records)) throw new Error('A history file holds a list of events.');
       let added = 0; let skipped = 0; let foreign = 0;
       for (const r of records) {
-        if (!r || typeof r.id !== 'string' || typeof r.at !== 'string' || typeof r.command !== 'string' || !r.id) {
+        if (!importable(r)) {
           skipped += 1;
           continue;
         }
         if (r.owner && String(r.owner).toUpperCase() !== me) { foreign += 1; continue; }
         if (await db.get('history', me, r.id)) { skipped += 1; continue; }
-        await db.put('history', { ...shape(r), owner: me, id: r.id, created: r.created || r.at, updated: r.updated || r.at });
+        await db.put('history', { ...shape(r), owner: me, id: r.id, created: r.at, updated: r.at });
         added += 1;
       }
       return { added, skipped, foreign };
