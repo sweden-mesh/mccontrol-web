@@ -1,4 +1,5 @@
-// The keyring (lib/key/keyring.js): create, import, unlock, lock, the backup gate, auto-lock on
+// The keyring (lib/key/keyring.js): create, import, unlock, lock, the backup file, the private key
+// shown behind the passphrase, auto-lock on
 // a fake clock, jobs that outlive a lock, persistence and fingerprint unlock with a fake passkey.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -66,15 +67,16 @@ function ring(options = {}) {
   return { storage, clock, ring: createKeyring({ storage, clock, iterations: 1000, ...options }) };
 }
 
-test('a new key is unlocked, stored encrypted, and gated until backed up', async () => {
+test('a new key is unlocked, stored encrypted, and its public key is there at once', async () => {
   const { ring: r, storage } = ring();
-  assert.equal((await r.status()).gate, 'no-key');
+  assert.equal((await r.status()).exists, false);
   await assert.rejects(r.create('short'), /at least 8/);
   const handle = await r.create(PASS);
   assert.equal(r.handle(), handle);
   assert.equal(handle.sign(utf8('x')).length, 64);
   const s = await r.status();
-  assert.deepEqual([s.exists, s.locked, s.source, s.gate, s.autoLockMinutes], [true, false, 'created', 'backup-required', DEFAULT_AUTO_LOCK]);
+  assert.deepEqual([s.exists, s.locked, s.source, s.backup, s.autoLockMinutes], [true, false, 'created', null, DEFAULT_AUTO_LOCK]);
+  assert.equal('gate' in s, false, 'no backup gate (operator 2026-11-17)');
   assert.equal(s.publicKeyHex, handle.publicKeyHex);
   const [record] = await storage.list();
   const seedHex = toHex(await openSealed(record.wraps.passphrase, PASS));
@@ -95,20 +97,33 @@ test('lock drops the handle; unlock needs the passphrase', async () => {
   assert.equal((await r.unlock(PASS)).publicKeyHex, pub);
 });
 
-test('the backup file needs the passphrase, opens anywhere, and lifts the gate', async () => {
+test('the backup file needs the passphrase, opens anywhere, and is recorded', async () => {
   const { ring: r } = ring();
   const handle = await r.create(PASS);
   await assert.rejects(r.exportBackup('not it at all'), /passphrase is wrong/);
-  assert.equal((await r.status()).gate, 'backup-required');
+  assert.equal((await r.status()).backup, null);
   r.lock();                                                     // export works locked too
   const file = await r.exportBackup(PASS);
   assert.equal(file.filename, `mccontrol-key-${handle.publicKeyHex.slice(0, 8)}.json`);
-  const s = await r.status();
-  assert.equal(s.gate, 'ok');
-  assert.equal(s.backup.form, 'file');
+  assert.equal((await r.status()).backup.form, 'file');
   const { ring: other } = ring();                              // another browser
   const again = await other.importKey(file.text, PASS);
   assert.equal(again.publicKeyHex, handle.publicKeyHex);
+});
+
+test('the private key is shown only to the right passphrase, locked or not', async () => {
+  const { ring: r } = ring();
+  await assert.rejects(r.revealSeed(PASS), /no key/);
+  await r.importKey(JSON.stringify(V.sealed), V.passphrase);
+  await assert.rejects(r.revealSeed('wrong passphrase'), /passphrase is wrong/);
+  const hex = await r.revealSeed(V.passphrase);
+  assert.match(hex, /^[0-9a-f]{64}$/);
+  assert.equal(hex, toHex(await openSealed(V.sealed, V.passphrase)));
+  r.lock();
+  assert.equal(await r.revealSeed(V.passphrase), hex);
+  assert.equal(r.handle(), null, 'showing it does not unlock');
+  const { ring: other } = ring();                              // the shown text imports elsewhere
+  assert.equal((await other.importKey(hex, PASS)).publicKeyHex, V.sealed.public_key);
 });
 
 test('one key per browser unless replaced', async () => {
@@ -121,15 +136,13 @@ test('one key per browser unless replaced', async () => {
   assert.throws(() => old.sign(utf8('x')), /locked/);
 });
 
-test('importing the terminal tool\'s backup asks "saved?" instead of a new backup', async () => {
+test('importing the terminal tool\'s backup', async () => {
   const { ring: r } = ring();
   await assert.rejects(r.importKey(JSON.stringify(V.sealed), 'wrong passphrase'), /passphrase is wrong/);
   assert.equal((await r.status()).exists, false);
   const h = await r.importKey(JSON.stringify(V.sealed), V.passphrase);
   assert.equal(h.publicKeyHex, V.sealed.public_key);
-  assert.equal((await r.status()).gate, 'confirm-saved');
-  await r.confirmSaved();
-  assert.deepEqual([(await r.status()).gate, (await r.status()).backup.form], ['ok', 'confirmed']);
+  assert.deepEqual([(await r.status()).source, (await r.status()).backup], ['imported', null]);
   r.lock();
   assert.equal((await r.unlock(V.passphrase)).publicKeyHex, V.sealed.public_key);
 });
@@ -244,7 +257,7 @@ test('changing the passphrase: the old one is needed, then only the new one unlo
   await r.changePassphrase(PASS, 'a new passphrase');
   const s = await r.status();
   assert.equal(s.passphraseChanged, new Date(clock.now()).toISOString());
-  assert.equal(s.gate, 'ok', 'the backup state is kept');
+  assert.equal(s.backup.form, 'file', 'the backup record is kept');
   assert.equal(s.fingerprint, true, 'the fingerprint copy is kept');
   assert.equal(s.locked, false, 'changing does not lock');
   r.lock();
@@ -278,6 +291,8 @@ test('outside lib/key nothing imports the modules that handle raw seeds', () => 
   for (const f of walk(WEB)) {
     const rel = relative(WEB, f);
     if (/^(vendor|test)\b/.test(rel) || rel.startsWith(join('lib', 'key'))) continue;
-    assert.ok(!/key\/(backup|prf)\.js/.test(readFileSync(f, 'utf8')), rel);
+    const src = readFileSync(f, 'utf8');
+    assert.ok(!/key\/(backup|prf)\.js/.test(src), rel);
+    if (rel !== join('ui', 'screens', 'key.js')) assert.ok(!/revealSeed/.test(src), `${rel}: only the key screen shows the private key`);
   }
 });

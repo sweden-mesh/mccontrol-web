@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { importKind, passProblem, stepFor, unlockTarget } from '../ui/screens/unlock.js';
 import { asksReboot, consoleBytes, setupLines, showsKey, serialAvailable, BAUD } from '../ui/screens/setup.js';
-import { brokerChoices, autoLockText } from '../ui/screens/key.js';
+import { brokerChoices, autoLockText, revealer, REVEAL_MS } from '../ui/screens/key.js';
 import { helpRuns, resultRows } from '../ui/screens/help.js';
 import {
   brokerConfig, lowBatteryVolts, notHeardHours, regionBrokers, removeRegionBroker, setLowBatteryVolts,
@@ -34,12 +34,11 @@ test('unlock: where the address leads, and which step a status calls for', () =>
   assert.deepEqual(unlockTarget(['to', 'node', '4AC61A7F']), { replace: false, next: '#/node/4AC61A7F' });
   assert.deepEqual(unlockTarget(['to', 'groups', 'my group']), { replace: false, next: '#/groups/my%20group' });
   assert.deepEqual(unlockTarget(['to', 'unlock']), { replace: false, next: '#/' }, 'never back to itself');
-  const s = (o) => ({ exists: true, locked: false, gate: 'ok', ...o });
+  const s = (o) => ({ exists: true, locked: false, backup: null, ...o });
   assert.equal(stepFor({ exists: false }), 'start');
   assert.equal(stepFor(s({ locked: true })), 'unlock');
-  assert.equal(stepFor(s({ gate: 'backup-required' })), 'backup');
-  assert.equal(stepFor(s({ gate: 'confirm-saved' })), 'confirm');
-  assert.equal(stepFor(s()), 'done');
+  assert.equal(stepFor(s()), 'done', 'no backup step: keeping a copy is the owner\'s job');
+  assert.equal(stepFor(s({ source: 'imported' })), 'done', 'no "is it saved?" step');
   assert.equal(stepFor(s(), { replace: true }), 'start');
 });
 
@@ -115,6 +114,37 @@ test('key screen: broker choices and auto-lock words', () => {
   assert.equal(autoLockText(t, 15), 'key.autolock.15');
 });
 
+test('key screen: the shown private key hides itself after a minute, and on hide() once', () => {
+  let now = 0;
+  const due = new Map();
+  let next = 1;
+  const timers = {
+    setTimeout(fn, ms) { const id = next++; due.set(id, [now + ms, fn]); return id; },
+    clearTimeout(id) { due.delete(id); },
+  };
+  const advance = (ms) => {
+    now += ms;
+    for (const [id, [at, fn]] of [...due]) if (at <= now) { due.delete(id); fn(); }
+  };
+  let hidden = 0;
+  const r = revealer(() => { hidden += 1; }, { timers });
+  assert.equal(REVEAL_MS, 60000);
+  assert.equal(r.value(), null);
+  r.show('ab'.repeat(32));
+  assert.equal(r.value(), 'ab'.repeat(32));
+  advance(REVEAL_MS - 1);
+  assert.equal(r.value(), 'ab'.repeat(32), 'still shown just before the minute');
+  advance(1);
+  assert.deepEqual([r.value(), hidden, due.size], [null, 1, 0], 'hidden after 60 s');
+  r.show('cd'.repeat(32));
+  r.hide();                                         // a lock, a redraw or leaving the screen
+  r.hide();
+  assert.deepEqual([r.value(), hidden, due.size], [null, 2, 0], 'hidden once, its timer cleared');
+  r.show('ef'.repeat(32));
+  r.show('01'.repeat(32));                           // shown again: one timer, the new value
+  assert.deepEqual([r.value(), hidden, due.size], ['01'.repeat(32), 3, 1]);
+});
+
 test('help: links between topics, and every result code with mesh-closed', () => {
   const runs = helpRuns('see [[signing]] and [[nope]].', help.topics, help.link_pattern);
   assert.deepEqual(runs, [{ text: 'see ' }, { topic: 'signing' }, { text: ' and ' }, { text: '[[nope]]' }, { text: '.' }]);
@@ -141,7 +171,7 @@ test('key session: one keyring for the page, the header state, holds and unlock 
   await new Promise((r) => setTimeout(r, 0));
   assert.equal(currentHandle(), handle);
   assert.deepEqual(keyState(), { status: 'unlocked', publicKeyHex: handle.publicKeyHex });
-  assert.equal(keyStatus().gate, 'backup-required');
+  assert.equal(keyStatus().publicKeyHex, handle.publicKeyHex, 'the public key at once, no backup gate');
   const release = holdKey();
   ring.lock();
   await new Promise((r) => setTimeout(r, 0));
@@ -164,9 +194,9 @@ test('every string the new screens use exists in both languages', () => {
     const src = readFileSync(new URL(`../ui/screens/${f}.js`, import.meta.url), 'utf8');
     for (const m of src.matchAll(/\bt\(\s*'([a-zA-Z0-9_.]+)'/g)) literal.add(m[1]);
   }
-  const templated = ['unlock.h.start', 'unlock.h.replace', 'unlock.h.unlock', 'unlock.h.backup', 'unlock.h.confirm', 'unlock.h.done',
+  const templated = ['unlock.h.start', 'unlock.h.replace', 'unlock.h.unlock', 'unlock.h.done',
     'unlock.problem.short', 'unlock.problem.mismatch', 'unlock.kind.backup', 'unlock.kind.seed', 'unlock.kind.unknown',
-    'key.autolock.5', 'key.autolock.15', 'key.autolock.60', 'key.autolock.tab', 'keyscreen.cost3', 'keyscreen.cost3none',
+    'key.autolock.5', 'key.autolock.15', 'key.autolock.60', 'key.autolock.tab', 'keyscreen.cost3',
     'keyscreen.qrShow', 'keyscreen.qrHide', 'setup.connected'];
   for (const k of [...literal, ...templated]) {
     assert.ok(k in sv, `sv ${k}`);

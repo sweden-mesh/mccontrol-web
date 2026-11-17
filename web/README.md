@@ -6,6 +6,7 @@ mccontrol.meshcoresverige.se (Cloudflare Pages) and as a zip per release. Plan: 
 in the Mesh-Health workspace (sections 11 to 16 are the operator's answers).
 
 **Status:** every screen of the plan is built: start and unlock, key and backup (QR code,
+the backup file or the private key as text for a password manager, both optional,
 passphrase change, fingerprint unlock, broker registration, key replacement), set up a node over
 USB (Web Serial), the overview, nodes, one node, send, groups, command sets, history, statistics
 (Beacon), settings and help. The firmware update is shown but flashed by hand until the firmware

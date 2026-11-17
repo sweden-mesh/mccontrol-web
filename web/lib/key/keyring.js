@@ -1,18 +1,19 @@
 // The key as the app sees it: create, import, unlock, lock, back up. The only module outside
-// lib/key the app imports for the key; it hands out handles (handle.js), never a seed.
+// lib/key the app imports for the key; it hands out handles (handle.js), and the seed only to
+// revealSeed, which the key screen calls when the owner asks to see it.
 //
 //   const ring = createKeyring({ storage: indexedDbStorage(indexedDB),
 //                                credentials: navigator.credentials, storageManager: navigator.storage });
 //   await ring.status()          what the screens show; no secret in it
-//   await ring.create(pass)      a new key; the backup gate is then 'backup-required'
+//   await ring.create(pass)      a new key, unlocked; keeping a copy is the owner's job
 //   await ring.importKey(text, pass)   a backup file (opened with pass) or a bare seed
 //   await ring.unlock(pass)  /  await ring.unlockWithFingerprint()   -> handle
 //   ring.handle()                the unlocked handle, or null
 //   ring.lock()                  drop it (a job holding it finishes first)
 //   ring.touch()                 the owner did something: restart the idle clock
 //   const release = ring.hold()  a running job keeps the key until release()
-//   await ring.exportBackup(pass)    -> { filename, text }; satisfies the backup gate
-//   await ring.confirmSaved()    an imported key: "yes, I have it saved"
+//   await ring.exportBackup(pass)    -> { filename, text }, the encrypted backup file
+//   await ring.revealSeed(pass)  -> the private key (seed) as 64 hex, for a password manager
 //   await ring.changePassphrase(old, new)   re-encrypt the stored key; old backup files keep the old one
 //   await ring.setAutoLock(min)  5, 15, 60 or null (until the tab closes)
 //   await ring.enableFingerprint(pass) / disableFingerprint()
@@ -21,6 +22,7 @@
 import { keyFromSeed } from './handle.js';
 import { ITERATIONS, MIN_PASSPHRASE, openSealed, randomBytes, readKeyFile, sealSeed } from './backup.js';
 import { createPrfWrap, openPrfWrap } from './prf.js';
+import { toHex } from '../bytes.js';
 
 export { MIN_PASSPHRASE } from './backup.js';
 export const AUTO_LOCK_CHOICES = Object.freeze([5, 15, 60, null]);
@@ -31,13 +33,6 @@ const realClock = Object.freeze({
   setTimeout: (fn, ms) => globalThis.setTimeout(fn, ms),
   clearTimeout: (id) => globalThis.clearTimeout(id),
 });
-
-// What the UI may do with the public key: show it for the first node only when 'ok'.
-export function backupGate(record) {
-  if (!record) return 'no-key';
-  if (record.backup) return 'ok';
-  return record.source === 'created' ? 'backup-required' : 'confirm-saved';
-}
 
 const nowIso = (clock) => new Date(clock.now()).toISOString();
 
@@ -145,7 +140,6 @@ export function createKeyring({
         publicKeyHex: record?.id ?? null,
         locked: !current,
         source: record?.source ?? null,
-        gate: backupGate(record),
         backup: record?.backup ?? null,
         autoLockMinutes: record ? await settings() : DEFAULT_AUTO_LOCK,
         fingerprint: Boolean(record?.wraps?.prf),
@@ -226,8 +220,18 @@ export function createKeyring({
       };
     },
 
-    async confirmSaved() {
-      await update((r) => { if (!r.backup) r.backup = { at: nowIso(clock), form: 'confirmed' }; });
+    // The raw seed, on the owner's request, behind the passphrase (operator 2026-11-17: keeping
+    // a copy is the owner's job, in a password manager or as the backup file). Only the key
+    // screen calls this; a test keeps it that way.
+    async revealSeed(passphrase) {
+      const record = await active();
+      if (!record) throw new Error('There is no key in this browser.');
+      const seed = await openSealed(record.wraps.passphrase, passphrase);
+      try {
+        return toHex(seed);
+      } finally {
+        seed.fill(0);
+      }
     },
 
     // The stored copy re-encrypted under `next`. A backup file saved before keeps opening with

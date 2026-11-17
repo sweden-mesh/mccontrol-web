@@ -7,7 +7,7 @@
 // A record holds only ciphertext and bookkeeping, never a seed:
 //   { id, created, source: 'created' | 'imported',
 //     wraps: { passphrase: <sealed backup record>, prf?: { credentialId, salt, nonce, ciphertext } },
-//     backup: null | { at, form: 'file' | 'confirmed' },
+//     backup: null | { at, form: 'file' | 'confirmed' },   ('confirmed': before 2026-11-17)
 //     settings: { autoLockMinutes: 5 | 15 | 60 | null },
 //     persist: null | { at, granted } }
 

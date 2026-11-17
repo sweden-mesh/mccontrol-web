@@ -138,10 +138,6 @@ export function render(ctx) {
       body.replaceChildren(h('p', {}, t('setup.noKey')), h('p', {}, h('a', { class: 'button', href: '#/unlock/to/setup' }, t('keyscreen.toStart'))));
       return;
     }
-    if (s.gate !== 'ok') {
-      body.replaceChildren(h('p', {}, t('key.gate.backup_required')), h('p', {}, h('a', { class: 'button', href: '#/unlock/to/setup' }, t('keyscreen.finishBackup'))));
-      return;
-    }
     const pub = s.publicKeyHex;
     const lines = setupLines(pub);
     body.replaceChildren(
@@ -166,7 +162,7 @@ export function render(ctx) {
   // A lock does not change what this screen shows; a new or replaced key does.
   let shown = keyStatus().publicKeyHex;
   const stop = onKeyStatus((s) => {
-    if (s.publicKeyHex !== shown || (s.gate === 'ok') !== Boolean(body.querySelector('.pubkey'))) {
+    if (s.publicKeyHex !== shown) {
       shown = s.publicKeyHex;
       draw(s);
     }

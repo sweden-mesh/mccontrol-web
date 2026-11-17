@@ -2,7 +2,7 @@
 
 | File | Holds |
 |---|---|
-| `keyring.js` | the API the app uses: create, import, unlock, lock, auto-lock, backup, fingerprint unlock |
+| `keyring.js` | the API the app uses: create, import, unlock, lock, auto-lock, backup, showing the private key, fingerprint unlock |
 | `handle.js` | seed -> frozen handle (`publicKeyHex`, `sign`, `sharedSecret`, `forget`) |
 | `backup.js` | the backup file and the at-rest encryption (one format), internal |
 | `prf.js` | fingerprint/face unlock through a passkey's PRF output, internal |
@@ -32,10 +32,14 @@ vectors) `handle.js`. A test fails if anything imports `backup.js` or `prf.js`.
 |---|---|---|
 | Passphrase encryption at rest | someone who copies the browser profile or the IndexedDB files; a sibling page on the same origin reading the store | guessing a weak passphrase offline (600 000 iterations slow the guessing but do not stop it); the minimum is 8 characters |
 | Backup file | losing the key when the browser deletes storage (Safari after 7 days without a visit, a cleared profile) | a file kept next to a written-down passphrase |
+| Showing the private key (`revealSeed`) | exists by the owner's request (operator 2026-11-17: keeping a copy is the owner's job, e.g. in a password manager). It asks for the passphrase again, only the key screen calls it (a test keeps it that way), and the screen hides it after 60 s, on a lock and on leaving | anyone who sees the screen or reads the clipboard while it is shown; the hex string, which JS cannot zero |
 | Auto-lock (5, 15 or 60 min idle, or until the tab closes) | an unlocked tab left on an unattended computer | anyone at the computer before the lock |
 | `forget()` zeroing | the seed staying readable in the handle after a lock | copies inside the JS engine and noble's internals, which JS cannot zero |
 | Fingerprint unlock | typing the passphrase in public | a person who can unlock the phone itself |
 | CSP and same-origin code | injected third-party script | **malicious code served from this origin**: after unlock it can read the seed or sign anything. Mitigations live elsewhere (W-10: the release's `integrity.json`, the PWA's controlled updates, a zip to run locally) |
+
+Keeping a copy of the key is the owner's job: the app offers the backup file and the private key
+as text, and asks for neither (no gate, no forced download).
 
 There is no server: nothing here proves to anyone else who signed in. The broker learns only
 the public key and signed commands.

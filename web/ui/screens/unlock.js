@@ -3,10 +3,9 @@
 //   #/unlock/replace         make or import another key in place of this one (the key screen's
 //                            dialog has said what that costs)
 //   #/unlock/to/<route>/...  unlock, then go back to that screen
-// After a new key: the mandatory backup. The encrypted file is downloaded first; only then is
-// "I have saved it" offered. An imported key is asked "do you have it saved?" instead.
+// A new or imported key goes straight to the key screen: keeping a copy of it is the owner's
+// job (operator 2026-11-17), said once on the make form.
 import { h } from '../dom.js';
-import { download } from './node-kit.js';
 import { errorLine, passField, useStyles } from './key-kit.js';
 import { keyring, keyStatus } from './key-session.js';
 
@@ -29,8 +28,6 @@ export function unlockTarget(args = []) {
 export function stepFor(status, { replace = false } = {}) {
   if (replace || !status.exists) return 'start';
   if (status.locked) return 'unlock';
-  if (status.gate === 'backup-required') return 'backup';
-  if (status.gate === 'confirm-saved') return 'confirm';
   return 'done';
 }
 
@@ -65,7 +62,6 @@ export function render(ctx) {
   const heading = h('h1', { id: 'unlock-title' });
   const body = h('div', { class: 'key-flow' });
   const section = h('section', { 'aria-labelledby': 'unlock-title', class: 'scr key-screen' }, heading, body);
-  let passphrase = null;      // the one just chosen or typed, kept only until the backup is saved
 
   const ring = keyring();
   if (!ring) {
@@ -74,14 +70,11 @@ export function render(ctx) {
     return section;
   }
 
-  const finish = () => {
-    passphrase = null;
-    ctx.navigate(target.next || '#/key');
-  };
+  const finish = () => ctx.navigate(target.next || '#/key');
 
   // Show a step: its heading, its body, focus on the heading when it replaces another.
   const go = (step, { focus = true } = {}) => {
-    const fill = { start: startStep, unlock: unlockStep, backup: backupStep, confirm: confirmStep, done: doneStep }[step];
+    const fill = { start: startStep, unlock: unlockStep, done: doneStep }[step];
     heading.textContent = t(`unlock.h.${step === 'start' && target.replace ? 'replace' : step}`);
     body.replaceChildren(...fill());
     if (focus) { heading.tabIndex = -1; heading.focus(); }
@@ -118,6 +111,7 @@ export function render(ctx) {
       h('p', {}, t('unlock.makeBody')),
       first.el, second.el,
       h('p', { class: 'muted' }, t('unlock.noRecovery')),
+      h('p', { class: 'muted' }, t('unlock.ownCopy')),
       h('div', { class: 'row' }, submit), err);
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -133,8 +127,7 @@ export function render(ctx) {
       err.textContent = '';
       try {
         await ring.create(first.input.value, { replace: target.replace });
-        passphrase = first.input.value;
-        go('backup');
+        finish();
       } catch (ex) {
         err.textContent = ex.message;
       } finally { busy(submit, false); }
@@ -191,10 +184,9 @@ export function render(ctx) {
       busy(submit, true);
       try {
         await ring.importKey(text, pass, { replace: target.replace });
-        passphrase = pass;
         text = '';
         paste.value = '';
-        go('confirm');
+        finish();
       } catch (ex) {
         err.textContent = /passphrase is wrong/.test(ex.message) ? t('unlock.wrong') : ex.message;
       } finally { busy(submit, false); }
@@ -217,9 +209,7 @@ export function render(ctx) {
       err.textContent = '';
       try {
         await ring.unlock(pass.input.value);
-        passphrase = pass.input.value;
-        const next = await ring.status();
-        if (stepFor(next) === 'done') finish(); else go(stepFor(next));
+        finish();
       } catch {
         err.textContent = t('unlock.wrong');
         pass.input.select();
@@ -234,8 +224,7 @@ export function render(ctx) {
         err.textContent = '';
         try {
           await ring.unlockWithFingerprint();
-          const next = await ring.status();
-          if (stepFor(next) === 'done') finish(); else go(stepFor(next));
+          finish();
         } catch {
           err.textContent = t('unlock.fingerprintFailed');
         } finally { busy(fp, false); }
@@ -247,63 +236,6 @@ export function render(ctx) {
       h('p', {}, t('unlock.forgotBody')),
       h('p', {}, h('a', { href: '#/unlock/replace' }, t('unlock.forgotReplace')))));
     return out;
-  }
-
-  // The download comes first; "I have saved it" appears only once the file has been handed over.
-  function saveFile(err, onSaved) {
-    const known = passphrase;
-    const pass = known ? null : passField(t, { label: t('unlock.pass'), autocomplete: 'current-password', name: 'passphrase', hint: t('unlock.backupNeedsPass') });
-    const button = h('button', { type: 'button', class: 'button' }, t('unlock.download'));
-    button.addEventListener('click', async () => {
-      const value = known || pass.input.value;
-      if (!value) { err.textContent = t('unlock.problem.empty'); pass.input.focus(); return; }
-      busy(button, true);
-      err.textContent = '';
-      try {
-        const file = await ring.exportBackup(value);
-        download(file.filename, file.text, 'application/json');
-        onSaved(file.filename);
-      } catch {
-        err.textContent = t('unlock.wrong');
-      } finally { busy(button, false); }
-    });
-    return [pass?.el, h('div', { class: 'row' }, button)];
-  }
-
-  function savedThen(filename) {
-    const done = h('button', { type: 'button', class: 'button' }, t('unlock.saved'));
-    done.addEventListener('click', async () => { await ring.confirmSaved(); finish(); });
-    return [
-      h('p', { role: 'status' }, t('unlock.savedAs', { file: filename })),
-      h('p', { class: 'muted' }, t('unlock.moveIt')),
-      h('div', { class: 'row' }, done),
-    ];
-  }
-
-  function backupStep() {
-    const err = errorLine();
-    const next = h('div', {});
-    return [
-      h('p', {}, t('key.gate.backup_required')),
-      h('p', { class: 'muted' }, t('unlock.backupWhy')),
-      ...saveFile(err, (name) => { next.replaceChildren(...savedThen(name)); next.querySelector('button')?.focus(); }),
-      err, next,
-    ].filter(Boolean);
-  }
-
-  function confirmStep() {
-    const err = errorLine();
-    const next = h('div', {});
-    const yes = h('button', { type: 'button', class: 'button' }, t('key.gate.confirm_yes'));
-    yes.addEventListener('click', async () => { await ring.confirmSaved(); finish(); });
-    return [
-      h('p', {}, t('key.gate.confirm_saved')),
-      h('p', { class: 'muted' }, t('unlock.confirmWhy')),
-      h('div', { class: 'row' }, yes),
-      h('h2', {}, t('unlock.confirmNo')),
-      ...saveFile(err, (name) => { next.replaceChildren(...savedThen(name)); next.querySelector('button')?.focus(); }),
-      err, next,
-    ].filter(Boolean);
   }
 
   function doneStep() {

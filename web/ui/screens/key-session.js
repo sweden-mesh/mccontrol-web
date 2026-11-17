@@ -4,7 +4,7 @@
 // with the same handle and one auto-lock clock.
 //
 //   keyring()          the keyring (lib/key/keyring.js), or null before start
-//   keyStatus()        the last status the keyring gave: { exists, locked, gate, publicKeyHex, ... }
+//   keyStatus()        the last status the keyring gave: { exists, locked, publicKeyHex, backup, ... }
 //   currentHandle()    the unlocked signing handle, or null
 //   holdKey()          a running job keeps the key past an auto-lock: returns release(); throws when locked
 //   onKeyStatus(fn)    fn(status) after every lock, unlock or change of the stored key; returns unsubscribe
@@ -14,7 +14,7 @@ import { indexedDbStorage } from '../../lib/key/storage.js';
 import { provideKeySource } from '../key-state.js';
 import { provideKeyring } from './node-services.js';
 
-const EMPTY = Object.freeze({ exists: false, locked: true, gate: 'no-key', publicKeyHex: null, source: null,
+const EMPTY = Object.freeze({ exists: false, locked: true, publicKeyHex: null, source: null,
   backup: null, autoLockMinutes: 15, fingerprint: false, persist: null, passphraseChanged: null });
 
 let ring = null;
