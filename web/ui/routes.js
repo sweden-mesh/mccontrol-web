@@ -28,7 +28,7 @@ export function legacyHash(hash, isModal = () => true) {
 // { kind: 'board' } | { kind: 'legacy', hash } | { kind: 'modal', name, args } | { kind: 'other' }
 export function parseHash(hash, isModal) {
   const text = String(hash || '');
-  if (text === '' || text === '#' || text === '#/') return { kind: 'board' };
+  if (text === '' || text === '#') return { kind: 'board' };
   if (text.startsWith('#/')) return { kind: 'legacy', hash: legacyHash(text, isModal) };
   const [name, ...args] = split(text.slice(1));
   if (isModal(name)) return { kind: 'modal', name, args: args.map(decodeURIComponent) };

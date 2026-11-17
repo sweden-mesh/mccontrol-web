@@ -38,6 +38,8 @@ p { max-width: 70ch; }
 .button:hover { background: var(--accent); border-color: var(--accent); }
 .tool { background: transparent; color: var(--fg); border: 1px solid var(--field-border); }
 .tool:hover { border-color: var(--accent); color: var(--accent); }
+:is(.button, .tool, .key-button):active { background: var(--surface); color: var(--fg); }
+.button:active { outline: 2px solid var(--accent); outline-offset: -4px; }
 .link-button { padding: 0; border: 0; background: none; font: inherit; color: var(--accent); text-decoration: underline; cursor: pointer; min-height: 24px; }
 
 /* Display choices (Setup's display tab, the settings screen). */
@@ -66,6 +68,7 @@ p { max-width: 70ch; }
 .status-item[data-state="alert"] > * { background: var(--alert-bg); color: var(--alert-fg); padding-inline: 4px; }
 @media (width < 45em) {
   .status-item:is([data-item="area"], [data-item="clock"]) { display: none; }
+  .status-item > *, .brand { min-height: 32px; }
   .statusline { gap: 8px; }
   .status-items { gap: 4px 12px; }
 }
@@ -97,7 +100,8 @@ main:focus { outline: none; }
     grid-template-areas: "nodes node status" "nodes node map" "nodes node results";
     height: 100%; min-height: 32rem;
   }
-  .tile { min-height: 0; overflow: auto; }
+  .tile { min-height: 0; display: flex; flex-direction: column; }
+  .tile-body { flex: 1; min-height: 0; overflow: auto; }
 }
 /* From 1600 px: RESULTS under NODE, across NODE and the right column. */
 @media (width >= 100em) {

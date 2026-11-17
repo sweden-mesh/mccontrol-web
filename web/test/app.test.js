@@ -12,7 +12,8 @@ import '../ui/tiles/index.js';
 const sv = JSON.parse(readFileSync(new URL('../i18n/sv.json', import.meta.url), 'utf8'));
 
 test('the hash: the board, a modal, an old route, an in-page anchor', () => {
-  for (const h of ['', '#', '#/']) assert.deepEqual(parseHash(h, isModal), { kind: 'board' });
+  for (const h of ['', '#']) assert.deepEqual(parseHash(h, isModal), { kind: 'board' });
+  assert.deepEqual(parseHash('#/', isModal), { kind: 'legacy', hash: '' });
   assert.deepEqual(parseHash('#node/4AC61A7F', isModal), { kind: 'modal', name: 'node', args: ['4AC61A7F'] });
   assert.deepEqual(parseHash('#setup/groups/my%20group', isModal), { kind: 'modal', name: 'setup', args: ['groups', 'my group'] });
   assert.deepEqual(parseHash('#main', isModal), { kind: 'other' });

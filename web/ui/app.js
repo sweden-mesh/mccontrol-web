@@ -102,7 +102,7 @@ async function start() {
 
   let clockTimer = null;
   const drawClock = () => {
-    setStatusItem('clock', { word: new Date().toLocaleTimeString(lang, { hour: '2-digit', minute: '2-digit' }) });
+    setStatusItem('clock', { word: new Date().toLocaleTimeString(lang, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }) });
     clearTimeout(clockTimer);
     clockTimer = setTimeout(drawClock, 60000 - (Date.now() % 60000));
   };
