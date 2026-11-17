@@ -66,3 +66,8 @@ button[aria-busy="true"] { cursor: progress; }
 @media (forced-colors: active) {
   .choice-button[aria-pressed="true"] { border: 2px solid Highlight; }
 }
+
+/* Folded forms: the disclosure marker stays, and the summary reads as something to open. */
+.key-screen details.block > summary { display: list-item; color: var(--accent); text-decoration: underline; text-underline-offset: .2em; padding-block: .6rem; }
+.key-screen details.block[open] > summary { color: var(--fg); text-decoration: none; }
+.key-screen select { max-width: 30rem; }
