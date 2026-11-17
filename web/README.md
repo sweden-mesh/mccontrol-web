@@ -14,8 +14,8 @@ admits `ota update` over the control plane.
 
 **Redesign (W-20, `planning/mccontrol/web-redesign-proposal-20261117.md`):** wave 1 is in: one board
 (NODES | NODE | STATUS + MAP + RESULTS) with the status line and the key bar, everything else in a
-modal in front of it, four themes as one setting. The tiles are placeholders that link to today's
-screens, which open as modals until the later waves replace them.
+modal in front of it, four themes as one setting. Wave 2 filled the tiles (below, "What the tiles
+do"); today's other screens still open as modals until the later waves replace them.
 
 ## Run it
 
@@ -193,6 +193,33 @@ Rows: `.rows` / `.row` are `--row` tall (28 px on a desktop, 44 px on a phone or
 pointer) at `--tile-text`. Status is a glyph and a word, never colour alone: `GLYPH` in
 `ui/statusline.js` (`●` ok, `▲` needs attention, `✕` refused, `?` not known). An alert line takes
 the `.alert` class (inverse in Amber and Green).
+
+### What the tiles do (wave 2)
+
+- **NODES** (`ui/tiles/nodes.js`): one row per node, refused or forged first, then what needs
+  attention, not known, ok; the reason on a second line. A click selects (on a phone: the node full
+  screen), the box tags. Keys in the list: ↑ ↓ Home End, Enter selects, Space tags; `/` searches.
+- **NODE** (`node.js`, `node-view.js`): facts with their age, 24-hour sparklines from Beacon
+  (battery, airtime sent, noise floor), the last commands, and the command line at the bottom with
+  the road (auto, MQTT, mesh). It sends to the tagged nodes when any are tagged, else to this one,
+  through `lib/jobs` with the checks before signing. The `node` modal (`#node/<id>`) is the same
+  view full screen; beta.2's node screen (firmware update, name, region, forget) is `#nodeinfo/<id>`.
+- **RESULTS** (`results.js`): every answer, refusal and silence, new ones first, kept until opened or
+  "Mark all seen" (meta `resultsSeen` per key); running jobs as bars; the `result` modal shows one.
+- **STATUS** (`status.js`): broker (Test), key (Lock), registration, companion (Connect), status
+  refresh and discovery, each with its action; sets the status line's `broker`.
+- **MAP** (`map.js`): the owner's nodes on the county outlines (`ui/tiles/se-lan.json`, the
+  regional template's Natural Earth outlines, public domain), shape = status, Beacon's neighbour
+  links and the area's other repeaters (`/nodes?iatas=<region>&neighbors=true`), "As a list" as
+  the text alternative. No map tiles, no new origin.
+
+What the tiles share besides the selection is `ui/tiles/sources.js` (no DOM): `provideSource(name,
+{ state, on, run, undo })` for STATUS's `broker`, `registration`, `refresh` and `discovery` lines
+(`ui/tiles/automation-sources.js` provides `refresh` and `discovery` from `ui/automation.js`, and
+`registration` from `ui/screens/key-register.js`); `reportBroker`;
+`startJob({ label })` for RESULTS' bars; `dataChanged(what)` / `onDataChanged(fn)` when the stores
+changed (a send, discovery, Beacon). The arithmetic is `ui/tiles/data.js` (`test/tiles-data.test.js`).
+Styles: `styles/tiles.css`; each tile body is a size container, so columns drop with the tile's width.
 
 ### The status line
 
