@@ -66,7 +66,7 @@ function fill(ctx, svc, body) {
         h('span', { class: 'res-what' }, h('code', {}, e.command), what ? ` ${what}` : ''),
         isNew ? h('span', { class: 'visually-hidden' }, ctx.t('tile.new')) : null);
       button.addEventListener('click', () => ctx.modal.open('result', e.id));
-      return h('li', { class: `result-item${isNew ? ' is-new' : ' is-seen'}${KIND_STATE[kind] === 'alert' ? ' alert' : ''}` }, button);
+      return h('li', { class: `result-item${isNew ? ' is-new' : ' is-seen'}${isNew && KIND_STATE[kind] === 'alert' ? ' alert' : ''}` }, button);
     };
     const shown = [...fresh.slice(0, SHOWN).map((e) => row(e, true)), ...old.map((e) => row(e, false))];
     list.replaceChildren(...(shown.length ? shown : [h('li', { class: 'row muted' }, ctx.t('tile.noResults'))]));
