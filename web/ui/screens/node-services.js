@@ -1,4 +1,4 @@
-// What the node, send, group, set, history and dashboard screens work with, built once:
+// What the node, send, group, set and history screens work with, built once:
 // the rules and data from lib/data, the stores of the current key (IndexedDB), the jobs, and
 // the firmware release list. The screens import only this module for it, so a test page (or
 // the headless screenshots) can serve its own module in its place.

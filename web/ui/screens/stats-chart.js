@@ -5,8 +5,7 @@
 //
 //   mountTrafficChart(el, nodeId, ctx, { period: '24h' | '7d' }) -> Promise<stats | null>
 //
-// The dashboard's "24 h traffic" slot calls it with an empty element; the statistics screen
-// (stats.js) uses the same call and the stats it resolves with. Plain SVG drawn here, no library.
+// The statistics screen (stats.js) uses it and the stats it resolves with. Plain SVG drawn here, no library.
 import { h } from '../dom.js';
 import { beaconBase, beaconClient, nodeStats, niceScale } from '../../lib/stats/beacon.js';
 

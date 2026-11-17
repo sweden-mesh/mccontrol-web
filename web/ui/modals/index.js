@@ -4,7 +4,6 @@
 // the set-up screens as tabs (proposal §2.5, setup.js); palette.js has the
 // command palette and its "run" modal (one command or set to a target).
 import { registerModal } from '../modal.js';
-import * as dashboard from '../screens/dashboard.js';
 import * as nodes from '../screens/nodes.js';
 import * as node from '../screens/node.js';
 import * as send from '../screens/send.js';
@@ -17,18 +16,12 @@ import { setupModal } from './setup.js';
 import { nodeModal } from '../tiles/node.js';
 import { resultModal } from '../tiles/results.js';
 import { runModal } from './palette.js';
-import { provideTrafficBlock } from '../screens/dashboard.js';
-import { trafficBlock } from '../screens/dashboard-traffic.js';
-
-// The overview's 24-hour traffic block is the statistics' chart.
-provideTrafficBlock(trafficBlock);
 
 // A screen as a modal: the screen gets the ctx it always had, its route being its old one.
 export const fromScreen = (screen, route = screen.route) => (ctx) => screen.render({ ...ctx, route });
 
 // closedby 'any' where nothing typed can be lost; forms keep the default (Esc and Back only).
 export const MODALS = [
-  { name: 'overview', title: dashboard.title, render: fromScreen(dashboard), closedby: 'any' },
   { name: 'nodes', title: nodes.title, render: fromScreen(nodes) },
   // #node/<id>: the NODE tile's view full screen (the phone's node, W-20c); beta.2's node screen,
   // with the firmware update, name, region and forget, is #nodeinfo/<id>.
