@@ -26,6 +26,22 @@ export const serialAvailable = (nav = globalThis.navigator) => Boolean(nav && 's
 
 const MAX_LOG = 8000;
 
+// What the console said after the check line was sent: the verdict reads only this, never the
+// page's own echo of `set mqtt.cmd.pubkey <key>` above it, which holds the key too (W-12).
+export function consoleLog(max = MAX_LOG) {
+  let text = '';
+  let since = null;
+  return {
+    append(chunk) {
+      text = (text + chunk).slice(-max);
+      if (since !== null) since = (since + chunk).slice(-max);
+    },
+    mark() { since = ''; },
+    text: () => text,
+    sinceMark: () => since ?? '',
+  };
+}
+
 function serialPanel(ctx, pub) {
   const { t } = ctx;
   const log = h('pre', { class: 'console', role: 'log', 'aria-live': 'off', tabindex: '0', 'aria-label': t('setup.consoleLabel') });
@@ -42,13 +58,14 @@ function serialPanel(ctx, pub) {
   const buttons = Object.fromEntries(steps.map((s) => [s.id, h('button', { type: 'button', class: 'tool', disabled: true }, s.label)]));
   buttons.reboot.hidden = true;
   const verdict = h('p', { role: 'status' });
-  let port = null; let reader = null; let text = '';
+  let port = null; let reader = null;
+  const said = consoleLog();
 
   const append = (chunk) => {
-    text = (text + chunk).slice(-MAX_LOG);
-    log.textContent = text;
+    said.append(chunk);
+    log.textContent = said.text();
     log.scrollTop = log.scrollHeight;
-    if (asksReboot(text)) buttons.reboot.hidden = false;
+    if (asksReboot(said.text())) buttons.reboot.hidden = false;
   };
 
   const connected = (on) => {
@@ -105,13 +122,14 @@ function serialPanel(ctx, pub) {
       const writer = port.writable.getWriter();
       try {
         append(`\n> ${s.line}\n`);
+        if (s.id === 'check') said.mark();
         await writer.write(consoleBytes(s.line));
       } finally {
         writer.releaseLock();
       }
       if (s.id === 'check') {
         setTimeout(() => {
-          verdict.textContent = t(showsKey(text.slice(-400), pub) ? 'setup.keyMatches' : 'setup.keyNotSeen');
+          verdict.textContent = t(showsKey(said.sinceMark(), pub) ? 'setup.keyMatches' : 'setup.keyNotSeen');
         }, 1500);
       }
     });

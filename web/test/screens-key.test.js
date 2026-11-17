@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { importKind, passProblem, stepFor, unlockTarget } from '../ui/screens/unlock.js';
-import { asksReboot, consoleBytes, setupLines, showsKey, serialAvailable, BAUD } from '../ui/screens/setup.js';
+import { asksReboot, consoleBytes, consoleLog, setupLines, showsKey, serialAvailable, BAUD } from '../ui/screens/setup.js';
 import { brokerChoices, autoLockText, revealer, REVEAL_MS } from '../ui/screens/key.js';
 import { helpRuns, resultRows } from '../ui/screens/help.js';
 import {
@@ -202,4 +202,18 @@ test('every string the new screens use exists in both languages', () => {
     assert.ok(k in sv, `sv ${k}`);
     assert.ok(k in en, `en ${k}`);
   }
+});
+
+test('the key check reads only what the console said after the check line, not our echo (W-12)', () => {
+  const pub = 'AB'.repeat(32);
+  const said = consoleLog(200);
+  said.append(`> set mqtt.cmd.pubkey ${pub}\nOK - reboot to apply\n`);
+  said.append('> get mqtt.cmd.pubkey\n');
+  said.mark();
+  said.append('> (not set)\n');
+  assert.equal(showsKey(said.sinceMark(), pub), false);
+  assert.equal(showsKey(said.text(), pub), true);
+  said.append(`> ${pub}\n`);
+  assert.equal(showsKey(said.sinceMark(), pub), true);
+  assert.ok(said.text().length <= 200);
 });
