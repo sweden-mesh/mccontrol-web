@@ -19,6 +19,8 @@
 //   await ring.enableFingerprint(pass) / disableFingerprint()
 //   await ring.requestPersistence()
 //   ring.subscribe(fn)           fn() after every lock, unlock or record change
+//   await ring.reconcile()       another tab changed the stored key: re-read it, and lock a handle
+//                                that is no longer the stored key
 import { keyFromSeed } from './handle.js';
 import { ITERATIONS, MIN_PASSPHRASE, openSealed, randomBytes, readKeyFile, sealSeed } from './backup.js';
 import { createPrfWrap, openPrfWrap } from './prf.js';
@@ -270,6 +272,18 @@ export function createKeyring({
       const result = await persist();
       await update((r) => { r.persist = result; });
       return result.granted;
+    },
+
+    // Another tab of this origin replaced, removed or re-set the stored key (key-session.js hears
+    // it over a BroadcastChannel). A handle for a key that is no longer stored must not sign on
+    // (W-12); the auto-lock time is re-read, since that tab may have changed it.
+    async reconcile() {
+      const record = await active();
+      if (current && (!record || record.id !== current.publicKeyHex)) { lock(); return; }
+      const minutes = await settings();
+      limitMs = minutes === null ? null : minutes * 60000;
+      if (current) arm();
+      notify();
     },
 
     subscribe(fn) {
