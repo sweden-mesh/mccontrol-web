@@ -131,7 +131,9 @@ async function follow(status) {
     await parts.refresh.start();
   }
   if (live) {
-    if (status.locked) live.discovery.stop();
+    // Locked (as every reload starts): nothing is scheduled, but the stored area is still read,
+    // so the status line and Setup show it (W-23e: it read "not chosen" until the unlock).
+    if (status.locked) { live.discovery.stop(); await live.discovery.refresh(); }
     else if (!live.discovery.state().scheduled) await live.discovery.start();
     else await live.discovery.refresh();
   }
