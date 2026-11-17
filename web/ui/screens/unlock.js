@@ -2,7 +2,7 @@
 //   #/unlock                 no key: make one or import one; a locked key: unlock it
 //   #/unlock/replace         make or import another key in place of this one (the key screen's
 //                            dialog has said what that costs)
-//   #/unlock/to/<route>/...  unlock, then go back to that screen
+//   #/unlock/to/<route>/...  unlock, then go back to that screen (plain #/unlock: the board)
 // A new or imported key goes straight to the key screen: keeping a copy of it is the owner's
 // job (operator 2026-11-17), said once on the make form.
 import { h } from '../dom.js';
@@ -70,7 +70,11 @@ export function render(ctx) {
     return section;
   }
 
+  // A made or imported key goes to the key tab (its backup is the owner's job); an unlock goes
+  // back where it was asked for, and to the board when nothing asked (W-23f: the status line's
+  // and STATUS's "Unlock" must not leave Setup open over the board).
   const finish = () => ctx.navigate(target.next || '#/key');
+  const unlocked = () => ctx.navigate(target.next || '');
 
   // Show a step: its heading, its body, focus on the heading when it replaces another.
   const go = (step, { focus = true } = {}) => {
@@ -211,7 +215,7 @@ export function render(ctx) {
       err.textContent = '';
       try {
         await ring.unlock(pass.input.value);
-        finish();
+        unlocked();
       } catch {
         err.textContent = t('unlock.wrong');
         pass.input.select();
@@ -226,7 +230,7 @@ export function render(ctx) {
         err.textContent = '';
         try {
           await ring.unlockWithFingerprint();
-          finish();
+          unlocked();
         } catch {
           err.textContent = t('unlock.fingerprintFailed');
         } finally { busy(fp, false); }
