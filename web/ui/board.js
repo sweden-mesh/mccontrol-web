@@ -1,5 +1,5 @@
 // The board (W-20c): the header's status line, the tile grid and the key bar. The tiles are
-// NODES | NODE | STATUS + MAP + RESULTS (operator decision 1); the grid's shape per width is in
+// NODES | NODE | STATUS + MAP + HISTORY (operator decision 1); the grid's shape per width is in
 // styles/app.css. Each tile is a named mount point that its own module fills (ui/tiles/); the
 // board knows nothing of what a tile shows. README "The board's tiles" is the tile API.
 //

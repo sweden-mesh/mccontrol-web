@@ -2,7 +2,7 @@
 // Beacon (battery, airtime sent per hour, noise floor), links to its details, statistics and
 // history, and at the bottom the command line: type, Enter signs and sends to this node, or to
 // the tagged nodes when some are tagged. The road switch (Auto / MQTT / Mesh) sits on the same
-// line. A command's answer is shown once, in RESULTS (W-23g): not here as a log, not under the
+// line. A command's answer is shown once, in HISTORY (W-23g): not here as a log, not under the
 // line. The command area is two fixed rows (W-23h, W-23i): the line, and the companion's state
 // when the road may take the mesh; what is wrong with a command tints the field and is its
 // description, never a third row.
@@ -13,7 +13,7 @@
 //
 // Sending reuses the jobs (lib/jobs) and the checks before signing (lib/jobs/checks preflight):
 // a blocked command is not sent, a caution asks first, the mesh road connects the companion
-// here. Every outcome lands in the history store (jobs.js) and so in RESULTS.
+// here. Every outcome lands in the history store (jobs.js) and so in HISTORY.
 import { h } from '../dom.js';
 import { deriveFacts } from '../../lib/store/index.js';
 import { lastHeard, shortVersion } from '../../lib/jobs/overview.js';
@@ -278,7 +278,7 @@ function commandLine(ctx, svc, nodeId) {
     }
     running = true;
     send.disabled = true;
-    // The progress is RESULTS' job bar; the answers are RESULTS' rows.
+    // The progress is HISTORY' job bar; the answers are HISTORY' rows.
     const label = `${p.command} → ${to.length === 1 ? nameOf(to[0]) : ctx.t('tile.nNodes', { n: to.length })}`;
     const job = startJob({ label });
     try {

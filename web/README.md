@@ -13,7 +13,7 @@ USB (Web Serial), the overview, nodes, one node, send, groups, command sets, his
 admits `ota update` over the control plane.
 
 **Redesign (W-20, `planning/mccontrol/web-redesign-proposal-20261117.md`):** wave 1 is in: one board
-(NODES | NODE | STATUS + MAP + RESULTS) with the status line and the key bar, everything else in a
+(NODES | NODE | STATUS + MAP + HISTORY) with the status line and the key bar, everything else in a
 modal in front of it, four themes as one setting. Wave 2 filled the tiles (below, "What the tiles
 do"); beta.2's other screens open as modals. Wave 3: the phone pass (360 to 412 px and landscape,
 checked with fake data by `test/smoke/filled.mjs`), the strings, the old overview and menu list
@@ -164,9 +164,9 @@ The stores, jobs, rules and Beacon come from `ui/screens/node-services.js` (`wit
 ### The board's tiles
 
 Five mount points, fixed by `TILES` in `ui/board.js`: `nodes`, `node`, `status`, `map`, `results`.
-The grid (`styles/app.css`): one column on a phone (under 45em: NODES, RESULTS, MAP, STATUS; the NODE
+The grid (`styles/app.css`): one column on a phone (under 45em: NODES, HISTORY, MAP, STATUS; the NODE
 tile is not shown and a node opens full screen as the `node` modal); NODES | NODE with the others
-below from 45em; NODES | NODE | STATUS + MAP + RESULTS from 1100 px; from 1600 px RESULTS runs under
+below from 45em; NODES | NODE | STATUS + MAP + HISTORY from 1100 px; from 1600 px HISTORY runs under
 NODE and the right column. From 1100 px the board fills the window and each tile body scrolls.
 
 A tile is a module in `ui/tiles/` exporting:
@@ -205,12 +205,14 @@ the `.alert` class (inverse in Amber and Green).
 - **NODE** (`node.js`, `node-view.js`): facts with their age, 24-hour sparklines from Beacon
   (battery, airtime sent, noise floor), links to details, statistics and history, and the command
   area at the bottom: two fixed rows, the line with the road (auto, MQTT, mesh) and the companion's
-  line when the road may take the mesh. A reply shows only in RESULTS (W-23g); what is wrong with a
+  line when the road may take the mesh. A reply shows only in HISTORY (W-23g); what is wrong with a
   command tints the field and is its description, Send off when it cannot go (W-23h). It sends to the tagged nodes when any are tagged, else to this one,
   through `lib/jobs` with the checks before signing. The `node` modal (`#node/<id>`) is the same
   view full screen; beta.2's node screen (firmware update, name, region, forget) is `#nodeinfo/<id>`.
-- **RESULTS** (`results.js`): every answer, refusal and silence, new ones first, kept until opened or
-  "Mark all seen" (meta `resultsSeen` per key); running jobs as bars; the `result` modal shows one.
+- **HISTORY** (`results.js`, RESULTS until W-25d): the selected node's answers, refusals and silences,
+  new ones first, kept new until opened or marked seen (meta `resultsSeen` per key); with no node
+  selected every node's, the title saying "all nodes". How many are new shows per node in NODES
+  ("2 new" ahead of the reason), not in the title. Running jobs as bars; the `result` modal shows one.
 - **STATUS** (`status.js`): broker (Test), key (Lock), registration, companion (the word opens the
   chooser, `companionChooser` in `ui/screens/road-kit.js`, W-23a), status
   refresh and discovery, each with its action; sets the status line's `broker`.
@@ -226,7 +228,7 @@ What the tiles share besides the selection is `ui/tiles/sources.js` (no DOM): `p
 { state, on, run, undo })` for STATUS's `broker`, `registration`, `refresh` and `discovery` lines
 (`ui/tiles/automation-sources.js` provides `refresh` and `discovery` from `ui/automation.js`, and
 `registration` from `ui/screens/key-register.js`); `reportBroker`;
-`startJob({ label })` for RESULTS' bars; `dataChanged(what)` / `onDataChanged(fn)` when the stores
+`startJob({ label })` for HISTORY' bars; `dataChanged(what)` / `onDataChanged(fn)` when the stores
 changed (a send, discovery, Beacon). The arithmetic is `ui/tiles/data.js` (`test/tiles-data.test.js`).
 Styles: `styles/tiles.css`; each tile body is a size container, so columns drop with the tile's width.
 

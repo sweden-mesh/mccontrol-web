@@ -1,5 +1,5 @@
 // What the board's tiles share besides the selection (ui/board-state.js): the states the STATUS
-// tile shows, the jobs RESULTS draws as bars, and a "the stores changed" signal. No DOM, so a
+// tile shows, the jobs HISTORY draws as bars, and a "the stores changed" signal. No DOM, so a
 // test or another module can drive it. One store for the page.
 //
 // STATUS lines (W-20e, W-20a). Whoever owns a line provides it; until then the STATUS tile draws
@@ -21,13 +21,13 @@
 //                                 'broker' line shows it (a send, a test, discovery may all report)
 //   brokerReport()                { ok, detail, at } | null
 //
-// Jobs (RESULTS' bars):
+// Jobs (HISTORY's bars):
 //   startJob({ label })           -> { progress(fraction | null, text), done() }; label is the line
 //   jobs()                        [{ id, label, fraction, text }] running now
 //   onJobs(fn)                    returns unsubscribe
 //
 // Stores changed (a send landed, discovery adopted a node, Beacon refreshed):
-//   dataChanged(what)             what: 'history' | 'devices' | anything
+//   dataChanged(what)             what: 'history' | 'devices' | 'seen' | anything
 //   onDataChanged(fn)             fn(what); returns unsubscribe
 
 export const SOURCE_NAMES = Object.freeze(['broker', 'registration', 'refresh', 'discovery']);

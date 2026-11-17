@@ -73,8 +73,8 @@ p { max-width: 70ch; }
   .status-items { gap: 4px 12px; }
 }
 
-/* The board: NODES | NODE | STATUS + MAP + RESULTS (operator decision 1). Phone: one column,
-   NODES, RESULTS, MAP, STATUS; the node opens full screen instead of the NODE tile. */
+/* The board: NODES | NODE | STATUS + MAP + HISTORY (operator decision 1). Phone: one column,
+   NODES, HISTORY, MAP, STATUS; the node opens full screen instead of the NODE tile. */
 main { min-width: 0; }
 main:focus { outline: none; }
 .board {
@@ -103,7 +103,7 @@ main:focus { outline: none; }
   .tile { min-height: 0; display: flex; flex-direction: column; }
   .tile-body { flex: 1; min-height: 0; overflow: auto; }
 }
-/* From 1600 px: RESULTS under NODE, across NODE and the right column. */
+/* From 1600 px: HISTORY under NODE, across NODE and the right column. */
 @media (width >= 100em) {
   .board { grid-template-rows: auto minmax(10rem, 1fr) minmax(10rem, 1fr); grid-template-areas: "nodes node status" "nodes node map" "nodes results results"; }
 }

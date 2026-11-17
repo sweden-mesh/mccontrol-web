@@ -183,5 +183,5 @@ function fill(ctx, svc, body) {
   watch.observe(figure);
   ctx.signal.addEventListener('abort', () => watch.disconnect(), { once: true });
   ctx.board.on((st) => { if (st.what === 'selected') redraw(); });
-  ctx.signal.addEventListener('abort', onDataChanged((what) => { if (what !== 'history') redraw(); }), { once: true });
+  ctx.signal.addEventListener('abort', onDataChanged((what) => { if (what !== 'history' && what !== 'seen') redraw(); }), { once: true });
 }
