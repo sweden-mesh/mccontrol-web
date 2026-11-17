@@ -6,7 +6,7 @@ import { isModal, modalNames, registerModal } from '../ui/modal.js';
 import { TILES, tileDef, registerTile } from '../ui/board.js';
 import { SCREENS } from '../ui/screens/index.js';
 import { MODALS } from '../ui/modals/index.js';
-import { TABS } from '../ui/modals/setup.js';
+import { TABS, tabFor } from '../ui/modals/setup.js';
 import '../ui/tiles/index.js';
 
 const sv = JSON.parse(readFileSync(new URL('../i18n/sv.json', import.meta.url), 'utf8'));
@@ -35,7 +35,7 @@ test('every old route lands somewhere sensible', () => {
   for (const s of SCREENS) {
     if (s.route === '') continue;
     assert.ok(isModal(s.route) || INTO_SETUP[s.route], `old route ${s.route}`);
-    if (INTO_SETUP[s.route]) assert.ok(TABS[INTO_SETUP[s.route]], `setup tab for ${s.route}`);
+    if (INTO_SETUP[s.route]) assert.ok(tabFor(INTO_SETUP[s.route]), `setup tab for ${s.route}`);
   }
   assert.equal(targetHash('#/key', isModal), '#setup/key');
   assert.equal(targetHash('#/', isModal), '');
@@ -50,7 +50,7 @@ test('the modals: named, titled, rendered, dismissal chosen', () => {
     assert.ok(m.title in sv, `title ${m.title}`);
     assert.ok([undefined, 'any', 'closerequest'].includes(m.closedby), m.name);
   }
-  for (const [, [label]] of Object.entries(TABS)) assert.ok(label in sv, `tab ${label}`);
+  for (const { label } of Object.values(TABS)) assert.ok(label in sv, `tab ${label}`);
   assert.throws(() => registerModal({ name: 'help', render() {} }), /twice/);
   assert.throws(() => registerModal({ name: 'Bad Name', render() {} }), /name/);
 });

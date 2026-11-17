@@ -1,28 +1,20 @@
-// Key and backup (W-5): the public key, copy and QR code, lock, the copies the owner may keep
+// Setup's Key tab (W-5, W-20d): the public key, copy and QR code, the broker registration (it
+// runs by itself, key-register.js), lock and auto-lock, the copies the owner may keep
 // (the backup file, or the private key shown after the passphrase) and the browser's keeping of
-// it, the passphrase, fingerprint unlock, registering with a broker, and replacing the key behind
+// it, the passphrase, fingerprint unlock, and replacing the key behind
 // a dialog that says what it costs. Keeping a copy is the owner's job (operator 2026-11-17).
 import { h } from '../dom.js';
 import { download } from './node-kit.js';
 import { copyButton, errorLine, groupedHex, passField, qrSvg, useStyles } from './key-kit.js';
 import { currentHandle, keyring, keyStatus, onKeyStatus, unlockHash } from './key-session.js';
-import { brokerConfig, brokerTable } from './settings-store.js';
-import { loadAll } from '../../lib/data/load.js';
-import { register } from '../../lib/protocol/transport.js';
 import { passProblem, MIN } from './unlock.js';
+import { registerNow, registration, onRegistration, registrationText } from './key-register.js';
+import { AUTO_LOCK_CHOICES } from '../../lib/key/keyring.js';
+
+export const REG_GLYPH = Object.freeze({ ok: '●', failed: '✕', running: '…', none: '?' });
 
 export const route = 'key';
 export const title = 'nav.key';
-
-// The brokers a key may register with: the shared one, then each region's own.
-export function brokerChoices(brokers, regions = {}) {
-  const out = [{ value: '', host: brokers.shared, regions: [] }];
-  for (const [region, host] of Object.entries(regions)) {
-    const found = out.find((b) => b.host === host);
-    if (found) found.regions.push(region); else out.push({ value: region, host, regions: [region] });
-  }
-  return out;
-}
 
 // How long the private key stays on screen once shown.
 export const REVEAL_MS = 60000;
@@ -56,8 +48,27 @@ export function revealer(onHide, { ms = REVEAL_MS, timers = globalThis, clipboar
 
 export const autoLockText = (t, minutes) => (minutes === null ? t('key.autolock.tab') : t(`key.autolock.${minutes}`));
 
+// Auto-lock, kept with the key: radio buttons that save at once.
+function autoLockChoice(ctx, s) {
+  const { t } = ctx;
+  const saved = h('p', { role: 'status', class: 'hint-line' });
+  const fieldset = h('fieldset', { class: 'choice' }, h('legend', {}, t('key.autolock')),
+    AUTO_LOCK_CHOICES.map((m) => {
+      const input = h('input', { type: 'radio', name: 'autolock', value: String(m), checked: m === s.autoLockMinutes });
+      input.addEventListener('change', async () => {
+        if (!input.checked) return;
+        try {
+          await keyring().setAutoLock(m);
+          saved.textContent = t('settings.saved');
+        } catch (ex) { saved.textContent = ex.message; }
+      });
+      return h('label', {}, input, ' ', autoLockText(t, m));
+    }));
+  return h('div', { class: 'stack' }, fieldset, h('p', { class: 'hint-line' }, t('settings.autoLockHint')), saved);
+}
+
 const block = (id, heading, ...children) => h('section', { class: 'key-block', 'aria-labelledby': id },
-  h('h2', { id }, heading), ...children);
+  h('h3', { id }, heading), ...children);
 
 function busy(button, on) { button.disabled = on; button.setAttribute('aria-busy', String(on)); }
 
@@ -66,7 +77,7 @@ export function render(ctx) {
   const { t } = ctx;
   const body = h('div', {});
   const section = h('section', { 'aria-labelledby': 'key-title', class: 'scr key-screen' },
-    h('h1', { id: 'key-title' }, t('nav.key')), body);
+    h('h2', { id: 'key-title' }, t('setup.tab.key')), body);
   const ring = keyring();
   let showQr = false;
   let seedSlot = null;            // where the shown private key is, in the current draw
@@ -84,8 +95,8 @@ export function render(ctx) {
       body.replaceChildren(h('p', {}, t('keyscreen.none')), h('p', {}, h('a', { class: 'button', href: '#/unlock' }, t('keyscreen.toStart'))));
       return;
     }
-    body.replaceChildren(publicBlock(s), lockBlock(s), backupBlock(s), passBlock(s), fingerprintBlock(s), registerBlock(), replaceBlock(),
-      h('p', {}, h('a', { href: '#/help/signing' }, t('keyscreen.helpLink'))));
+    body.replaceChildren(publicBlock(s), registerBlock(), lockBlock(s), backupBlock(s), passBlock(s), fingerprintBlock(s), replaceBlock(),
+      h('p', {}, h('a', { href: '#help/signing' }, t('keyscreen.helpLink'))));
   };
 
   function publicBlock(s) {
@@ -103,7 +114,7 @@ export function render(ctx) {
       h('p', { class: 'pubkey' }, h('code', { translate: 'no' }, groupedHex(s.publicKeyHex))),
       h('div', { class: 'row wrap' }, copyButton(t, s.publicKeyHex), qrButton),
       qrSlot,
-      h('p', {}, h('a', { href: '#/setup' }, t('keyscreen.toSetup'))));
+      h('p', {}, h('a', { href: '#setup/node' }, t('keyscreen.toSetup'))));
   }
 
   function lockBlock(s) {
@@ -111,9 +122,8 @@ export function render(ctx) {
     lock.addEventListener('click', () => { ring.lock(); ctx.announce(t('keyscreen.lockedNow')); });
     return block('lock-title', t('keyscreen.lock'),
       h('p', {}, t(s.locked ? 'keyscreen.isLocked' : 'keyscreen.isUnlocked')),
-      h('p', { class: 'muted' }, t('keyscreen.autoLock', { when: autoLockText(t, s.autoLockMinutes) }), ' ',
-        h('a', { href: '#/settings' }, t('keyscreen.changeInSettings'))),
-      s.locked ? h('p', {}, h('a', { class: 'button', href: unlockHash('key') }, t('unlock.unlock'))) : h('div', { class: 'row' }, lock));
+      s.locked ? h('p', {}, h('a', { class: 'button', href: unlockHash('key') }, t('unlock.unlock'))) : h('div', { class: 'row' }, lock),
+      autoLockChoice(ctx, s));
   }
 
   function backupBlock(s) {
@@ -236,30 +246,28 @@ export function render(ctx) {
       h('details', { class: 'block' }, h('summary', {}, t('key.fingerprint.enable')), form));
   }
 
+  // Registration runs by itself (key-register.js); this says how it went and offers it again.
   function registerBlock() {
-    const slot = h('div', {}, h('p', { class: 'muted' }, t('node.loading')));
-    loadAll().then(({ brokers }) => {
-      const choices = brokerChoices(brokers, brokerTable(brokers).regions);
-      const select = h('select', { id: 'register-broker' }, choices.map((c) => h('option', { value: c.value },
-        c.regions.length ? `${c.host} (${c.regions.join(', ')})` : t('keyscreen.sharedBroker', { host: c.host }))));
-      const go = h('button', { type: 'button', class: 'button' }, t('keyscreen.register'));
-      const out = h('p', { role: 'status' });
-      go.addEventListener('click', async () => {
-        const handle = currentHandle();
-        if (!handle) { out.replaceChildren(t('send.locked'), ' ', h('a', { href: unlockHash('key') }, t('send.unlockLink'))); return; }
-        busy(go, true);
-        out.textContent = t('keyscreen.registering');
-        try {
-          const res = await register({ config: brokerConfig(brokers, select.value), handle, signal: ctx.signal });
-          out.textContent = res.ok ? t('keyscreen.registered') : t('keyscreen.registerNot', { detail: res.detail });
-        } catch (ex) {
-          out.textContent = t('keyscreen.registerFailed', { reason: ex.message });
-        } finally { busy(go, false); }
-      });
-      slot.replaceChildren(h('div', { class: 'field' }, h('label', { for: 'register-broker' }, t('keyscreen.broker')), select),
-        h('div', { class: 'row' }, go), out);
-    }).catch((ex) => slot.replaceChildren(h('p', { class: 'err' }, ex.message)));
-    return block('reg-title', t('keyscreen.registerTitle'), h('p', {}, t('keyscreen.registerBody')), slot);
+    const lines = h('ul', { class: 'reg-lines' });
+    const again = h('button', { type: 'button', class: 'tool' }, t('setup.reg.again'));
+    const out = h('p', { role: 'status', class: 'hint-line' });
+    const sync = (r) => {
+      lines.replaceChildren(...r.hosts.map((x) => h('li', { class: `reg-${x.state}` },
+        h('span', { class: 'glyph', 'aria-hidden': 'true' }, REG_GLYPH[x.state] || '?'), ' ', registrationText(t, x))));
+      again.disabled = r.state === 'running';
+      again.setAttribute('aria-busy', String(r.state === 'running'));
+    };
+    again.addEventListener('click', async () => {
+      if (!currentHandle()) { out.replaceChildren(t('send.locked'), ' ', h('a', { href: unlockHash('key') }, t('send.unlockLink'))); return; }
+      out.textContent = '';
+      const r = await registerNow().catch(() => null);
+      if (r) out.textContent = t(r.state === 'ok' ? 'setup.reg.allOk' : 'setup.reg.notAll');
+    });
+    sync(registration());
+    const stop = onRegistration(sync);
+    ctx.signal.addEventListener('abort', stop, { once: true });
+    return block('reg-title', t('setup.reg.title'), h('p', { class: 'muted' }, t('setup.reg.body')), lines,
+      h('div', { class: 'row' }, again), out);
   }
 
   function replaceBlock() {
@@ -293,7 +301,8 @@ export function render(ctx) {
     if (s.locked) seed.hide();
     // Redraw on a lock or a change, but never under the person's typing.
     if (body.contains(document.activeElement) && document.activeElement.matches('input, textarea, select')) {
-      body.querySelectorAll('.key-block')[1]?.replaceWith(lockBlock(s));
+      const lockSection = body.querySelector('[aria-labelledby="lock-title"]');
+      if (lockSection && !lockSection.contains(document.activeElement)) lockSection.replaceWith(lockBlock(s));
       return;
     }
     draw(s);
