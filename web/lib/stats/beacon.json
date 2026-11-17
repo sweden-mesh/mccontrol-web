@@ -1,4 +1,4 @@
 {
  "_note": "The Beacon the statistics read from. It must answer with Access-Control-Allow-Origin for the page's origin, and the CSP's connect-src (index.html, _headers) must name its origin. beacon.meshat.se sends no CORS headers (checked 2026-11-17), so a browser cannot read it.",
- "url": "https://beacon.meshcore-jkp.se/api/v1"
+ "url": "https://beacon.meshcoresverige.se/api/v1"
 }
