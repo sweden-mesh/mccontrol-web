@@ -339,7 +339,7 @@
  ],
  "broadcast_refused_why": "it restarts the node, so it goes to one node at a time; the firmware refuses it as a broadcast, and so does this",
  "mesh": {
-  "rule": "see denylist.mesh_refusal: with an uplink, a command (runs of space made one) that starts with a with_value prefix and has more after it, or equals an exact entry, case-sensitive, travels; anything else as the deny list says. On a mesh-only device a needs_uplink command (whole, any case) or an allowance command is refused with mesh_only_why, and the deny list applies in full",
+  "rule": "see denylist.mesh_refusal: with an uplink, a command (runs of space made one) that starts with a with_value prefix and has more after it, or equals an exact entry, case-sensitive, travels; anything else as the deny list says. On a mesh-only device a needs_uplink command (whole, any case), a command starting with needs_uplink_slot_prefix, a digit and a dot (any case), or an allowance command is refused with mesh_only_why, and the deny list applies in full",
   "allowance_with_value": [
    "set wifi.ssid ",
    "set wifi.pwd ",
@@ -353,6 +353,7 @@
    "ota update",
    "mqtt.cmd ping"
   ],
+  "needs_uplink_slot_prefix": "set mqtt",
   "mesh_only_why": "denied: a mesh-only node has no Wi-Fi or MQTT; the firmware refuses it there (not-allowed)"
  },
  "messages": {

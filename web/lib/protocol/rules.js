@@ -157,7 +157,12 @@ export function rulesFrom({ denylist, cautions, commands, firmware, facts }) {
       || mesh.allowance_exact.includes(text);
   };
 
-  const needsUplink = (command) => mesh.needs_uplink.includes(squash(command).toLowerCase());
+  // Whole, any case; or a broker slot's setting: the prefix, a slot digit and a dot.
+  const needsUplink = (command) => {
+    const text = squash(command).toLowerCase();
+    const p = mesh.needs_uplink_slot_prefix;
+    return mesh.needs_uplink.includes(text) || (text.startsWith(p) && /^[0-9]\./.test(text.slice(p.length)));
+  };
 
   // Why the firmware will refuse `command` over the mesh road, or null when it travels.
   function meshRefusal(command, meshOnly = false) {

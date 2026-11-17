@@ -3006,7 +3006,7 @@
    {
     "command": "set mqtt2.password x",
     "uplink": null,
-    "mesh_only": null
+    "mesh_only": "denied: a mesh-only node has no Wi-Fi or MQTT; the firmware refuses it there (not-allowed)"
    },
    {
     "command": "get mqtt.iata",
@@ -3161,12 +3161,12 @@
    {
     "command": "set mqtt1.server x.se",
     "uplink": null,
-    "mesh_only": null
+    "mesh_only": "denied: a mesh-only node has no Wi-Fi or MQTT; the firmware refuses it there (not-allowed)"
    },
    {
     "command": "set mqtt6.preset custom",
     "uplink": null,
-    "mesh_only": null
+    "mesh_only": "denied: a mesh-only node has no Wi-Fi or MQTT; the firmware refuses it there (not-allowed)"
    },
    {
     "command": "set name SE-JKP-Väster",
@@ -3321,7 +3321,7 @@
    {
     "command": "set mqtt1.server x.se",
     "uplink": null,
-    "mesh_only": null
+    "mesh_only": "denied: a mesh-only node has no Wi-Fi or MQTT; the firmware refuses it there (not-allowed)"
    },
    {
     "command": "OTA CHECK",
@@ -3335,6 +3335,21 @@
    },
    {
     "command": "reboot",
+    "uplink": null,
+    "mesh_only": null
+   },
+   {
+    "command": "SET MQTT3.PORT 1883",
+    "uplink": null,
+    "mesh_only": "denied: a mesh-only node has no Wi-Fi or MQTT; the firmware refuses it there (not-allowed)"
+   },
+   {
+    "command": "set mqttx.preset a",
+    "uplink": null,
+    "mesh_only": null
+   },
+   {
+    "command": "set mqtt1",
     "uplink": null,
     "mesh_only": null
    }
