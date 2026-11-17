@@ -1,0 +1,25 @@
+{
+ "_note": "Shared by tests/test_keyfile.py and web/test/key-backup.test.js; the seed and passphrase are test values, never a real key.",
+ "seed": "4b607a88e181f0dbf3777dad53953c9fcad4f38facd2b7cb5aeced74864373b8",
+ "passphrase": "rätt lösenord",
+ "iterations": 1000,
+ "salt": "367c841f31e86b0a2437e5f4c98afd12",
+ "nonce": "efd7153330fb24dcacdb1148",
+ "created": "2026-11-17T00:00:00+00:00",
+ "sealed": {
+  "format": "mccontrol-key-backup",
+  "version": 1,
+  "public_key": "EB90B7D7F12A49ACF5B53684A36A9E98E0EC27AF146BBC01EFFB8A8C0719D70E",
+  "created": "2026-11-17T00:00:00+00:00",
+  "kdf": {
+   "name": "PBKDF2-SHA256",
+   "iterations": 1000,
+   "salt": "367c841f31e86b0a2437e5f4c98afd12"
+  },
+  "cipher": {
+   "name": "AES-256-GCM",
+   "nonce": "efd7153330fb24dcacdb1148"
+  },
+  "ciphertext": "01ed9273c2ddd3bb346c6d8e9d71d52df6bf144e03dca1c5e1492a4106b9d791723f22b18b927de5ac8f4ad90e184eef"
+ }
+}
