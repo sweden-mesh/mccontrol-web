@@ -159,3 +159,11 @@ details.block[open] > summary { margin-bottom: .5rem; }
 .res-text .reply { display: block; }
 .res-text .res-cmd + .reply { margin-top: .125rem; }
 .history-table td:first-child { white-space: nowrap; }
+/* The mesh road (W-16): the road radios sit tight under the command; the companion's state and
+   buttons follow; a result or event that went over the mesh says so in muted text. */
+.road-choice { margin: .75rem 0 .25rem; }
+.road-choice label { display: inline-flex; margin-right: 1.25rem; }
+.companion { margin: 0 0 .75rem; }
+.companion-state { margin: .25rem 0 0; }
+.companion .row { margin: .5rem 0; }
+.road-mark { color: var(--muted); font-size: .875rem; }

@@ -73,8 +73,9 @@ export function when(ctx, iso) {
 }
 
 // What a result means, in words: { kind, text, help }. kind is ok | refused | silent | forged.
-export function explain(ctx, svc, result, device = null) {
-  if (!result) return { kind: 'silent', text: ctx.t('send.res.silent'), help: ctx.t('send.res.silentHelp') };
+// Silence over the mesh (road 'mesh') has its own reasons, none of them a refusal.
+export function explain(ctx, svc, result, device = null, road = 'mqtt') {
+  if (!result) return { kind: 'silent', text: ctx.t('send.res.silent'), help: ctx.t(road === 'mesh' ? 'road.silentMesh' : 'send.res.silentHelp') };
   if (result.verified === false) return { kind: 'forged', text: ctx.t('send.res.forged'), help: ctx.t('send.res.forgedHelp') };
   const sig = result.verified ? ctx.t('send.res.signed') : ctx.t('send.res.unsigned');
   if (result.ok) return { kind: 'ok', text: result.reply || 'OK', help: sig };
@@ -88,7 +89,7 @@ export function explain(ctx, svc, result, device = null) {
 export function explainEvent(ctx, svc, e) {
   if (e.code === null && e.node === null) return { kind: 'summary', text: e.note, help: '' };
   if (e.verified === false) return explain(ctx, svc, { verified: false });
-  if (e.code === null) return explain(ctx, svc, null);
+  if (e.code === null) return explain(ctx, svc, null, null, e.road);
   return explain(ctx, svc, { code: e.code, reply: e.reply, verified: e.verified, ok: e.code === 0, command: e.command });
 }
 

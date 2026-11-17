@@ -6,7 +6,9 @@
 // The keyring is the page's one (key-session.js): startKeySession() calls provideKeyring(ring)
 // where it builds it, next to provideKeySource(). Until then every job answers "the key is
 // locked". Brokers come from settings-store's brokerConfig (a region's own broker on this
-// device), Beacon from the statistics' client (one Beacon for the page).
+// device), Beacon from the statistics' client (one Beacon for the page). The mesh road (W-16)
+// goes through the page's companion connection (companion-session.js); the auto road asks
+// Beacon when the node's status was last seen.
 import { loadAll } from '../../lib/data/load.js';
 import { rulesFrom } from '../../lib/protocol/rules.js';
 import { indexedDb } from '../../lib/store/db.js';
@@ -15,7 +17,8 @@ import { createJobs } from '../../lib/jobs/jobs.js';
 import { latestRelease, releaseSource } from '../../lib/jobs/releases.js';
 import { refreshFleet } from '../../lib/jobs/fleet.js';
 import { beaconBase, beaconClient } from '../../lib/stats/beacon.js';
-import { brokerConfig } from './settings-store.js';
+import { brokerConfig, meshAfterMins } from './settings-store.js';
+import { companion } from '../companion-session.js';
 
 const LOCKED = Object.freeze({ handle: () => null, hold: () => { throw new Error('The key is locked.'); }, touch: () => {} });
 let ring = LOCKED;
@@ -36,7 +39,13 @@ export async function services(owner) {
   if (!perOwner.has(owner)) {
     const stores = openStores(db, owner, { defaultSets: data.brokers.default_sets || {} });
     const jobs = createJobs({ ring: { handle: () => ring.handle(), hold: () => ring.hold(), touch: () => ring.touch() },
-      stores, rules, brokers: data.brokers, results: data.results, configOf: (region) => brokerConfig(data.brokers, region) });
+      stores, rules, brokers: data.brokers, results: data.results, configOf: (region) => brokerConfig(data.brokers, region),
+      companion, meshAfterMins: () => meshAfterMins(),
+      mqttSeen: async (d) => {
+        const oid = d.observerId || (await beacon.findNode(d.key || d.node)).observerId;
+        const at = oid ? Number((await beacon.observer(oid))?.lastStatusAt) : NaN;
+        return Number.isFinite(at) ? at : null;
+      } });
     perOwner.set(owner, Object.freeze({
       data, rules, stores, jobs,
       releases: () => latestRelease({ meta: stores.meta }),

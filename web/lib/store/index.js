@@ -4,7 +4,9 @@
 //
 //   every record   { owner, id, created, updated, ... }   owner = the key's public key (64 hex)
 //   device         id = node (8 hex); key (64 hex or null), name, region, notes, ver,
-//                  lastSent, lastHeard, lastResult { at, command, code, codeName, verified },
+//                  lastSent, lastHeard, lastHeardMqtt, lastHeardMesh (which road it last answered
+//                  on), meshOnly (true | false | absent: the version decides),
+//                  lastResult { at, command, code, codeName, verified },
 //                  reads { command: { reply, at, verified } }, fleet { batteryMv, seen, firmware,
 //                  fetched } | null, observerId
 //   group          id = name (one word, lower case); members [node]
@@ -12,7 +14,8 @@
 //   history event  id = time-sortable and random, never reused; append-only: an event is written
 //                  once and never changed (created === updated). { v: 1, at, batch, node | null,
 //                  region, command, topic, code | null, codeName | null, reply | null,
-//                  verified: true | false | null, note }. Silence is code null with no reply.
+//                  verified: true | false | null, note, road: 'mqtt' | 'mesh' }. Silence is code
+//                  null with no reply. An event from before the mesh road (W-16) went over MQTT.
 //   meta           id = a name ('lastVisit', 'releases'); value
 //
 //   const stores = openStores(db, publicKeyHex, { defaultSets });
@@ -191,11 +194,12 @@ export function openStores(db, owner, { now = () => Date.now(), defaultSets = {}
 
   // -- history ---------------------------------------------------------------------------------
 
-  const FIELDS = ['at', 'batch', 'node', 'region', 'command', 'topic', 'code', 'codeName', 'reply', 'verified', 'note'];
+  const FIELDS = ['at', 'batch', 'node', 'region', 'command', 'topic', 'code', 'codeName', 'reply', 'verified', 'note', 'road'];
   const shape = (event) => {
     const out = { v: SCHEMA };
     for (const f of FIELDS) out[f] = event[f] ?? null;
     out.note = out.note || '';
+    out.road = out.road === 'mesh' ? 'mesh' : 'mqtt';
     if (out.node) out.node = String(out.node).toUpperCase();
     return out;
   };
@@ -211,6 +215,7 @@ export function openStores(db, owner, { now = () => Date.now(), defaultSets = {}
     if (r.node != null && !NODE.test(String(r.node).toUpperCase())) return null;
     if (r.code != null && !(Number.isInteger(r.code) && r.code >= 0)) return null;
     if (![true, false, null, undefined].includes(r.verified)) return null;
+    if (![null, undefined, 'mqtt', 'mesh'].includes(r.road)) return null;
     if (!(str(r.reply, 4000) && str(r.note, 400) && str(r.region, 8) && str(r.topic, 200)
       && str(r.codeName, 60) && str(r.batch, 64))) return null;
     return r;

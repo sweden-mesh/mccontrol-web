@@ -4,9 +4,14 @@
 // something away asks first; a region-wide send always asks, naming the region and how many
 // nodes are expected to answer. Each result is said in words with the code's help text.
 //
-// sendPanel(ctx, svc, target) is the same form inside the node and group screens.
+// sendPanel(ctx, svc, target) is the same form inside the node and group screens. Outside a
+// region-wide send it offers the road (W-16): MQTT, the mesh through the owner's companion
+// radio, or auto; the companion is connected here when a road may take the mesh.
 import { h } from '../dom.js';
 import { preflight } from '../../lib/jobs/checks.js';
+import { CompanionError } from '../../lib/mesh/companion.js';
+import { companionControl, roadChoice, roadLine } from './road-kit.js';
+import { meshAfterMins } from './settings-store.js';
 import {
   byName, confirm, explain, field, nameOf, outcomeTag, progressLine, screen, withServices, put, resultBody, unlockHere,
 } from './node-kit.js';
@@ -47,11 +52,23 @@ export function sendPanel(ctx, svc, target, { onDone = null, initial = '' } = {}
   const stop = h('button', { type: 'button', class: 'tool', hidden: true }, ctx.t('send.stop'));
   const results = h('div', { class: 'results' });
   const one = !target.region && target.devices.length === 1 ? target.devices[0] : null;
+  const meshOnly = target.devices.some((d) => svc.rules.deviceMeshOnly(d)) && !target.region;
+  let road = meshOnly ? 'auto' : 'mqtt';
+  const companionSlot = h('div', {});
+  const choice = target.region ? null : roadChoice(ctx, { initial: road, meshOnly, onChange: (r) => { road = r; drawRoad(); drawChecks(); } });
   const form = h('form', { class: 'send-form', novalidate: true },
     field(ctx.t('send.command'), input, ctx.t('send.commandHint')),
-    list.el, check, h('div', { class: 'row' }, sendButton, stop), results);
+    list.el, choice?.el, companionSlot, check, h('div', { class: 'row' }, sendButton, stop), results);
 
-  const verdict = () => preflight(svc.rules, { command: input.value, device: one, region: target.region || null });
+  const verdict = () => preflight(svc.rules, { command: input.value, device: one, region: target.region || null,
+    road: target.region ? 'mqtt' : road, meshAfterMins: meshAfterMins() });
+  let control = null;
+  function drawRoad() {
+    const show = !target.region && (road !== 'mqtt' || meshOnly);
+    if (show && !control) control = companionControl(ctx);
+    put(companionSlot, show ? control : null);
+  }
+  drawRoad();
 
   function drawChecks() {
     const p = verdict();
@@ -64,11 +81,20 @@ export function sendPanel(ctx, svc, target, { onDone = null, initial = '' } = {}
         : ctx.t('send.notAdmitted', { version: one.ver, needs: p.needs || '?' })));
     }
     if (!p.block && !target.region && p.command) {
-      const many = target.devices.filter((d) => d.ver && !svc.rules.admits(d.ver, p.command));
+      const onMesh = p.road?.road === 'mesh';
+      const many = road === 'mqtt' ? target.devices.filter((d) => d.ver && !svc.rules.admits(d.ver, p.command)) : [];
       if (!one && many.length) lines.push(h('p', { class: 'check check-caution' }, ctx.t('send.someRefuse', { n: many.length, names: many.map(nameOf).join(', ') })));
-      lines.push(h('p', { class: 'check muted' }, one
-        ? (p.v2 ? ctx.t('send.v2') : ctx.t('send.v1'))
-        : ctx.t('send.perNode', { n: target.devices.length })));
+      if (one && onMesh) {
+        lines.push(h('p', { class: 'check' }, p.road.why
+          ? ctx.t('road.willMesh', { why: ctx.t(`road.why.${p.road.why.code}`, p.road.why.vars) }) : ctx.t('road.willMeshPlain')));
+        lines.push(h('p', { class: 'check muted' }, ctx.t('road.meshLimits')));
+      } else {
+        if (one && road === 'auto') lines.push(h('p', { class: 'check' }, ctx.t('road.willMqtt')));
+        lines.push(h('p', { class: 'check muted' }, one
+          ? (p.v2 ? ctx.t('send.v2') : ctx.t('send.v1'))
+          : ctx.t('send.perNode', { n: target.devices.length })));
+        if (!one && road !== 'mqtt') lines.push(h('p', { class: 'check muted' }, ctx.t('road.groupMesh')));
+      }
     }
     if (!p.block && target.region && p.command) lines.push(h('p', { class: 'check muted' }, ctx.t('send.broadcastNote', { region: target.region, n: target.devices.length })));
     put(check, ...lines);
@@ -113,6 +139,7 @@ export function sendPanel(ctx, svc, target, { onDone = null, initial = '' } = {}
         nodes: target.region || target.group ? null : target.devices.map((d) => d.node),
         group: target.group?.id || null,
         region: target.region || null,
+        road: target.region ? 'mqtt' : road,
         signal: running.signal,
         onProgress: (s) => bar.set(s.total ? s.elapsed / s.total : null, s.region
           ? ctx.t('send.waitRegion', { n: s.answered, of: s.count, secs: Math.ceil(s.total - s.elapsed) })
@@ -122,7 +149,9 @@ export function sendPanel(ctx, svc, target, { onDone = null, initial = '' } = {}
       ctx.announce(ctx.t('send.doneSummary', { answered: out.answered, asked: out.asked }));
       onDone?.(out);
     } catch (err) {
-      const text = err.code === 'locked' ? ctx.t('send.locked') : err.code ? ctx.t(`send.why.${err.code}`, err.vars) : err.message;
+      const text = err.code === 'locked' ? ctx.t('send.locked')
+        : err instanceof CompanionError ? ctx.t('send.why.companion', { detail: err.message })
+          : err.code ? ctx.t(`send.why.${err.code}`, err.vars) : err.message;
       put(results, h('p', { class: 'err', role: 'alert' }, text,
         err.code === 'locked' ? [' ', h('a', { href: unlockHere(ctx) }, ctx.t('send.unlockLink'))] : null));
     } finally {
@@ -145,12 +174,14 @@ export function resultList(ctx, svc, out, target) {
         h('span', { class: 'tag tag-unsent' }, ctx.t('send.notSent')),
         h('span', { class: 'res-text' }, o.reason ? ctx.t(`send.why.${o.reason.code}`, o.reason.vars) : ''));
     }
-    const x = explain(ctx, svc, o.result, devices.get(o.node));
+    const x = explain(ctx, svc, o.result, devices.get(o.node), o.road);
+    const how = roadLine(ctx, o);
     return h('li', { class: `res res-${x.kind}` },
       h('span', { class: 'res-name' }, h('a', { href: `#/node/${o.node}` }, o.name)),
       outcomeTag(ctx, x.kind),
       h('span', { class: 'res-text' }, resultBody(x)[0]),
-      resultBody(x)[1] ? h('span', { class: 'res-help' }, resultBody(x)[1]) : null);
+      resultBody(x)[1] ? h('span', { class: 'res-help' }, resultBody(x)[1]) : null,
+      how ? h('span', { class: 'res-help res-road' }, how) : null);
   });
   return h('div', {},
     h('p', { class: 'res-summary' }, ctx.t('send.summary', { command: out.command, answered: out.answered, asked: out.asked })),

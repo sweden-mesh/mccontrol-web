@@ -25,3 +25,9 @@ export const DIR_RESULT = 0x01;
 export const REGISTER_TOPIC = 'mccontrol/register';
 export const REGISTER_VERSION = 'reg1';
 export const TOKEN = Object.freeze({ username_prefix: 'v1_', lifetime_secs: 86400, client: 'mccontrol' });
+// The mesh road (OTM-1 firmware, mccontrol/mesh.py): an anonymous request through the owner's
+// companion radio. protocol.json's `mesh` pins these too.
+export const MESH = Object.freeze({
+  subtype: 0xc1, cmd_send_anon_req: 57, max_command: 59, head: 73, response_head: 9,
+  mesh_only_region: 'mesh', clock_set_from: 1735689600,
+});
