@@ -1,64 +1,72 @@
-// This device's display settings: colour scheme, phosphor theme, colour-blind palette, reduced
-// motion and language. They belong to the device, not to a key, so they live in localStorage
-// (keys "mccontrol.<name>"); ui/boot.js reads the same keys before the first paint. Storage may be
-// blocked (private windows, site data off): every read and write tolerates that, and a choice then
-// lasts for this page only.
+// This device's display settings: the theme and the language. They belong to the device, not to
+// a key, so they live in localStorage (keys "mccontrol.<name>"); ui/boot.js reads the same keys
+// before the first paint. Storage may be blocked (private windows, site data off): every read and
+// write tolerates that, and a choice then lasts for this page only.
+//
+// One theme setting since W-20f: amber (the default), green, dark, light. Before it there were
+// three settings (colours system/light/dark, terminal screen off/green/amber, colour-blind on/off)
+// and a reduced-motion option. migratePrefs() maps them once (boot.js does the same before paint):
+// a terminal screen wins, then light or dark, else amber; the colour-blind and motion keys go.
 
 export const CHOICES = Object.freeze({
-  theme: ['system', 'light', 'dark'],
-  phosphor: ['off', 'green', 'amber'],
-  cvd: ['off', 'on'],
-  motion: ['system', 'reduce'],
+  theme: ['amber', 'green', 'dark', 'light'],
   lang: ['browser', 'sv', 'en'],
 });
 
-// The value each choice has when nothing is stored, and the stored form of each choice.
-const STORED = { theme: { light: 'light', dark: 'dark' }, phosphor: { green: 'green', amber: 'amber' },
-  cvd: { on: '1' }, motion: { reduce: 'off' }, lang: { sv: 'sv', en: 'en' } };
+// The keys of the settings that no longer exist, removed by the migration.
+export const RETIRED = Object.freeze(['phosphor', 'cvd', 'motion']);
 
 function safeStorage() {
   try { return globalThis.localStorage || null; } catch { return null; }
 }
 
+function read(storage, name) {
+  try { return storage ? storage.getItem(`mccontrol.${name}`) : null; } catch { return null; }
+}
+
+// The theme the stored settings name, old or new: what boot.js applies before the first paint.
+export function themeFrom(get) {
+  const phosphor = get('phosphor');
+  if (phosphor === 'green' || phosphor === 'amber') return phosphor;
+  const theme = get('theme');
+  return CHOICES.theme.includes(theme) ? theme : 'amber';
+}
+
+// Rewrites old settings into the new one, once. Safe to run on every load.
+export function migratePrefs(storage = safeStorage()) {
+  if (!storage || !RETIRED.some((name) => read(storage, name) !== null)) return;
+  try {
+    const theme = themeFrom((name) => read(storage, name));
+    if (theme === 'amber') storage.removeItem('mccontrol.theme');
+    else storage.setItem('mccontrol.theme', theme);
+    for (const name of RETIRED) storage.removeItem(`mccontrol.${name}`);
+  } catch { /* blocked: boot.js still reads the old keys */ }
+}
+
 export function readPrefs(storage = safeStorage()) {
-  const prefs = {};
-  for (const [name, choices] of Object.entries(CHOICES)) {
-    let raw = null;
-    try { raw = storage ? storage.getItem(`mccontrol.${name}`) : null; } catch { /* blocked */ }
-    const found = Object.entries(STORED[name]).find(([, stored]) => stored === raw);
-    prefs[name] = found ? found[0] : choices[0];
-  }
-  return prefs;
+  const get = (name) => read(storage, name);
+  const lang = get('lang');
+  return { theme: themeFrom(get), lang: CHOICES.lang.includes(lang) && lang !== 'browser' ? lang : 'browser' };
 }
 
 export function writePref(name, value, storage = safeStorage()) {
   if (!CHOICES[name] || !CHOICES[name].includes(value)) throw new Error(`no setting ${name}=${value}`);
-  const stored = STORED[name][value];
   try {
-    if (stored) storage?.setItem(`mccontrol.${name}`, stored);
-    else storage?.removeItem(`mccontrol.${name}`);
+    if (value === CHOICES[name][0]) storage?.removeItem(`mccontrol.${name}`);
+    else storage?.setItem(`mccontrol.${name}`, value);
+    if (name === 'theme') for (const old of RETIRED) storage?.removeItem(`mccontrol.${old}`);
   } catch { /* blocked: this page only */ }
 }
 
-// The colour scheme the page should be pinned to, or 'light dark' to follow the system. The
-// phosphor theme is always dark.
+// The colour scheme the browser's own parts (scroll bars, form controls) should use.
 export function schemeFor(prefs) {
-  if (prefs.phosphor !== 'off') return 'dark';
-  return prefs.theme === 'system' ? 'light dark' : prefs.theme;
+  return prefs.theme === 'light' ? 'light' : 'dark';
 }
 
 export function applyPrefs(prefs, doc = document) {
   const root = doc.documentElement;
   doc.querySelector('meta[name="color-scheme"]')?.setAttribute('content', schemeFor(prefs));
-  const set = (attr, value) => (value ? root.setAttribute(attr, value) : root.removeAttribute(attr));
-  set('data-phosphor', prefs.phosphor === 'off' ? null : prefs.phosphor);
-  set('data-cvd', prefs.cvd === 'on' ? '1' : null);
-  set('data-motion', prefs.motion === 'reduce' ? 'off' : null);
-}
-
-// Motion is reduced when the system asks for it or the setting does.
-export function motionReduced(prefs = currentPrefs()) {
-  return prefs.motion === 'reduce' || matchMedia('(prefers-reduced-motion: reduce)').matches;
+  root.setAttribute('data-theme', prefs.theme);
 }
 
 // Calls fn(prefs) after a change here or in another tab.

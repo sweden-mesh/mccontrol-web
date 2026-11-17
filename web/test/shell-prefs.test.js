@@ -1,54 +1,58 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { readPrefs, writePref, schemeFor, CHOICES } from '../ui/prefs.js';
+import { readPrefs, writePref, schemeFor, migratePrefs, themeFrom, CHOICES, RETIRED } from '../ui/prefs.js';
 import { shortKey } from '../ui/key-state.js';
+import { memory } from './prefs-fakes.js';
 
-function memory() {
-  const m = new Map();
-  return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), removeItem: (k) => m.delete(k), m };
-}
-
-test('nothing stored: follow the system and the browser', () => {
-  assert.deepEqual(readPrefs(memory()),
-    { theme: 'system', phosphor: 'off', cvd: 'off', motion: 'system', lang: 'browser' });
+test('nothing stored: amber, the browser language', () => {
+  assert.deepEqual(readPrefs(memory()), { theme: 'amber', lang: 'browser' });
+  assert.deepEqual(CHOICES.theme, ['amber', 'green', 'dark', 'light']);
 });
 
 test('a choice is stored, the default removes it', () => {
   const s = memory();
-  writePref('theme', 'dark', s);
-  writePref('phosphor', 'amber', s);
-  writePref('cvd', 'on', s);
-  writePref('motion', 'reduce', s);
+  writePref('theme', 'light', s);
   writePref('lang', 'en', s);
-  assert.deepEqual(readPrefs(s), { theme: 'dark', phosphor: 'amber', cvd: 'on', motion: 'reduce', lang: 'en' });
-  // The keys ui/boot.js reads before the first paint.
-  assert.deepEqual(Object.fromEntries(s.m), { 'mccontrol.theme': 'dark', 'mccontrol.phosphor': 'amber',
-    'mccontrol.cvd': '1', 'mccontrol.motion': 'off', 'mccontrol.lang': 'en' });
-  for (const name of Object.keys(CHOICES)) writePref(name, CHOICES[name][0], s);
+  assert.deepEqual(readPrefs(s), { theme: 'light', lang: 'en' });
+  assert.deepEqual(Object.fromEntries(s.m), { 'mccontrol.theme': 'light', 'mccontrol.lang': 'en' });
+  writePref('theme', 'amber', s);
+  writePref('lang', 'browser', s);
   assert.equal(s.m.size, 0);
   assert.throws(() => writePref('theme', 'purple', s));
+  assert.throws(() => writePref('cvd', 'on', s));
+});
+
+test('old settings move to the one theme: terminal screen first, then light or dark, else amber', () => {
+  const cases = [
+    [{ 'mccontrol.phosphor': 'green', 'mccontrol.theme': 'light' }, 'green'],
+    [{ 'mccontrol.phosphor': 'amber', 'mccontrol.theme': 'dark', 'mccontrol.cvd': '1' }, 'amber'],
+    [{ 'mccontrol.theme': 'light', 'mccontrol.motion': 'off' }, 'light'],
+    [{ 'mccontrol.theme': 'dark' }, 'dark'],
+    [{ 'mccontrol.cvd': '1' }, 'amber'],
+    [{ 'mccontrol.phosphor': 'purple', 'mccontrol.theme': 'system' }, 'amber'],
+  ];
+  for (const [init, theme] of cases) {
+    const s = memory({ ...init, 'mccontrol.lang': 'sv' });
+    assert.equal(readPrefs(s).theme, theme, JSON.stringify(init));
+    migratePrefs(s);
+    assert.equal(readPrefs(s).theme, theme, `after: ${JSON.stringify(init)}`);
+    for (const name of RETIRED) assert.equal(s.getItem(`mccontrol.${name}`), null, name);
+    assert.equal(s.getItem('mccontrol.lang'), 'sv');
+    assert.equal(s.getItem('mccontrol.theme'), theme === 'amber' ? null : theme);
+  }
+  assert.equal(themeFrom(() => null), 'amber');
 });
 
 test('blocked or junk storage reads as the defaults', () => {
-  const blocked = { getItem() { throw new Error('denied'); }, setItem() { throw new Error('denied'); }, removeItem() {} };
-  assert.equal(readPrefs(blocked).theme, 'system');
+  const blocked = { getItem() { throw new Error('denied'); }, setItem() { throw new Error('denied'); }, removeItem() { throw new Error('denied'); } };
+  assert.equal(readPrefs(blocked).theme, 'amber');
   writePref('theme', 'dark', blocked);   // no throw
-  const s = memory();
-  s.setItem('mccontrol.phosphor', 'purple');
-  assert.equal(readPrefs(s).phosphor, 'off');
+  migratePrefs(blocked);                 // no throw
+  assert.equal(readPrefs(memory({ 'mccontrol.theme': 'purple' })).theme, 'amber');
 });
 
-test('the phosphor theme is always dark', () => {
-  assert.equal(schemeFor({ theme: 'system', phosphor: 'off' }), 'light dark');
-  assert.equal(schemeFor({ theme: 'light', phosphor: 'off' }), 'light');
-  assert.equal(schemeFor({ theme: 'light', phosphor: 'green' }), 'dark');
-});
-
-test('boot.js reads the keys prefs.js writes', () => {
-  const boot = readFileSync(new URL('../ui/boot.js', import.meta.url), 'utf8');
-  for (const name of ['theme', 'phosphor', 'cvd', 'motion']) assert.ok(boot.includes(`get('${name}')`), name);
-  assert.ok(boot.includes("'mccontrol.' + name"));
+test('only Light is a light scheme', () => {
+  for (const theme of CHOICES.theme) assert.equal(schemeFor({ theme }), theme === 'light' ? 'light' : 'dark');
 });
 
 test('a public key shortened for the header', () => {

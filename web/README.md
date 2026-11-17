@@ -12,6 +12,11 @@ USB (Web Serial), the overview, nodes, one node, send, groups, command sets, his
 (Beacon), settings and help. The firmware update is shown but flashed by hand until the firmware
 admits `ota update` over the control plane.
 
+**Redesign (W-20, `planning/mccontrol/web-redesign-proposal-20261117.md`):** wave 1 is in: one board
+(NODES | NODE | STATUS + MAP + RESULTS) with the status line and the key bar, everything else in a
+modal in front of it, four themes as one setting. The tiles are placeholders that link to today's
+screens, which open as modals until the later waves replace them.
+
 ## Run it
 
 No build step and no dependencies to install. Plain HTML, CSS and ES modules.
@@ -34,10 +39,12 @@ that says why.
 
 | Directory | Holds | Stream |
 |---|---|---|
-| `index.html` | the page: the CSP, the shell's landmarks, `ui/boot.js`, one module script | shell (W-6) |
-| `ui/` | `app.js` (shell, routing, ctx), `boot.js` (settings before paint), `prefs.js`, `appearance.js` (display settings form), `key-state.js` (key status interface), `notify.js`, `update.js`, `dom.js` (`h()`) | shell (W-6) |
-| `ui/screens/` | one module per screen; `index.js` registers routes and the menu. `key-session.js` holds the page's one keyring (header state, handle, holds, unlock-and-return links); `settings-store.js` the device's thresholds and brokers per region; `node-services.js` the stores, jobs, releases and fleet for a key; `node-kit.js`/`node-kit.css` and `key-kit.js` the shared pieces | screens (W-5, W-7, W-8, W-9, W-13, W-14, W-15, W-18, W-19) |
-| `styles/` | `tokens.css` (the regional template's tokens, light/dark, colour-blind), `app.css` (shell), `phosphor.css` (W-17), `key-screens.css` (unlock, key, set-up, settings, help) | shell (W-6, W-17), screens |
+| `index.html` | the page: the CSP, the status line, `<main>` (the board), the key bar, the modal `<dialog>`, `ui/boot.js`, one module script | shell (W-6, W-20) |
+| `ui/` | `app.js` (shell, ctx, start), `boot.js` (theme before paint, start guard), `routes.js` (hashes, old routes), `board.js` (tile grid, status line, key bar), `board-state.js` (selection, tags), `keys.js`, `statusline.js`, `modal.js` (the modal frame), `prefs.js`, `appearance.js` (display settings form), `key-state.js` (key status interface), `notify.js`, `update.js`, `dom.js` (`h()`) | shell (W-6, W-20) |
+| `ui/tiles/` | one module per board tile (`nodes`, `node`, `status`, `map`, `results`); `index.js` registers them | each tile's owner (W-20) |
+| `ui/modals/` | `index.js` registers every modal (today's screens wrapped as modals), `setup.js` the Setup modal's tabs | shell, then Setup's owner (W-20) |
+| `ui/screens/` | one module per screen of beta.2, shown inside modals until the later waves replace them; `index.js` lists them. `key-session.js` holds the page's one keyring (header state, handle, holds, unlock-and-return links); `settings-store.js` the device's thresholds and brokers per region; `node-services.js` the stores, jobs, releases and fleet for a key; `node-kit.js`/`node-kit.css` and `key-kit.js` the shared pieces | screens (W-5, W-7, W-8, W-9, W-13, W-14, W-15, W-18, W-19) |
+| `styles/` | `tokens.css` (fonts, the four themes' colour tokens), `app.css` (shell: status line, board, tiles, key bar, modal), `key-screens.css` (unlock, key, set-up, settings, help) | shell (W-6, W-20), screens |
 | `fonts/`, `icon*` | IBM Plex (OFL) and the icons, copied from the regional template | shell |
 | `_headers`, `manifest.webmanifest`, `sw.js`, `version.json` | the hosted copy: headers, install, offline copy | shell (W-10) |
 | `lib/protocol/` | envelope v1/v2, results r1/r2/r3, broker token, registration, the MQTT client | protocol (W-3, W-4, W-16) |
@@ -116,41 +123,140 @@ What it means for code:
   elsewhere. A new origin is a CSP change and a security-review item, not a code change.
 - A `<meta>` CSP cannot carry `frame-ancestors`; `_headers` does.
 - `navigator.serviceWorker.register` is a Trusted Types sink: `ui/update.js` has a policy that
-  accepts `sw.js` and nothing else. Any other script-URL sink needs its own narrow policy.
+  accepts `sw.js` and nothing else, created lazily on the first registration (W-20k). Any other
+  script-URL sink needs its own narrow policy, created where it is used, never at module load.
 - `test/csp.test.js` checks all of this on every run.
 
 ## Language
 
 The browser's first language among `sv` and `en`; Swedish when neither is there
-(`i18n/i18n.js`, `pickLanguage`). The display settings (header, "Visning") override it per device. Every key exists in both
+(`i18n/i18n.js`, `pickLanguage`). The display settings (Setup, "Visning") override it per device. Every key exists in both
 files (a test checks). Help topics and result texts from Python are English today.
 
-## Adding a screen
+## The board, the modals and the keys
 
-1. `ui/screens/<name>.js` exporting `route` (the part after `#/`, e.g. `'nodes'`), `title` (an
-   i18n key) and `render(ctx)` returning one element. Add the module to `SCREENS` in
-   `ui/screens/index.js`; `NAV` there is the menu's order.
-2. `ctx` (built in `ui/app.js`):
-   - `t(key, vars)`, `lang`; `route`, `args` (`#/node/4AC61A7F` -> `['4AC61A7F']`)
-   - `signal`: aborts when the screen is replaced; pass it to `addEventListener` and timers
-   - `navigate('#/nodes')`
-   - `notify(text, { kind: 'info'|'warning'|'error', actions: [{ label, run }] })` shows a
-     message and announces it; `announce(text)` only announces. An action in a message must also
-     be reachable elsewhere.
-   - `key.state()` -> `{ status: 'none'|'locked'|'unlocked', publicKeyHex }`, `key.on(fn)`.
-     `ui/screens/key-session.js` provides the source (`provideKeySource()`) and is where a screen
-     gets the handle (`currentHandle()`, `holdKey()`), the full status (`keyStatus()`,
-     `onKeyStatus(fn)`) and an unlock link that returns (`unlockHash(route)`); the handle is not
-     on `ctx`.
-   - `prefs.current()`, `prefs.set(name, value)`, `prefs.on(fn)`; `displaySettings()` returns
-     the display settings form for the settings screen.
-3. The screen's first heading is an `<h1>` with an id that labels the section (see `help.js`).
-   The shell moves focus to it on navigation and puts its text in the window title.
-4. Its strings in `i18n/sv.json` and `i18n/en.json` under `<name>.`.
-5. Colours from the tokens in `styles/tokens.css` (`--fg`, `--muted`, `--accent`, `--online`,
-   `--warn`, `--danger`, `--line`, `--surface`...), never a literal, so the dark, colour-blind
-   and phosphor themes hold. Status is said in words, not by colour alone.
-6. Visible design work ends with the anti-AI-design review.
+The board is the page and is never navigated away from (W-20c). Everything else is a modal in front
+of it (W-20d). The hash names the open modal: `#node/4AC61A7F`, `#setup/key`, `#help/codes`; an empty
+hash is the board alone. Back closes a modal; closing one walks back to the board.
+
+### The ctx
+
+`ui/app.js` builds one shared ctx; tiles and modals each get it with their own additions:
+
+- `t(key, vars)`, `lang`
+- `navigate(hash)`: `'#node/AB'`, `''` for the board; the old `'#/route'` forms still work
+- `notify(text, { kind: 'info'|'warning'|'error', actions: [{ label, run }] })`, `announce(text)`.
+  An action in a message must also be reachable elsewhere.
+- `key.state()` -> `{ status: 'none'|'locked'|'unlocked', publicKeyHex }`, `key.on(fn)`. The handle,
+  holds and the full status are `ui/screens/key-session.js`'s (`currentHandle()`, `holdKey()`,
+  `keyStatus()`, `onKeyStatus(fn)`); the handle is never on ctx.
+- `prefs.current()`, `prefs.set(name, value)`, `prefs.on(fn)`; `displaySettings()` the theme and
+  language form
+- `modal.open(name, ...args)`, `modal.close()`, `modal.current()`
+
+The stores, jobs, rules and Beacon come from `ui/screens/node-services.js` (`withServices` in
+`node-kit.js`), as for the screens: a tile imports them, ctx does not carry them.
+
+### The board's tiles
+
+Five mount points, fixed by `TILES` in `ui/board.js`: `nodes`, `node`, `status`, `map`, `results`.
+The grid (`styles/app.css`): one column on a phone (under 45em: NODES, RESULTS, MAP, STATUS; the NODE
+tile is not shown and a node opens full screen as the `node` modal); NODES | NODE with the others
+below from 45em; NODES | NODE | STATUS + MAP + RESULTS from 1100 px; from 1600 px RESULTS runs under
+NODE and the right column. From 1100 px the board fills the window and each tile body scrolls.
+
+A tile is a module in `ui/tiles/` exporting:
+
+```js
+export const id = 'nodes';            // one of TILES
+export const title = 'tile.nodes';    // i18n key: the name on the tile's top border
+export function render(ctx) { return element; }   // called once per draw (and on a language change)
+```
+
+`ui/tiles/index.js` registers it with `registerTile()`. The board puts the element in the tile's
+`<section>` (labelled by its `<h2>` title) and catches a throw, so one broken tile leaves the
+others standing. A tile's ctx is the shared one plus:
+
+- `signal`: aborts when the board is drawn again (language change). Everything below that
+  subscribes is unsubscribed by it; pass it to your own `addEventListener` calls and timers.
+- `tile.setTitle(extra)`: the title becomes "NODES 4 · 1 needs attention" (the name stays).
+- `board.selected()`, `board.select(id)` (on a phone this opens `#node/<id>`), `board.tagged()`,
+  `board.toggleTag(id)`, `board.setTagged(ids)`, `board.clearTags()`, `board.on(fn)`:
+  `fn({ selected, tagged, what })`. The store is `ui/board-state.js`; ids are upper-case control ids.
+- `keys.bind(spec, { label, run, bar, order })`: see Keys below; unbound with the signal.
+- `modal.on(fn)`: `fn(current)` when a modal opens, changes or closes.
+- `narrow()`: true in the phone layout.
+
+Rows: `.rows` / `.row` are `--row` tall (28 px on a desktop, 44 px on a phone or a coarse
+pointer) at `--tile-text`. Status is a glyph and a word, never colour alone: `GLYPH` in
+`ui/statusline.js` (`●` ok, `▲` needs attention, `✕` refused, `?` not known). An alert line takes
+the `.alert` class (inverse in Amber and Green).
+
+### The status line
+
+`setStatusItem(name, { word, state, href, label })` in `ui/statusline.js`, for `broker`, `key`,
+`area`, `clock`. The shell sets `key` and `clock`, and a "not known yet" `broker` until its owner
+(the STATUS tile) sets it; `area` appears once discovery sets it. Hidden on a phone: area, clock.
+
+### Modals
+
+`ui/modal.js`; register in `ui/modals/index.js` (or from a tile's own module):
+
+```js
+registerModal({ name: 'result', title: 'result.title', render(ctx) { return element; }, closedby: 'any' });
+openModal('result', id);              // anywhere: sets #result/<id>; Back closes it
+closeModal();                         // back to the board
+```
+
+- `name` is the hash's first part; the rest arrives as `ctx.args` (decoded). `ctx.route` is the
+  name, `ctx.signal` aborts when the modal closes or shows something else, `ctx.close()` closes it.
+- The content's first heading names the dialog (`aria-labelledby`) and the window title.
+- `closedby: 'any'` lets a click outside close it (help, a result, nothing typed to lose); the
+  default `'closerequest'` is Esc and Back only, for anything with a form.
+- One native `<dialog>`, `showModal()`: the browser gives focus, the inert board, Esc and the back
+  gesture. Do not add a focus trap, `role="dialog"`, `aria-modal` or an Esc handler. A
+  confirmation inside a modal is its own small `<dialog>` (node-kit's `.dlg`), opened over it.
+- On a phone the dialog is a full-screen sheet. The only motion is its 120 ms fade, inside
+  `prefers-reduced-motion: no-preference`.
+
+Old routes map onto the board and the modals (`ui/routes.js`, `legacyHash`): `#/nodes` -> `#nodes`,
+`#/node/<id>` -> `#node/<id>`, `#/send`, `#/history`, `#/help`, `#/unlock`, `#/stats` likewise;
+`#/key`, `#/setup`, `#/settings`, `#/groups`, `#/sets` -> `#setup/key`, `#setup/node`,
+`#setup/settings`, `#setup/groups`, `#setup/sets`; `#/` -> the board; an unknown one -> `#notfound`.
+The old screens' own links and `navigate()` calls therefore keep working inside the modals.
+
+### Keys
+
+`bindKey(spec, { label, run, bar, order })` in `ui/keys.js` (a tile uses `ctx.keys.bind`). `spec`
+is a `KeyboardEvent.key` (`','`, `'?'`, `':'`, `'/'`, `'Enter'`) or `'ctrl+k'` (Ctrl or Cmd). A
+later binding of the same spec wins until it is unbound. Keys do nothing while focus is in a field
+or a modal is open. `bar: true` puts it in the key bar (on a phone: the big buttons at the bottom),
+by `order`. The shell binds `,` Setup (80) and `?` Help (90); the palette's owner binds `:` and
+`ctrl+k`.
+
+### Themes
+
+One setting, `html[data-theme]`: `amber` (the default), `green`, `dark`, `light` (W-20f). `ui/boot.js`
+applies it before the first paint and moves old settings over once (a terminal screen wins, then
+light or dark, else amber; the colour-blind and reduced-motion keys go). Colours only from the
+tokens in `styles/tokens.css` (`--fg`, `--muted`, `--accent`, `--online`, `--warn`, `--danger`,
+`--alert-bg`/`--alert-fg`, `--line`, `--field-border`, `--surface`, `--bg`), never a literal.
+Amber and Green are mono (IBM Plex Mono); Dark and Light are IBM Plex Sans. Status colours are
+colour-blind safe in all four; `test/shell-themes.test.js` checks AA contrast for every text token.
+
+### Strings and review
+
+Strings in `i18n/sv.json` and `i18n/en.json` under the tile's or modal's name. Visible design work
+ends with the anti-AI-design review.
+
+## Start errors
+
+`start()` in `ui/app.js` catches its own failure and shows "mccontrol could not start in this
+browser" with the reason in a read-only field in `<main>`. `ui/boot.js` does the same for a module
+that fails to load or to run before `app.js` has started (`html[data-started]`), so a browser that
+refuses something never shows a blank page (W-20k). The service worker's Trusted Types policy is
+made when the worker registers, not when `ui/update.js` loads: a browser that refuses it loses only
+the offline copy.
 
 ## Vendored code
 
@@ -175,20 +281,28 @@ another one has installed; it switches only when the owner presses it. A copy wi
 
 ## Smoke test
 
-`node web/test/smoke/run.mjs` opens every route in headless Chrome, at 360 and 1280 px, in the
-light and the phosphor look, and fails on any console error, uncaught page error, CSP violation,
-sideways page scroll or screen without an `<h1>`. A screenshot of each lands in a new directory
-under the system's temp dir (`--out DIR` to choose). The routes come from `ui/screens/index.js`,
-so a new screen is covered without editing the runner; routes that take an argument are also
-opened with sample arguments (`SAMPLE_ARGS`: a node id from the fixture, help topics, the unlock
-variants). It visits the screens without a key; the key flows are walked separately.
+`node web/test/smoke/run.mjs` opens the board and every modal (with sample arguments: a node id
+from the fixture, help topics, the unlock variants, every Setup tab) in headless Chrome, at 360 and
+1280 px, in all four themes, and the board alone at 1100 and 1600 px. It fails on any console
+error, uncaught page error, CSP violation, sideways page scroll, a board without the tiles that
+width shows, or a modal that did not open labelled by its heading. Then it checks the frame: old
+routes land where `legacyHash` says, `,` and `?` open Setup and Help, Back, Esc and the close
+button return to the board, and the start (W-20k): with Trusted Types refusing every policy the
+board still starts and says the offline copy failed; with the strings or `ui/app.js` failing to
+load the page shows the start error. A screenshot of each lands in a new directory under the
+system's temp dir (`--out DIR` to choose).
+
+The modals come from `ui/modal.js`'s registry, so a new modal is covered without editing the runner.
+`--only board,help` limits the hashes. Firefox is not run: Puppeteer would need a Firefox download
+(about 90 MB), which is the operator's call; the guarded paths are covered in Chrome by forcing
+the failures, and in `test/shell-boot.test.js` and `test/shell-update.test.js`.
 
 It serves the directory with a small static server that sends `_headers` as Cloudflare Pages
 does, so the browser enforces the deployed CSP (header and `<meta>`). Beacon's answers come from
 `test/smoke/beacon-fixture.json`, times moved to now; `--live` reaches the real Beacon instead.
-`--root DIR` serves another copy, such as a `scripts/web-dist.mjs` output or an unzipped
-release; `--only stats,node` limits the routes.
+`--root DIR` serves another copy, such as a `scripts/web-dist.mjs` output or an unzipped release.
 
 It needs Chrome and Puppeteer: the system Chrome (`/usr/bin/google-chrome`) and Puppeteer from
 `npm root -g`, the same as the headless-browser helper. It is not part of `node --test`, because
-CI has no Chrome; run it before a release and after a change to a screen, the CSP or `_headers`.
+CI has no Chrome; run it before a release and after a change to the board, a modal, the CSP or
+`_headers`.

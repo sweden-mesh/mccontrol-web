@@ -1,104 +1,86 @@
-// The app shell: language, the header (name, key state, display settings), the menu, the footer,
-// messages, offline updates, and drawing the screen the address names into <main>. Hash routes
-// (#/nodes, #/node/4AC61A7F) keep every screen working from a static host and a local server alike.
+// The app shell (W-20c, W-20d): language, the header's status line, the board, the key bar, the
+// modal in front of the board, messages, offline updates. The board is the page; the hash names
+// the modal open in front of it (ui/routes.js), so a link opens a modal and Back closes it.
 //
-// What a screen gets (ctx), see README "Adding a screen":
+// The shared ctx, given to every tile (ui/board.js adds tile, board, keys, narrow) and every
+// modal (ui/modal.js adds route, args, signal, close):
 //   t(key, vars)    the strings of the current language;  lang  'sv' | 'en'
-//   route, args     the route and the path segments after it (#/node/AB -> 'node', ['AB'])
-//   signal          an AbortSignal that fires when the screen is replaced: stop timers, listeners
-//   navigate(hash)  go to another screen ('#/nodes')
+//   navigate(hash)  go somewhere: '#node/4AC61A7F', '' for the board; old '#/route' forms work
 //   notify(text, { kind: 'info'|'warning'|'error', actions: [{label, run}] }), announce(text)
 //   key             { state(), on(fn) }: { status: 'none'|'locked'|'unlocked', publicKeyHex }
 //                   (the keyring itself, the handle and holds: screens/key-session.js)
 //   prefs           { current(), set(name, value), on(fn) }: the device's display settings
-//   displaySettings()  the display settings form, for the settings screen
+//   displaySettings()  the display settings form (theme, language)
+//   modal           { open(name, ...args), close(), current() }
+//
+// start() draws a visible message in <main> when it fails (W-20k); ui/boot.js does the same for
+// a module that fails before this one runs.
 import { pickLanguage, translator, loadStrings } from '../i18n/i18n.js';
-import { SCREENS, NAV, NOT_FOUND } from './screens/index.js';
 import { h } from './dom.js';
-import { currentPrefs, setPref, onPrefsChange } from './prefs.js';
+import { currentPrefs, setPref, onPrefsChange, migratePrefs } from './prefs.js';
 import { keyState, onKeyState, shortKey } from './key-state.js';
 import { notify, announce, useStrings } from './notify.js';
 import { displaySettings } from './appearance.js';
 import { readVersion, startUpdates } from './update.js';
 import { startKeySession } from './screens/key-session.js';
+import { parseHash, targetHash } from './routes.js';
+import {
+  isModal, openModal, closeModal, currentModal, routeModal, useFrame, relabelFrame,
+} from './modal.js';
+import { drawBoard, drawStatusLine, drawKeyBar } from './board.js';
+import { setStatusItem, statusItems, onStatusChange } from './statusline.js';
+import { bindKey, handleKey, onKeysChange } from './keys.js';
+import './tiles/index.js';
+import './modals/index.js';
 
-export function routeOf(hash) {
-  const path = String(hash || '').replace(/^#\/?/, '');
-  const [name, ...args] = path.split('/');
-  return { name: name || '', args: args.map(decodeURIComponent) };
-}
-
-export function screenFor(name) {
-  return SCREENS.find((s) => s.route === name) || NOT_FOUND;
-}
-
-const WIDE = '(min-width: 60em)';
 const $ = (id) => document.getElementById(id);
+let loadedStrings = null;   // the translator, once the strings have loaded (for the start error)
 
 function languageFor(prefs) {
   return pickLanguage(navigator.languages || [navigator.language], prefs.lang === 'browser' ? null : prefs.lang);
 }
 
-// The menu: one list. On a phone it is a sheet opened from the bar at the bottom (a popover);
-// from 60em it is a column beside the screen, and the popover attribute is removed.
-function syncNavLayout() {
-  const list = $('nav-list');
-  if (matchMedia(WIDE).matches) {
-    if (list.matches(':popover-open')) list.hidePopover();
-    list.removeAttribute('popover');
-  } else if (!list.hasAttribute('popover')) {
-    list.setAttribute('popover', 'auto');
+export function navigate(hash) {
+  const next = targetHash(hash, isModal);
+  if (next === '') {
+    if (currentModal()) closeModal();
+    else if (location.hash) location.hash = '';
+  } else {
+    location.hash = next;
   }
 }
 
-function drawNav(t, current) {
-  $('nav-list').replaceChildren(...NAV.map((route) => {
-    const screen = screenFor(route);
-    return h('li', {}, h('a', { href: `#/${route}`, 'aria-current': route === current ? 'page' : null }, t(screen.title)));
-  }));
-}
-
-function drawKeyState(t) {
-  const link = $('key-state');
-  const { status, publicKeyHex } = keyState();
-  link.hidden = false;
-  link.dataset.status = status;
-  link.href = status === 'unlocked' ? '#/key' : '#/unlock';
-  link.replaceChildren(h('span', { class: 'key-status' }, t(`key.${status}`)));
-  if (status === 'unlocked') link.append(h('code', { class: 'key-id' }, shortKey(publicKeyHex)));
-  link.setAttribute('aria-label', status === 'unlocked'
-    ? t('key.unlockedLabel', { key: shortKey(publicKeyHex) }) : t(`key.${status}Label`));
+// The start error, in the page's words when they loaded, in plain text when they did not.
+function showStartError(err, t) {
+  console.error('mccontrol could not start:', err);
+  const root = document.documentElement;
+  if (root.hasAttribute('data-start-failed')) return;
+  root.setAttribute('data-start-failed', '');
+  const say = (key, fallback) => (t ? t(key) : fallback);
+  const reason = h('textarea', { class: 'start-error-reason', readonly: true, rows: 3, 'aria-label': say('start.reasonLabel', 'The reason') });
+  reason.value = err?.stack || String(err);
+  $('main').replaceChildren(h('section', { class: 'start-error', 'aria-labelledby': 'start-error-title' },
+    h('h1', { id: 'start-error-title' }, say('start.failed', 'mccontrol could not start in this browser')),
+    h('p', {}, say('start.reason', 'The reason, to copy into a bug report:')),
+    reason,
+    h('p', {}, say('start.tryAgain', 'Try reloading the page, or open it in a private window.'))));
 }
 
 async function start() {
   let t = null;
   let lang = null;
   let version = { version: 'unknown' };
-  let leave = null;
   let pendingUpdate = null;
   const main = $('main');
 
-  const chrome = () => {
-    document.documentElement.lang = lang;
-    $('skip').textContent = t('app.skip');
-    $('subtitle').textContent = t('app.subtitle');
-    $('site-nav').setAttribute('aria-label', t('app.menu'));
-    $('menu-button').textContent = t('app.menu');
-    $('menu-button').hidden = false;
-    $('display-button').textContent = t('display.button');
-    $('display-button').hidden = false;
-    $('toasts').setAttribute('aria-label', t('app.messages'));
-    // Rebuilt in the new language while it may be open: keep focus on the same control.
-    const panel = $('display-panel');
-    const inputs = () => [...panel.querySelectorAll('input')];
-    const focused = inputs().indexOf(document.activeElement);
-    panel.replaceChildren(h('h2', { class: 'panel-title' }, t('display.title')), displaySettings({ t }));
-    if (focused >= 0) inputs()[focused]?.focus();
-    drawKeyState(t);
-    drawFooter();
-  };
+  const base = () => Object.freeze({
+    t, lang, navigate, notify, announce,
+    key: Object.freeze({ state: keyState, on: onKeyState }),
+    prefs: Object.freeze({ current: currentPrefs, set: setPref, on: onPrefsChange }),
+    displaySettings: () => displaySettings({ t }),
+    modal: Object.freeze({ open: openModal, close: closeModal, current: currentModal }),
+  });
 
-  // The footer's link to the source is in index.html (no URL to another site in our scripts).
   const drawFooter = () => {
     const update = pendingUpdate ? h('button', { type: 'button', class: 'link-button' }, t('update.reload')) : null;
     update?.addEventListener('click', pendingUpdate);
@@ -108,51 +90,87 @@ async function start() {
     $('source-link').textContent = t('app.source');
   };
 
-  const draw = (moveFocus) => {
-    if (location.hash && !location.hash.startsWith('#/')) return;   // an in-page anchor, not a route
-    const { name, args } = routeOf(location.hash);
-    const screen = screenFor(name);
-    leave?.abort();
-    leave = new AbortController();
-    drawNav(t, NAV.includes(name) ? name : null);
-    const ctx = Object.freeze({
-      t, lang, route: name, args, signal: leave.signal,
-      navigate: (hash) => { location.hash = hash; },
-      notify, announce,
-      key: Object.freeze({ state: keyState, on: onKeyState }),
-      prefs: Object.freeze({ current: currentPrefs, set: setPref, on: onPrefsChange }),
-      displaySettings: () => displaySettings({ t }),
+  const drawKey = () => {
+    const { status, publicKeyHex } = keyState();
+    setStatusItem('key', {
+      word: status === 'unlocked' ? shortKey(publicKeyHex).slice(0, 8) : t(`key.${status}`),
+      state: status === 'unlocked' ? 'ok' : status === 'locked' ? 'warn' : 'unknown',
+      href: status === 'unlocked' ? '#setup/key' : '#unlock',
+      label: status === 'unlocked' ? t('key.unlockedLabel', { key: shortKey(publicKeyHex) }) : t(`key.${status}Label`),
     });
-    main.replaceChildren(screen.render(ctx));
-    const heading = main.querySelector('h1');
-    document.title = name === '' ? 'mccontrol' : `${heading?.textContent || t(screen.title)} · mccontrol`;
-    if (moveFocus) {
-      if (heading) heading.tabIndex = -1;
-      (heading || main).focus();
+  };
+
+  let clockTimer = null;
+  const drawClock = () => {
+    setStatusItem('clock', { word: new Date().toLocaleTimeString(lang, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }) });
+    clearTimeout(clockTimer);
+    clockTimer = setTimeout(drawClock, 60000 - (Date.now() % 60000));
+  };
+
+  // The shell's own keys; the palette (':' and Ctrl+K) is bound by its module when it lands.
+  let unbind = [];
+  const bindShellKeys = () => {
+    for (const u of unbind) u();
+    unbind = [
+      bindKey(',', { label: t('board.setup'), run: () => openModal('setup'), bar: true, order: 80 }),
+      bindKey('?', { label: t('board.help'), run: () => openModal('help'), bar: true, order: 90 }),
+    ];
+  };
+
+  // What the hash names: the board alone, or a modal in front of it.
+  const route = ({ force = false } = {}) => {
+    const p = parseHash(location.hash, isModal);
+    if (p.kind === 'legacy') {
+      history.replaceState(history.state, '', p.hash || location.pathname + location.search);
+      route({ force });
+      return;
     }
+    if (p.kind === 'other') return;   // an in-page anchor such as #main
+    if (p.kind === 'board') {
+      routeModal('board');
+      document.title = 'mccontrol';
+      return;
+    }
+    routeModal({ name: p.name, args: p.args }, { force });
   };
 
   const relabel = async () => {
     lang = languageFor(currentPrefs());
     t = translator(await loadStrings(lang));
     useStrings(t);
-    chrome();
-    draw(false);
+    loadedStrings = t;
+    document.documentElement.lang = lang;
+    $('skip').textContent = t('app.skip');
+    $('toasts').setAttribute('aria-label', t('app.messages'));
+    $('statusline').setAttribute('aria-label', t('board.statusLine'));
+    relabelFrame(t('app.close'));
+    drawKey();
+    drawClock();
+    if (statusItems().find((i) => i.name === 'broker')?.shell !== false) {
+      setStatusItem('broker', { word: t('status.notYet'), state: 'unknown', shell: true });
+    }
+    drawStatusLine($('status-items'), t);
+    bindShellKeys();
+    drawKeyBar($('keys'), t);
+    drawFooter();
+    drawBoard(main, base());
+    if (currentModal()) route({ force: true });
   };
 
-  // The page's one keyring, before the first screen: the header and the screens then know whether
-  // there is a key. A browser that refuses IndexedDB still gets the shell, with "no key".
+  migratePrefs();
+  // The page's one keyring, before the board: the tiles then know whether there is a key. A
+  // browser that refuses IndexedDB still gets the board, with "no key".
   try { await startKeySession(); } catch (err) { console.warn('key store unavailable:', err); }
+  useFrame($('modal'), { ctxFor: base, closeLabel: 'Close' });
   await relabel();
-  syncNavLayout();
-  matchMedia(WIDE).addEventListener('change', syncNavLayout);
-  // A link in the sheet goes somewhere: close the sheet behind it.
-  $('nav-list').addEventListener('click', (e) => {
-    const list = $('nav-list');
-    if (e.target.closest('a') && list.matches(':popover-open')) list.hidePopover();
-  });
-  addEventListener('hashchange', () => draw(true));
-  onKeyState(() => drawKeyState(t));
+  document.documentElement.setAttribute('data-started', '');
+
+  addEventListener('hashchange', () => route());
+  route();
+  document.addEventListener('keydown', (e) => handleKey(e, { modalOpen: Boolean(currentModal()) }));
+  onKeysChange(() => drawKeyBar($('keys'), t));
+  onStatusChange(() => drawStatusLine($('status-items'), t));
+  onKeyState(drawKey);
   onPrefsChange((prefs) => { if (languageFor(prefs) !== lang) relabel(); });
 
   version = await readVersion();
@@ -167,4 +185,4 @@ async function start() {
   }).catch((err) => notify(t('update.failed', { reason: err.message }), { kind: 'error' }));
 }
 
-if (typeof document !== 'undefined') start();
+if (typeof document !== 'undefined') start().catch((err) => showStartError(err, loadedStrings));
