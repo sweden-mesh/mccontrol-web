@@ -1,0 +1,60 @@
+/* Design tokens: the regional template's look (meshcore-regional-template, assets/css/main.css,
+   BSD-2-Clause, Copyright (c) 2026 the meshcore-regional-template contributors), copied so the
+   app looks like the sites it is linked from. Colours, radii, fonts and the colour-blind palette
+   are the template's values; each token is written once with light-dark(), and the colour scheme
+   comes from <meta name="color-scheme"> (ui/boot.js), so following the system needs no script.
+   Fonts: IBM Plex (SIL OFL 1.1, fonts/LICENSE-IBMPlex.txt), self-hosted: no request leaves the
+   origin. */
+@font-face { font-family: "IBM Plex Sans"; src: url("../fonts/plex-sans-latin-400.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "IBM Plex Sans"; src: url("../fonts/plex-sans-latin-600.woff2") format("woff2"); font-weight: 600; font-display: swap; }
+@font-face { font-family: "IBM Plex Sans"; src: url("../fonts/plex-sans-latin-700.woff2") format("woff2"); font-weight: 700; font-display: swap; }
+@font-face { font-family: "IBM Plex Mono"; src: url("../fonts/plex-mono-latin-400.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "IBM Plex Mono"; src: url("../fonts/plex-mono-latin-500.woff2") format("woff2"); font-weight: 500 700; font-display: swap; }
+/* The template's metric-matched fallback, so the swap to Plex moves the text as little as possible. */
+@font-face { font-family: "Plex Fallback"; src: local("Arial"), local("ArialMT"), local("Liberation Sans"), local("LiberationSans"); font-weight: 400 500; size-adjust: 101.55%; ascent-override: 100.93%; descent-override: 27.08%; line-gap-override: 0%; }
+@font-face { font-family: "Plex Fallback"; src: local("Arial Bold"), local("Arial-BoldMT"), local("Liberation Sans Bold"), local("LiberationSans-Bold"); font-weight: 600 700; size-adjust: 97.3%; ascent-override: 105.34%; descent-override: 28.26%; line-gap-override: 0%; }
+
+:root {
+  color-scheme: light dark;
+  /* The <meta> is only a hint that author CSS would override: map it back (ui/boot.js sets it). */
+  &:has(> head > meta[name="color-scheme"][content="dark"]) { color-scheme: dark; }
+  &:has(> head > meta[name="color-scheme"][content="light"]) { color-scheme: light; }
+
+  --font-body: "IBM Plex Sans", "Plex Fallback", system-ui, sans-serif;
+  --font-head: "IBM Plex Sans", "Plex Fallback", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --radius: 10px;
+  --radius-sm: 6px;
+  --radius-xs: 4px;
+  --gutter: 16px;
+  --tap: 44px;
+
+  /* light, dark: Vättern blue and pine green on white; the template's night blue. */
+  --accent: light-dark(#1f5d82, #6fb3dc);
+  --accent-2: light-dark(#21664a, #5fbf8f);
+  --online: light-dark(#2f8a5f, #3ddc84);
+  --warn: light-dark(#b45309, #f08a3c);
+  --caution: light-dark(#a16207, #facc15);
+  --danger: light-dark(#c62828, #ff6b6b);
+  --info: light-dark(#1d4ed8, #60a5fa);
+  --bg: light-dark(#ffffff, #0b141b);
+  --surface: light-dark(#f6f9fb, #0f1f2a);
+  --fg: light-dark(#0f1d26, #e6eef3);
+  --strong: light-dark(#000000, #ffffff);
+  --muted: light-dark(#4a5c68, #9fb3c0);
+  --line: light-dark(#e3e8ec, #1d3242);
+  /* Text-field and control outline: at least 3:1 on --bg and --surface (WCAG 1.4.11). */
+  --field-border: light-dark(#7d8c96, #56707f);
+  --shadow: 0 12px 30px light-dark(rgba(15, 29, 38, .15), rgba(0, 0, 0, .5));
+}
+
+/* Colour-blind mode (html[data-cvd="1"]): every red/green signal moves to Okabe-Ito colours that
+   differ in hue and lightness for every kind of colour-blindness: good blue, warning orange,
+   caution yellow, danger purple. Text colours keep 4.5:1 on --bg and --surface. */
+:root[data-cvd="1"] {
+  --accent-2: light-dark(#0072b2, #56b4e9);
+  --online: light-dark(#0072b2, #56b4e9);
+  --warn: light-dark(#a35a00, #e69f00);
+  --caution: light-dark(#7a6a00, #f0e442);
+  --danger: light-dark(#a3446f, #e48fc0);
+}

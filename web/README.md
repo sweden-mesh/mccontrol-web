@@ -1,11 +1,12 @@
 # mccontrol in the browser
 
 The same tool as the terminal one, as a static page: the key stays in the browser, the page
-talks to the broker over a secure WebSocket, and nothing is sent anywhere else. Served from
-sweden-mesh GitHub Pages and as a zip per release. Plan: `planning/mccontrol/web-ui-plan-20261116.md`
+talks to the broker over a secure WebSocket, and nothing is sent anywhere else. Served at
+mccontrol.meshcoresverige.se (Cloudflare Pages) and as a zip per release. Plan: `planning/mccontrol/web-ui-plan-20261116.md`
 in the Mesh-Health workspace (sections 11 to 16 are the operator's answers).
 
-**Status:** the skeleton. The start screen is a placeholder.
+**Status:** the shell (header, menu, display settings, messages, offline copy) is built; the
+screens are placeholders.
 
 ## Run it
 
@@ -29,8 +30,12 @@ that says why.
 
 | Directory | Holds | Stream |
 |---|---|---|
-| `index.html` | the page: the CSP, the shell's landmarks, one module script | shell (W-6) |
-| `ui/` | `app.js` (language, routing), `dom.js` (`h()`), `app.css`, `screens/` | shell (W-6), screens (W-7, W-8, W-9, W-15, W-18, W-19) |
+| `index.html` | the page: the CSP, the shell's landmarks, `ui/boot.js`, one module script | shell (W-6) |
+| `ui/` | `app.js` (shell, routing, ctx), `boot.js` (settings before paint), `prefs.js`, `appearance.js` (display settings form), `key-state.js` (key status interface), `notify.js`, `update.js`, `dom.js` (`h()`) | shell (W-6) |
+| `ui/screens/` | one module per screen; `index.js` registers routes and the menu | screens (W-7, W-8, W-9, W-15, W-18, W-19) |
+| `styles/` | `tokens.css` (the regional template's tokens, light/dark, colour-blind), `app.css` (shell), `phosphor.css` (W-17) | shell (W-6, W-17) |
+| `fonts/`, `icon*` | IBM Plex (OFL) and the icons, copied from the regional template | shell |
+| `_headers`, `manifest.webmanifest`, `sw.js`, `version.json` | the hosted copy: headers, install, offline copy | shell (W-10) |
 | `lib/protocol/` | envelope v1/v2, results r1/r2/r3, broker token, registration, the MQTT client | protocol (W-3, W-4, W-16) |
 | `lib/key/` | the key: `handle.js` (seed -> signing handle), storage, unlock, auto-lock, backup | key and security (W-5) |
 | `lib/data/` | `load.js` and the JSON exported from Python (generated: never edit) | W-2 |
@@ -76,7 +81,10 @@ that says why.
 
 ## The Content Security Policy
 
-`index.html` carries it as a `<meta>` (GitHub Pages cannot set headers):
+`index.html` carries it as a `<meta>`, so a self-hosted copy has it too; `_headers` sends the
+same policy as a header on Cloudflare Pages, plus `frame-ancestors 'none'`, HSTS, nosniff,
+`Referrer-Policy: no-referrer` and a `Permissions-Policy` that allows Web Serial and Web Bluetooth
+for this origin only (`test/shell-deploy.test.js` keeps the two in step):
 
 ```
 default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self';
@@ -96,27 +104,59 @@ What it means for code:
 - **No third-party requests.** `connect-src` allows this origin, any `wss:` broker (a region
   may run its own, RB-1) and Beacon's API. No fonts, images, analytics or scripts from
   elsewhere. A new origin is a CSP change and a security-review item, not a code change.
-- A `<meta>` CSP cannot carry `frame-ancestors`; clickjacking is W-12's to handle.
+- A `<meta>` CSP cannot carry `frame-ancestors`; `_headers` does.
+- `navigator.serviceWorker.register` is a Trusted Types sink: `ui/update.js` has a policy that
+  accepts `sw.js` and nothing else. Any other script-URL sink needs its own narrow policy.
 - `test/csp.test.js` checks all of this on every run.
 
 ## Language
 
 The browser's first language among `sv` and `en`; Swedish when neither is there
-(`i18n/i18n.js`, `pickLanguage`). A setting may override it (W-6). Every key exists in both
+(`i18n/i18n.js`, `pickLanguage`). The display settings (header, "Visning") override it per device. Every key exists in both
 files (a test checks). Help topics and result texts from Python are English today.
 
 ## Adding a screen
 
-1. `ui/screens/<name>.js` exporting `route` (the part after `#/`, e.g. `'nodes'`) and
-   `render(ctx)` returning one element. `ctx` is `{ t, lang, args }`; `args` are the path
-   segments after the route (`#/node/4AC61A7F` -> `['4AC61A7F']`). Later streams extend `ctx`
-   (the key handle, the data, the store) in `ui/app.js`.
-2. Add it to `SCREENS` in `ui/screens/index.js`.
-3. Its strings in `i18n/sv.json` and `i18n/en.json` under `<name>.`.
-4. Give its heading an id and label the section with it (see `home.js`).
-5. Visible design work ends with the anti-AI-design review.
+1. `ui/screens/<name>.js` exporting `route` (the part after `#/`, e.g. `'nodes'`), `title` (an
+   i18n key) and `render(ctx)` returning one element. Replace the route's `placeholder(...)` in
+   `ui/screens/index.js` with the module; `NAV` there is the menu's order.
+2. `ctx` (built in `ui/app.js`):
+   - `t(key, vars)`, `lang`; `route`, `args` (`#/node/4AC61A7F` -> `['4AC61A7F']`)
+   - `signal`: aborts when the screen is replaced; pass it to `addEventListener` and timers
+   - `navigate('#/nodes')`
+   - `notify(text, { kind: 'info'|'warning'|'error', actions: [{ label, run }] })` shows a
+     message and announces it; `announce(text)` only announces. An action in a message must also
+     be reachable elsewhere.
+   - `key.state()` -> `{ status: 'none'|'locked'|'unlocked', publicKeyHex }`, `key.on(fn)`.
+     The key stream provides the source with `provideKeySource()` in `ui/key-state.js`; the
+     signing handle is not on `ctx`.
+   - `prefs.current()`, `prefs.set(name, value)`, `prefs.on(fn)`; `displaySettings()` returns
+     the display settings form for the settings screen.
+3. The screen's first heading is an `<h1>` with an id that labels the section (see `home.js`).
+   The shell moves focus to it on navigation and puts its text in the window title.
+4. Its strings in `i18n/sv.json` and `i18n/en.json` under `<name>.`.
+5. Colours from the tokens in `styles/tokens.css` (`--fg`, `--muted`, `--accent`, `--online`,
+   `--warn`, `--danger`, `--line`, `--surface`...), never a literal, so the dark, colour-blind
+   and phosphor themes hold. Status is said in words, not by colour alone.
+6. Visible design work ends with the anti-AI-design review.
 
 ## Vendored code
 
 `vendor/VENDOR.md` lists each package, version, licence and tarball hash, and how it was
 copied (`scripts/vendor-web.sh`). The MQTT client is our own (no library); the reasons are there.
+
+## Deploy and releases
+
+`scripts/web-dist.mjs --out DIR --version V --commit SHA` makes the deployable copy: `web/`
+without `test/`, `package.json` and this file, the version stamped into `sw.js` and
+`version.json`, and `integrity.json` with the SHA-256 of every file.
+`.github/workflows/web-deploy.yml` runs the tests on every push and pull request, deploys that
+copy to the Cloudflare Pages project `mccontrol` on a push to `main` (only when the repository
+variable `DEPLOY_ENABLED` is `true`; secrets `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`),
+and for a tag `web-v*` attaches `mccontrol-<tag>.zip`, its `.sha256` and the `integrity.json`
+to that tag's GitHub release.
+
+The offline copy (`sw.js`) installs a release only when every file matches `integrity.json`,
+keeps serving the running release, and shows "a new version is available" with a button when
+another one has installed; it switches only when the owner presses it. A copy with
+`version.json` = `dev` (this directory as it is) registers no service worker.

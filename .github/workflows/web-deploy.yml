@@ -1,0 +1,90 @@
+# The web app (web/): test it, deploy it to Cloudflare Pages, and attach a zip to each web release.
+#   push to main      -> tests, then deploy to the Pages project "mccontrol"
+#                        (mccontrol.meshcoresverige.se) when the repository variable
+#                        DEPLOY_ENABLED is "true"; until then every push only tests.
+#   tag web-v*        -> tests, then a zip of the same files with integrity.json, attached to the
+#                        GitHub release of that tag (created as a draft when it does not exist).
+#   pull request      -> tests only.
+# Secrets for the deploy: CLOUDFLARE_API_TOKEN (Pages:Edit only) and CLOUDFLARE_ACCOUNT_ID.
+# Every deploy stamps a new version into sw.js, so open pages show "a new version is available".
+name: web-deploy
+on:
+  push:
+    branches: [main]
+    tags: ['web-v*']
+    paths-ignore: ['docs/**']
+  pull_request:
+    paths: ['web/**', 'scripts/web-dist.mjs', 'mccontrol/webexport.py', '.github/workflows/web-deploy.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: web-deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Node tests (protocol, key, shell, CSP, vectors)
+        run: node --test "web/test/**/*.test.js"
+      - name: The JSON exports and vectors match the Python package
+        run: |
+          pip install -e . pytest
+          python -m pytest -q tests/test_webexport.py
+
+  deploy:
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build the deployable copy
+        run: |
+          version="$(git describe --tags --match 'web-v*' --always)"
+          node scripts/web-dist.mjs --out dist/web --version "$version" --commit "$GITHUB_SHA"
+      - name: Deploy to Cloudflare Pages
+        if: vars.DEPLOY_ENABLED == 'true'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist/web --project-name=mccontrol --branch=main --commit-dirty=true
+
+  release:
+    needs: test
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/web-v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build and zip
+        run: |
+          node scripts/web-dist.mjs --out "dist/mccontrol-$GITHUB_REF_NAME" --version "$GITHUB_REF_NAME" --commit "$GITHUB_SHA"
+          (cd dist && zip -qr "mccontrol-$GITHUB_REF_NAME.zip" "mccontrol-$GITHUB_REF_NAME")
+          cp "dist/mccontrol-$GITHUB_REF_NAME/integrity.json" "dist/integrity-$GITHUB_REF_NAME.json"
+          (cd dist && sha256sum "mccontrol-$GITHUB_REF_NAME.zip" > "mccontrol-$GITHUB_REF_NAME.zip.sha256")
+      - name: Attach to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --draft --title "mccontrol web $GITHUB_REF_NAME" --notes "The web app as a zip. Serve the folder from any static host over HTTPS; integrity.json lists the SHA-256 of every file."
+          gh release upload "$GITHUB_REF_NAME" --clobber "dist/mccontrol-$GITHUB_REF_NAME.zip" "dist/mccontrol-$GITHUB_REF_NAME.zip.sha256" "dist/integrity-$GITHUB_REF_NAME.json"
