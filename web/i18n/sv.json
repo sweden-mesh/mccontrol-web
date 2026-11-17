@@ -565,7 +565,7 @@
   "tile.status": "Status",
   "tile.map": "Karta",
   "tile.results": "Resultat",
-  "tile.noSelection": "Ingen nod vald.",
+  "tile.noSelection": "Ingen nod vald. Välj en i listan.",
   "tile.openHistory": "All historik",
   "tile.noKey": "Ingen nyckel i den här webbläsaren.",
   "tile.makeKey": "Skapa eller importera en",

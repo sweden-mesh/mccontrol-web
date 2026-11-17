@@ -565,7 +565,7 @@
   "tile.status": "Status",
   "tile.map": "Map",
   "tile.results": "Results",
-  "tile.noSelection": "No node selected.",
+  "tile.noSelection": "No node selected. Pick one from the list.",
   "tile.openHistory": "All history",
   "tile.noKey": "No key in this browser.",
   "tile.makeKey": "Make or import one",

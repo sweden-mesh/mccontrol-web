@@ -92,6 +92,70 @@ const inspect = () => {
   return [...new Set(out)];
 };
 
+const wait = (ms = 300) => new Promise((ok) => setTimeout(ok, ms));
+
+// The board as a person uses it, with the fake data: what each step must show.
+async function interact(page, go, sample) {
+  const problems = [];
+  const step = async (what, fn) => { try { const p = await fn(); if (p) problems.push(`${what}: ${p}`); } catch (err) { problems.push(`${what}: ${err.message}`); } };
+  const state = () => page.evaluate(() => ({
+    hash: location.hash, modal: document.querySelector('#modal[open]')?.dataset.modal || null,
+    node: document.querySelector('.tile[data-tile="node"] h2:not(.tile-title), .tile[data-tile="node"] .node-modal-title, .tile[data-tile="node"] .node-name')?.textContent || '',
+    prompt: document.querySelector('.tile[data-tile="node"] .cmd-prompt, #modal[open] .cmd-prompt')?.textContent || '',
+    current: document.querySelector('.node-row[aria-current="true"]')?.textContent || '',
+    send: document.querySelector('.tile[data-tile="node"] .cmd-send')?.textContent || '',
+    fresh: document.querySelectorAll('.result-item.is-new').length,
+    palette: document.querySelector('#palette-input') ? document.querySelectorAll('#palette-list [role="option"]').length : -1,
+  }));
+  await go(page, '', 1280, 800);
+  await step('a click selects the row and fills NODE', async () => {
+    await page.click('.node-row'); await wait();
+    const s = await state();
+    if (!s.current) return 'no row is current';
+    if (!s.prompt.includes('SE-JKG-')) return `the command line says "${s.prompt}"`;
+    return s.modal ? `a modal opened on a desktop: ${s.modal}` : null;
+  });
+  await step('the box tags, the command line sends to the tagged', async () => {
+    for (const i of [1, 2]) { await (await page.$$('.tag-box'))[i].click(); await wait(); }
+    const s = await state();
+    return /2/.test(s.send) ? null : `the send button says "${s.send}"`;
+  });
+  await step("':' opens the palette, typing narrows, Esc closes", async () => {
+    await page.focus('body'); await page.evaluate(() => document.activeElement?.blur());
+    await page.keyboard.press(':'); await wait();
+    const before = (await state()).palette;
+    if (before <= 0) return `palette entries: ${before}`;
+    await page.keyboard.type('get name'); await wait();
+    const after = (await state()).palette;
+    if (!(after > 0 && after < before)) return `typing did not narrow: ${before} -> ${after}`;
+    await page.keyboard.press('Escape'); await wait();
+    return page.evaluate(() => (document.querySelector('#palette-input')?.checkVisibility() ? 'still open after Esc' : null));
+  });
+  await step('a result opens and is then seen', async () => {
+    const before = (await state()).fresh;
+    await page.click('.result-item.is-new .result-row'); await wait(500);
+    let s = await state();
+    if (s.modal !== 'result') return `modal ${s.modal}`;
+    await page.keyboard.press('Escape'); await wait(500);
+    s = await state();
+    return s.fresh === before - 1 ? null : `new results ${before} -> ${s.fresh}`;
+  });
+  await go(page, '', 360, 780);
+  await step('on a phone a row opens the node full screen', async () => {
+    await page.click('.node-row'); await wait(500);
+    const s = await state();
+    if (s.modal !== 'node' || !/^#node\/[0-9A-F]{8}$/.test(s.hash)) return `modal ${s.modal}, hash ${s.hash}`;
+    await page.goBack(); await wait(500);
+    return (await state()).modal ? 'Back did not close it' : null;
+  });
+  await step('Mark all seen empties the new results', async () => {
+    await page.click('.tile[data-tile="results"] .tile-foot .link-button'); await wait(500);
+    const s = await state();
+    return s.fresh === 0 ? null : `${s.fresh} still new`;
+  });
+  return problems;
+}
+
 async function main() {
   const o = options(process.argv.slice(2));
   mkdirSync(o.out, { recursive: true });
@@ -149,7 +213,10 @@ async function main() {
     for (const look of LOOKS) {
       const { ctx, page, problems } = await context(look);
       const views = [...PHONES.map(([w, hh]) => [w, hh, '']), ...PHONES.map(([w, hh]) => [w, hh, `node/${sample}`]),
-        [360, 780, 'setup/key'], [360, 780, 'help'], [740, 360, ''], [740, 360, `node/${sample}`], [1280, 800, '']];
+        [740, 360, ''], [740, 360, `node/${sample}`], [1280, 800, ''],
+        // Every modal with data, as a phone's full-screen sheet.
+        ...['setup/key', 'setup/node', 'setup/area', 'setup/groups', 'setup/sets', 'setup/warnings', 'setup/display', 'help', 'history',
+          'nodes', `nodeinfo/${sample}`, `stats/${sample}`, `run/cmd/n:${sample}/ver`, 'run/set/-'].map((x) => [360, 780, x])];
       for (const [w, hh, hash] of views) {
         problems.length = 0;
         try {
@@ -157,10 +224,18 @@ async function main() {
           const seen = await page.evaluate(inspect);
           const rows = await page.evaluate(() => document.querySelectorAll('.node-row').length);
           if (!rows) seen.push('no node rows');
+          if (hash) {
+            const sheet = await page.evaluate(() => { const d = document.querySelector('#modal[open]'); const r = d?.getBoundingClientRect();
+              return d ? { name: d.dataset.modal, w: r.width, h: r.height, labelled: Boolean(document.getElementById(d.getAttribute('aria-labelledby') || '-')) } : null; });
+            if (!sheet || sheet.name !== hash.split('/')[0]) seen.push(`modal ${sheet?.name} open`);
+            else if (!sheet.labelled) seen.push('the dialog is not labelled by its heading');
+            else if (w < 720 && (Math.round(sheet.w) !== w || Math.round(sheet.h) !== hh)) seen.push(`not a full-screen sheet: ${Math.round(sheet.w)}x${Math.round(sheet.h)}`);
+          }
           await shot(page, `${look}-${w}x${hh}-${hash.replace(/\W+/g, '_') || 'board'}`, !hash && w < 720);
           report(`${look} ${w}x${hh} #${hash}`, [...problems, ...seen]);
         } catch (err) { report(`${look} ${w}x${hh} #${hash}`, [err.message]); }
       }
+      if (look === 'amber') report('the board, used: select, tag, palette, a result', await interact(page, go, sample));
       if (o.shots) {
         await go(page, '', 1280, 800);
         await shot(page, `beta-board-${look}-1280`);
