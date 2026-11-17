@@ -1,11 +1,12 @@
 // Groups (W-9, RM-4): a name and its member nodes, kept in this browser. A send or a set run to
 // a group is one signed per-node command to each member in turn, on its own topic, never a
 // broadcast; a member that cannot take the command is reported and the rest still go.
-// #/groups lists them; #/groups/<name> is one group: send, run a set, change its members.
+// Setup's Groups tab: #setup/groups lists them; #setup/groups/<name> is one group: send, run a set, change its members.
 import { h } from '../dom.js';
 import {
-  byName, confirm, field, nameOf, screen, withServices, put,
+  byName, confirm, field, nameOf, withServices, put,
 } from './node-kit.js';
+import { tabScreen } from './key-kit.js';
 import { sendPanel } from './send.js';
 import { runSetPanel } from './sets.js';
 
@@ -28,7 +29,7 @@ function one(ctx, svc, body, name) {
     const group = await svc.stores.groups.get(name);
     const devices = (await svc.stores.devices.list()).sort(byName(ctx.lang));
     if (!group) {
-      put(body, h('p', {}, ctx.t('groups.missing', { group: name }), ' ', h('a', { href: '#/groups' }, ctx.t('groups.toGroups'))));
+      put(body, h('p', {}, ctx.t('groups.missing', { group: name }), ' ', h('a', { href: '#setup/groups' }, ctx.t('groups.toGroups'))));
       return;
     }
     const heading = document.getElementById('groups-title');
@@ -50,20 +51,20 @@ function one(ctx, svc, body, name) {
     del.addEventListener('click', async () => {
       if (!await confirm(ctx, { title: ctx.t('groups.deleteTitle', { group: group.id }), lines: [ctx.t('groups.deleteBody')], confirmLabel: ctx.t('groups.delete'), danger: true })) return;
       await svc.stores.groups.remove(group.id);
-      ctx.navigate('#/groups');
+      ctx.navigate('#setup/groups');
     }, { signal: ctx.signal });
     const target = { group, devices: members };
     put(body, 
-      h('p', {}, h('a', { href: '#/groups' }, ctx.t('groups.toGroups'))),
-      h('p', { class: 'node-meta' }, members.length ? members.flatMap((d, i) => [i ? ', ' : '', h('a', { href: `#/node/${d.node}` }, nameOf(d))]) : ctx.t('groups.noMembers')),
+      h('p', {}, h('a', { href: '#setup/groups' }, ctx.t('groups.toGroups'))),
+      h('p', { class: 'node-meta' }, members.length ? members.flatMap((d, i) => [i ? ', ' : '', h('a', { href: `#node/${d.node}` }, nameOf(d))]) : ctx.t('groups.noMembers')),
       members.length ? [
-        h('h2', {}, ctx.t('groups.sendTitle')),
+        h('h3', {}, ctx.t('groups.sendTitle')),
         h('p', { class: 'muted' }, ctx.t('groups.sendExplain', { n: members.length })),
         sendPanel(ctx, svc, target),
-        h('h2', {}, ctx.t('sets.title')),
+        h('h3', {}, ctx.t('sets.title')),
         runSetPanel(ctx, svc, target, await svc.stores.sets.list()),
       ] : null,
-      h('h2', {}, ctx.t('groups.change')),
+      h('h3', {}, ctx.t('groups.change')),
       form,
       h('div', { class: 'row' }, del));
   };
@@ -83,12 +84,12 @@ function list(ctx, svc, body) {
       e.preventDefault();
       try {
         const g = await svc.stores.groups.create(nameInput.value, picker.values());
-        ctx.navigate(`#/groups/${encodeURIComponent(g.id)}`);
+        ctx.navigate(`#setup/groups/${encodeURIComponent(g.id)}`);
       } catch (err) { out.textContent = err.message; nameInput.focus(); }
     }, { signal: ctx.signal });
     put(body, 
       groups.length ? h('ul', { class: 'group-list' }, groups.map((g) => h('li', {},
-        h('a', { href: `#/groups/${encodeURIComponent(g.id)}`, class: 'group-name' }, g.id),
+        h('a', { href: `#setup/groups/${encodeURIComponent(g.id)}`, class: 'group-name' }, g.id),
         h('span', { class: 'muted' }, ` ${ctx.t('groups.size', { n: g.members.length })}: `),
         h('span', {}, g.members.map((m) => names[m]).join(', '))))) : h('p', {}, ctx.t('groups.none')),
       devices.length ? h('details', { class: 'block', open: !groups.length }, h('summary', {}, ctx.t('groups.new')), form)
@@ -99,7 +100,7 @@ function list(ctx, svc, body) {
 
 export function render(ctx) {
   const body = h('div', {});
-  const el = screen('groups', ctx.t('nav.groups'), body);
+  const el = tabScreen('groups', ctx.t('setup.tab.groups'), body);
   withServices(ctx, body, async (svc) => {
     const name = ctx.args[0];
     await (name ? one(ctx, svc, body, name) : list(ctx, svc, body))();

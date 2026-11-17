@@ -12,6 +12,7 @@ import { preflight } from '../../lib/jobs/checks.js';
 import { CompanionError } from '../../lib/mesh/companion.js';
 import { companionControl, roadChoice, roadLine } from './road-kit.js';
 import { meshAfterMins } from './settings-store.js';
+import { brokerText } from './key-register.js';
 import {
   byName, confirm, explain, field, nameOf, outcomeTag, progressLine, screen, withServices, put, resultBody, unlockHere,
 } from './node-kit.js';
@@ -151,7 +152,7 @@ export function sendPanel(ctx, svc, target, { onDone = null, initial = '' } = {}
     } catch (err) {
       const text = err.code === 'locked' ? ctx.t('send.locked')
         : err instanceof CompanionError ? ctx.t('send.why.companion', { detail: err.message })
-          : err.code ? ctx.t(`send.why.${err.code}`, err.vars) : err.message;
+          : err.code ? ctx.t(`send.why.${err.code}`, err.vars) : brokerText(ctx.t, err.message);
       put(results, h('p', { class: 'err', role: 'alert' }, text,
         err.code === 'locked' ? [' ', h('a', { href: unlockHere(ctx) }, ctx.t('send.unlockLink'))] : null));
     } finally {

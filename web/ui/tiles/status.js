@@ -12,7 +12,7 @@
 //                 Refresh now reads Beacon (no transmission)
 //   discovery     "not run here": Look now opens today's discovery form
 // The page's automation (ui/automation.js) provides 'refresh' and 'discovery' (automation-sources.js,
-// with Undo for what discovery last added); registration by itself provides 'registration'.
+// with Undo for what discovery last added) and 'registration' (ui/screens/key-register.js).
 import { h } from '../dom.js';
 import { setStatusItem } from '../statusline.js';
 import { keyStatus, keyring, currentHandle } from '../screens/key-session.js';
@@ -107,9 +107,10 @@ export function render(ctx) {
     if (!src) return line('registration', 'unknown', ctx.t('tile.notKnown'), h('a', { href: '#setup/key', class: 'status-act' }, ctx.t('tile.register')));
     const st = src.state();
     const word = st.state === 'ok' ? ctx.t('tile.registered') : st.state === 'running' ? ctx.t('tile.running')
-      : st.state === 'alert' ? ctx.t('tile.notRegistered') : ctx.t('tile.notKnown');
+      : st.state === 'alert' ? ctx.t('tile.notRegistered') : st.state === 'warn' ? ctx.t('tile.partly') : ctx.t('tile.notKnown');
+    const unlocked = ctx.key.state().status === 'unlocked';
     return line('registration', st.state === 'running' ? 'unknown' : st.state, word,
-      src.run && st.state !== 'ok' ? act(ctx.t('tile.register'), () => src.run()) : null, st.detail);
+      src.run && unlocked && st.state !== 'running' ? act(ctx.t(st.state === 'ok' ? 'tile.registerAgain' : 'tile.register'), () => src.run()) : null, st.detail);
   }
 
   function companionLine() {

@@ -1,8 +1,8 @@
-// Set up a node (W-13): give a repeater this key over its USB console. With Web Serial (Chromium,
+// Setup's "Put the key on a node" tab (W-13, W-20h): give a repeater this key over its USB console. With Web Serial (Chromium,
 // and Firefox from 151) the page connects at 115200 baud, shows what the console says, and offers
 // one button per console line: set the key, check it, turn the command plane on, and reboot only
 // once the node has asked for it. Nothing is written to the port without a button press. The
-// same lines are shown to type by hand, for an iPhone, an iPad or any browser without Web Serial.
+// same lines are shown to type by hand, each with its own Copy button, for an iPhone, an iPad or any browser without Web Serial.
 import { h } from '../dom.js';
 import { copyButton, groupedHex, useStyles } from './key-kit.js';
 import { keyStatus, onKeyStatus } from './key-session.js';
@@ -136,7 +136,7 @@ function serialPanel(ctx, pub) {
   }
 
   return h('section', { class: 'key-block', 'aria-labelledby': 'usb-title' },
-    h('h2', { id: 'usb-title' }, t('setup.usbTitle')),
+    h('h3', { id: 'usb-title' }, t('setup.usbTitle')),
     h('ol', { class: 'steps' }, h('li', {}, t('setup.step1')), h('li', {}, t('setup.step2')), h('li', {}, t('setup.step3'))),
     h('p', { class: 'muted' }, t('setup.firefox')),
     h('div', { class: 'row wrap' }, connect, disconnect), state,
@@ -145,12 +145,18 @@ function serialPanel(ctx, pub) {
     verdict, log);
 }
 
+// One line to type, with its own Copy button (W-20h).
+function lineRow(t, line, id) {
+  const code = h('code', { id, translate: 'no' }, line);
+  return h('li', { class: 'copy-line' }, code, copyButton(t, line, t('keyscreen.copy'), { target: code, describedBy: id }));
+}
+
 export function render(ctx) {
   useStyles();
   const { t } = ctx;
   const body = h('div', {});
-  const section = h('section', { 'aria-labelledby': 'setup-title', class: 'scr key-screen' },
-    h('h1', { id: 'setup-title' }, t('nav.setup')), h('p', {}, t('setup.intro')), body);
+  const section = h('section', { 'aria-labelledby': 'setup-node-title', class: 'scr key-screen' },
+    h('h2', { id: 'setup-node-title' }, t('setup.tab.node')), h('p', {}, t('setup.intro')), body);
   const draw = (s) => {
     if (!s.exists) {
       body.replaceChildren(h('p', {}, t('setup.noKey')), h('p', {}, h('a', { class: 'button', href: '#/unlock/to/setup' }, t('keyscreen.toStart'))));
@@ -158,23 +164,23 @@ export function render(ctx) {
     }
     const pub = s.publicKeyHex;
     const lines = setupLines(pub);
+    const keyCode = h('code', { id: 'setup-pub', translate: 'no' }, groupedHex(pub));
     body.replaceChildren(
       h('section', { class: 'key-block', 'aria-labelledby': 'put-title' },
-        h('h2', { id: 'put-title' }, t('setup.keyTitle')),
-        h('p', { class: 'pubkey' }, h('code', { translate: 'no' }, groupedHex(pub)))),
+        h('h3', { id: 'put-title' }, t('setup.keyTitle')),
+        h('p', { class: 'pubkey copy-line' }, keyCode,
+          copyButton(t, String(pub).toUpperCase(), t('keyscreen.copy'), { target: keyCode, describedBy: 'put-title' }))),
       serialAvailable() ? serialPanel(ctx, pub) : h('section', { class: 'key-block', 'aria-labelledby': 'usb-title' },
-        h('h2', { id: 'usb-title' }, t('setup.usbTitle')), h('p', {}, t('setup.noSerial'))),
+        h('h3', { id: 'usb-title' }, t('setup.usbTitle')), h('p', {}, t('setup.noSerial'))),
       h('section', { class: 'key-block', 'aria-labelledby': 'hand-title' },
-        h('h2', { id: 'hand-title' }, t('setup.handTitle')),
+        h('h3', { id: 'hand-title' }, t('setup.handTitle')),
         h('p', {}, t('setup.handBody', { baud: BAUD })),
-        h('pre', { class: 'lines', translate: 'no' }, lines.join('\n')),
-        h('div', { class: 'row' }, copyButton(t, lines.join('\n'), t('setup.copyLines'))),
+        h('ol', { class: 'lines', translate: 'no' }, lines.map((line, i) => lineRow(t, line, `setup-line-${i + 1}`))),
         h('p', { class: 'muted' }, t('setup.handReply')),
-        h('p', { class: 'muted' }, t('setup.ownRegion'), ' ', h('a', { href: '#/help/ownregion' }, t('setup.ownRegionLink')))),
+        h('p', { class: 'muted' }, t('setup.ownRegion'), ' ', h('a', { href: '#help/ownregion' }, t('setup.ownRegionLink')))),
       h('section', { class: 'key-block', 'aria-labelledby': 'then-title' },
-        h('h2', { id: 'then-title' }, t('setup.thenTitle')),
-        h('p', {}, t('setup.thenBody')),
-        h('p', {}, h('a', { href: '#/nodes' }, t('setup.findNode')))));
+        h('h3', { id: 'then-title' }, t('setup.thenTitle')),
+        h('p', {}, t('setup.thenBody'))));
   };
   draw(keyStatus());
   // A lock does not change what this screen shows; a new or replaced key does.

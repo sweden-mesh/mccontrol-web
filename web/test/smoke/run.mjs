@@ -33,7 +33,7 @@ const BOARD_WIDTHS = [1100, 1600];
 const LOOKS = { amber: {}, green: { 'mccontrol.theme': 'green' }, dark: { 'mccontrol.theme': 'dark' }, light: { 'mccontrol.theme': 'light' } };
 // Modals that take an argument are also opened with one: a node id from the fixture.
 const SAMPLE_ARGS = { node: ['13B58595'], nodeinfo: ['13B58595'], result: ['none'], stats: ['13B58595'], help: ['signing', 'codes'], unlock: ['replace', 'to/nodes'],
-  setup: ['key', 'node', 'area', 'settings', 'groups', 'sets', 'display'] };
+  setup: ['key', 'node', 'area', 'groups', 'sets', 'warnings', 'display', 'settings'], run: ['cmd/-', 'set/-'] };
 // Old routes and where they must land.
 const LEGACY = { '#/nodes': '#nodes', '#/key': '#setup/key', '#/node/13B58595': '#node/13B58595', '#/no-such-page': '#notfound', '#/': '' };
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
@@ -266,7 +266,7 @@ async function main() {
         await page.click('#modal .modal-close');
         await expect('the close button goes to the board', null, '');
         const keys = (await state(page)).keys;
-        if (keys.length !== 2) problems.push(`key bar: ${keys.join(' | ')}`);
+        if (keys.length !== 3) problems.push(`key bar: ${keys.join(' | ')}`);
       } catch (err) { problems.push(err.message); } finally { await page.close(); }
       report(`frame ${width}px: keys, Back, Esc, close`, problems);
     }

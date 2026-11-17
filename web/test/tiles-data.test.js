@@ -175,3 +175,13 @@ test('the automation as STATUS lines: refresh and discovery', async () => {
   assert.equal(bad.state, 'alert');
   assert.equal(bad.detail, 'JKG: no broker');
 });
+
+test('registration as a STATUS line', async () => {
+  const { registrationLine } = await import('../ui/tiles/automation-sources.js');
+  assert.equal(registrationLine(null).state, 'unknown');
+  assert.equal(registrationLine({ state: 'ok', hosts: [{ host: 'a', state: 'ok', at: 7 }, { host: 'b', state: 'ok', at: 9 }] }).last, 9);
+  const part = registrationLine({ state: 'partial', hosts: [{ host: 'a', state: 'ok', at: 7 }, { host: 'b', state: 'failed', detail: 'no ack' }] });
+  assert.equal(part.state, 'warn');
+  assert.equal(part.detail, 'b: no ack');
+  assert.equal(registrationLine({ state: 'failed', hosts: [] }).state, 'alert');
+});
