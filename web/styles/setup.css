@@ -1,0 +1,62 @@
+/* Setup's tabs, its copy lines and registration lines, the command sets' step help, and the
+   command palette (W-20d, W-20h, W-20i). Colours only from the tokens (styles/tokens.css). */
+
+/* The tabs: one row that scrolls sideways when it does not fit (a phone), never two rows. */
+.setup .tabs ul { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: thin; overscroll-behavior-x: contain; }
+.setup .tabs li { flex: none; }
+.setup .tabs a { white-space: nowrap; }
+.setup-tab > .scr > h2:first-child { margin-top: 12px; }
+
+/* A line to type (or the key) with its own Copy button at the end. */
+.lines { margin: 8px 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+.copy-line { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.copy-line > code { flex: 1 1 16em; min-width: 0; overflow-wrap: anywhere; padding: 4px 6px;
+  border: 1px solid var(--line); border-radius: var(--radius-xs); background: var(--surface); }
+.copy-button { min-inline-size: 7ch; }
+.copy-button[data-copied] { border-color: var(--online); color: var(--online); }
+
+/* Registration, one line per broker: a glyph and words, never colour alone. */
+.reg-lines { margin: 8px 0; padding: 0; list-style: none; display: grid; gap: 4px; }
+.reg-lines .glyph { display: inline-block; min-inline-size: 1.2em; }
+.reg-ok .glyph { color: var(--online); }
+.reg-failed .glyph { color: var(--danger); }
+.reg-running .glyph, .reg-none .glyph { color: var(--muted); }
+
+/* A command set's steps, each with what it does. */
+.step-help li { margin: 2px 0; }
+.sets-explain { max-width: 70ch; }
+
+/* The command palette: a non-modal dialog near the top, over the board. */
+.palette {
+  position: fixed; inset: 10vh auto auto 50%; translate: -50% 0; margin: 0;
+  width: min(42rem, calc(100vw - 2 * var(--gutter))); max-height: 75vh;
+  display: none; flex-direction: column; gap: 6px; padding: 10px 12px;
+  color: var(--fg); background: var(--bg); border: 1px solid var(--field-border); border-radius: var(--radius-sm);
+  box-shadow: var(--shadow); font-family: var(--font-body);
+}
+.palette:popover-open { display: flex; }
+.palette-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.palette-title { margin: 0; font-size: 1rem; }
+.palette-close { min-height: 32px; }
+.palette input { width: 100%; min-height: var(--tap); font-family: var(--font-mono); }
+.palette-count { margin: 0; color: var(--muted); font-size: var(--tile-text); }
+.palette-list { margin: 0; padding: 0; list-style: none; overflow-y: auto; overscroll-behavior: contain; min-height: 0; }
+.palette-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 12px; min-height: var(--row);
+  padding: 4px 8px 4px 1.4em; border: 1px solid transparent; cursor: pointer; position: relative; }
+.palette-row:hover { border-color: var(--line); }
+.palette-row[aria-selected="true"] { border-color: var(--accent); background: var(--surface); }
+.palette-row[aria-selected="true"]::before { content: "›"; position: absolute; left: .45em; color: var(--accent); }
+.palette-label { color: var(--fg); }
+.palette-hint { color: var(--muted); font-size: var(--tile-text); }
+
+@media (max-width: 45em) {
+  .palette { inset: 0 auto auto 0; translate: none; width: 100vw; max-height: 100dvh; border-width: 0 0 1px; border-radius: 0; }
+  .palette-row { min-height: var(--tap); }
+  .palette-close { min-height: var(--tap); }
+}
+@media (pointer: coarse) { .palette-row { min-height: var(--tap); } }
+
+@media (forced-colors: active) {
+  .palette, .copy-line > code { border-color: CanvasText; }
+  .palette-row[aria-selected="true"] { border-color: Highlight; }
+}

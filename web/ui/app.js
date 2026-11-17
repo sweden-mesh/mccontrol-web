@@ -23,6 +23,8 @@ import { notify, announce, useStrings } from './notify.js';
 import { displaySettings } from './appearance.js';
 import { readVersion, startUpdates } from './update.js';
 import { startKeySession } from './screens/key-session.js';
+import { startAutoRegistration } from './screens/key-register.js';
+import { bindPaletteKeys } from './modals/palette.js';
 import { parseHash, targetHash } from './routes.js';
 import {
   isModal, openModal, closeModal, currentModal, routeModal, useFrame, relabelFrame,
@@ -107,13 +109,14 @@ async function start() {
     clockTimer = setTimeout(drawClock, 60000 - (Date.now() % 60000));
   };
 
-  // The shell's own keys; the palette (':' and Ctrl+K) is bound by its module when it lands.
+  // The shell's own keys, and the palette's (':' and Ctrl+K).
   let unbind = [];
   const bindShellKeys = () => {
     for (const u of unbind) u();
     unbind = [
       bindKey(',', { label: t('board.setup'), run: () => openModal('setup'), bar: true, order: 80 }),
       bindKey('?', { label: t('board.help'), run: () => openModal('help'), bar: true, order: 90 }),
+      ...bindPaletteKeys(t),
     ];
   };
 
@@ -160,7 +163,7 @@ async function start() {
   migratePrefs();
   // The page's one keyring, before the board: the tiles then know whether there is a key. A
   // browser that refuses IndexedDB still gets the board, with "no key".
-  try { await startKeySession(); } catch (err) { console.warn('key store unavailable:', err); }
+  try { await startKeySession(); startAutoRegistration(); } catch (err) { console.warn('key store unavailable:', err); }
   useFrame($('modal'), { ctxFor: base, closeLabel: 'Close' });
   await relabel();
   document.documentElement.setAttribute('data-started', '');

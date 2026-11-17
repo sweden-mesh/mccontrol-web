@@ -4,6 +4,7 @@
 // harmless read to a region, answered only by nodes that hold this key) or by pasting a key.
 import { h } from '../dom.js';
 import { lowBatteryVolts, notHeardHours } from './settings-store.js';
+import { brokerText } from './key-register.js';
 import { lastHeard, shortVersion } from '../../lib/jobs/overview.js';
 import { updateAvailable } from '../../lib/jobs/releases.js';
 import {
@@ -95,7 +96,7 @@ function discoverForm(ctx, svc, devices, redraw) {
           f.keyChanged ? h('span', { class: 'err' }, ctx.t('nodes.keyChanged')) : null);
       })));
     } catch (err) {
-      put(out, h('p', { class: 'err', role: 'alert' }, err.code === 'locked' ? lockedNote(ctx) : err.message));
+      put(out, h('p', { class: 'err', role: 'alert' }, err.code === 'locked' ? lockedNote(ctx) : brokerText(ctx.t, err.message)));
     } finally { button.disabled = false; }
   }, { signal: ctx.signal });
   return form;

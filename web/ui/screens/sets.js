@@ -1,23 +1,48 @@
-// Command sets (W-15): a named list of up to six commands sent in order to a node, a group or
+// Setup's Command sets tab (W-15, W-20i): a named list of up to six commands sent in order to a node, a group or
 // (advanced) a region, stopping at the first refusal or silence. `{arg}` in a step is asked for
 // when the set runs. The shipped example stays until it is removed or replaced. Every step is
-// checked against the deny list when it is saved and again before the run is signed.
+// checked against the deny list when it is saved and again before the run is signed. The tab
+// opens with what a set is and when to use one, and every step says what it does.
 //
 // runSetPanel(ctx, svc, target) is the same run form inside the node and group screens.
 import { h } from '../dom.js';
 import { SET_STEPS } from '../../lib/store/index.js';
 import { blocker, fillSteps } from '../../lib/jobs/checks.js';
 import {
-  byName, confirm, explain, field, nameOf, progressLine, screen, withServices, put, lockedNote } from './node-kit.js';
+  byName, confirm, explain, field, nameOf, progressLine, withServices, put, lockedNote } from './node-kit.js';
 import { whyText } from './send.js';
+import { tabScreen } from './key-kit.js';
+import { commandHelp } from '../modals/command-help.js';
+import { brokerText } from './key-register.js';
 
 export const route = 'sets';
 export const title = 'sets.title';
 
-export function runSetPanel(ctx, svc, target, sets) {
+// A set's steps, each with what it does in words (W-20i).
+export function stepList(ctx, svc, steps) {
+  const table = svc.data.commands.table;
+  return h('ol', { class: 'steps step-help' }, steps.map((c) => {
+    const help = commandHelp(ctx.t, table, c.replaceAll('{arg}', 'x'));
+    return h('li', {}, h('code', {}, c), help ? h('span', { class: 'muted' }, ` ${help}`) : null);
+  }));
+}
+
+// What a command set is, when to use one, and the shipped example (W-20i).
+function explainSets(ctx, svc) {
+  const t = ctx.t;
+  const [name, steps] = Object.entries(svc.data.brokers.default_sets || {})[0] || [];
+  return h('div', { class: 'sets-explain' },
+    h('p', {}, t('sets.what')),
+    h('p', {}, t('sets.when')),
+    name ? [h('p', {}, t('sets.example', { set: name, arg: 'se-jkp' })),
+      stepList(ctx, svc, steps.map((c) => c.replaceAll('{arg}', 'se-jkp')))] : null,
+    h('p', { class: 'muted' }, t('sets.argExplain')));
+}
+
+export function runSetPanel(ctx, svc, target, sets, { initial = '' } = {}) {
   const names = Object.keys(sets);
-  if (!names.length) return h('p', { class: 'muted' }, ctx.t('sets.none'), ' ', h('a', { href: '#/sets' }, ctx.t('sets.toSets')));
-  const select = h('select', {}, names.map((n) => h('option', { value: n }, n)));
+  if (!names.length) return h('p', { class: 'muted' }, ctx.t('sets.none'), ' ', h('a', { href: '#setup/sets' }, ctx.t('sets.toSets')));
+  const select = h('select', {}, names.map((n) => h('option', { value: n, selected: n === initial }, n)));
   const arg = h('input', { type: 'text', autocomplete: 'off', class: 'short' });
   const argField = field(ctx.t('sets.arg'), arg, ctx.t('sets.argHint'));
   const steps = h('ol', { class: 'steps' });
@@ -26,7 +51,7 @@ export function runSetPanel(ctx, svc, target, sets) {
   const form = h('form', { class: 'stack' }, field(ctx.t('sets.set'), select), steps, argField, h('div', { class: 'row' }, run), out);
   const draw = () => {
     const s = sets[select.value] || [];
-    put(steps, ...s.map((c) => h('li', {}, h('code', {}, c))));
+    put(steps, ...stepList(ctx, svc, s).childNodes);
     argField.hidden = !s.some((c) => c.includes('{arg}'));
   };
   select.addEventListener('change', draw, { signal: ctx.signal });
@@ -66,7 +91,7 @@ export function runSetPanel(ctx, svc, target, sets) {
       put(out, h('ul', { class: 'res-list' }, res.runs.map((r) => runLine(ctx, svc, r, res.steps))));
       ctx.announce(ctx.t('sets.done'));
     } catch (err) {
-      put(out, h('p', { class: 'err', role: 'alert' }, err.code === 'locked' ? lockedNote(ctx) : err.code ? ctx.t(`send.why.${err.code}`, err.vars) : err.message));
+      put(out, h('p', { class: 'err', role: 'alert' }, err.code === 'locked' ? lockedNote(ctx) : err.code ? ctx.t(`send.why.${err.code}`, err.vars) : brokerText(ctx.t, err.message)));
     } finally { run.disabled = false; }
   }, { signal: ctx.signal });
   return form;
@@ -84,7 +109,7 @@ function runLine(ctx, svc, run, steps) {
   const lastResult = last && 'result' in last ? last.result : null;
   const x = run.reason ? null : explain(ctx, svc, done ? lastResult : (last?.result ?? null));
   return h('li', { class: `res ${done ? 'res-ok' : 'res-refused'}` },
-    h('span', { class: 'res-name' }, run.node ? h('a', { href: `#/node/${run.node}` }, run.name) : run.name),
+    h('span', { class: 'res-name' }, run.node ? h('a', { href: `#node/${run.node}` }, run.name) : run.name),
     h('span', { class: `tag ${done ? 'tag-ok' : 'tag-refused'}` }, done ? ctx.t('sets.allOk', { n: steps.length }) : ctx.t('sets.stopped', { i: run.stoppedAt + 1 })),
     h('span', { class: 'res-text' }, run.reason ? ctx.t(`send.why.${run.reason.code}`, run.reason.vars)
       : done ? h('code', { class: 'reply' }, x.text) : [h('code', {}, steps[run.stoppedAt]), ' ', x.text]),
@@ -120,7 +145,7 @@ function editor(ctx, svc, name, steps, redraw) {
 
 export function render(ctx) {
   const body = h('div', {});
-  const el = screen('sets', ctx.t('sets.title'), h('p', { class: 'lede' }, ctx.t('sets.lede')), body);
+  const el = tabScreen('sets', ctx.t('sets.title'), body);
   withServices(ctx, body, async (svc) => {
     async function draw() {
       const sets = await svc.stores.sets.list();
@@ -134,8 +159,8 @@ export function render(ctx) {
           draw();
         });
         return h('article', { class: 'set' },
-          h('h2', {}, name),
-          h('ol', { class: 'steps' }, steps.map((s) => h('li', {}, h('code', {}, s)))),
+          h('h3', {}, name),
+          stepList(ctx, svc, steps),
           h('details', {}, h('summary', {}, ctx.t('sets.edit')), editor(ctx, svc, name, steps, draw)),
           remove);
       });
@@ -151,10 +176,11 @@ export function render(ctx) {
           : { group: groups.find((g) => g.id === id), devices: devices.filter((d) => groups.find((g) => g.id === id).members.includes(d.node)) };
         put(runSlot, runSetPanel(ctx, svc, t, sets));
       }, { signal: ctx.signal });
-      put(body, 
-        h('h2', {}, ctx.t('sets.runTitle')),
+      put(body,
+        explainSets(ctx, svc),
+        h('h3', {}, ctx.t('sets.runTitle')),
         devices.length ? [field(ctx.t('sets.target'), target), runSlot] : h('p', { class: 'muted' }, ctx.t('send.noNodes')),
-        h('h2', {}, ctx.t('sets.yours')),
+        h('h3', {}, ctx.t('sets.yours')),
         list.length ? h('div', { class: 'set-list' }, list) : h('p', {}, ctx.t('sets.none')),
         h('details', { class: 'block' }, h('summary', {}, ctx.t('sets.new')), editor(ctx, svc, '', [], draw)));
     }

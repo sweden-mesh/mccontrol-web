@@ -1,7 +1,8 @@
 // Every modal (W-20d). Until the later waves restyle them, today's screens are shown inside the
 // modal frame as they are: the old routes (#/nodes, #/node/<id>, #/key...) map onto these names
 // (ui/routes.js), so old links, bookmarks and the screens' own links still land. Setup gathers
-// the set-up and reference screens as tabs (proposal §2.5); setup.js is its interim form.
+// the set-up screens as tabs (proposal §2.5, setup.js); palette.js has the
+// command palette and its "run" modal (one command or set to a target).
 import { registerModal } from '../modal.js';
 import * as dashboard from '../screens/dashboard.js';
 import * as nodes from '../screens/nodes.js';
@@ -13,6 +14,7 @@ import * as help from '../screens/help.js';
 import * as stats from '../screens/stats.js';
 import * as notfound from '../screens/notfound.js';
 import { setupModal } from './setup.js';
+import { runModal } from './palette.js';
 import { provideTrafficBlock } from '../screens/dashboard.js';
 import { trafficBlock } from '../screens/dashboard-traffic.js';
 
@@ -34,6 +36,7 @@ export const MODALS = [
   { name: 'stats', title: stats.title, render: fromScreen(stats), closedby: 'any' },
   { name: 'notfound', title: notfound.title, render: fromScreen(notfound, 'notfound'), closedby: 'any' },
   setupModal,
+  runModal,
 ];
 
 for (const m of MODALS) registerModal(m);

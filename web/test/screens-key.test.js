@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { importKind, passProblem, stepFor, unlockTarget } from '../ui/screens/unlock.js';
 import { asksReboot, consoleBytes, consoleLog, setupLines, showsKey, serialAvailable, BAUD } from '../ui/screens/setup.js';
-import { brokerChoices, autoLockText, revealer, REVEAL_MS } from '../ui/screens/key.js';
+import { autoLockText, revealer, REVEAL_MS } from '../ui/screens/key.js';
 import { helpRuns, resultRows } from '../ui/screens/help.js';
 import {
   brokerConfig, lowBatteryVolts, notHeardHours, regionBrokers, removeRegionBroker, setLowBatteryVolts,
@@ -106,9 +106,7 @@ test('settings store: thresholds with defaults and limits, brokers per region', 
   assert.deepEqual(regionBrokers(st), {}, 'a hand-edited bad entry is ignored');
 });
 
-test('key screen: broker choices and auto-lock words', () => {
-  const choices = brokerChoices({ shared: 'a.se' }, { VGR: 'b.se', SKN: 'b.se', JKG: 'c.se' });
-  assert.deepEqual(choices.map((c) => [c.value, c.host, c.regions]), [['', 'a.se', []], ['VGR', 'b.se', ['VGR', 'SKN']], ['JKG', 'c.se', ['JKG']]]);
+test('key screen: auto-lock words', () => {
   const t = (k) => k;
   assert.equal(autoLockText(t, null), 'key.autolock.tab');
   assert.equal(autoLockText(t, 15), 'key.autolock.15');

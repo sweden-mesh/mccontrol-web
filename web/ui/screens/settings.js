@@ -1,11 +1,9 @@
-// Settings: the display (the shell's form), auto-lock (kept with the key), when the overview warns
-// (low battery, not heard), a broker per region and the companion radio for the mesh road
-// (W-16), the last four on this device only (settings-store.js). Every change applies at once and says so in a status line.
+// Setup's "Area and brokers" and "Warnings" tabs (proposal §2.5): a broker per region and the
+// companion radio for the mesh road (W-16); when the board warns (low battery, not heard) and
+// when the auto road takes the mesh. All on this device only (settings-store.js). Every change
+// applies at once and says so in a status line. Auto-lock is the Key tab's, display the Display tab's.
 import { h } from '../dom.js';
 import { useStyles } from './key-kit.js';
-import { keyring, keyStatus, onKeyStatus } from './key-session.js';
-import { AUTO_LOCK_CHOICES } from '../../lib/key/keyring.js';
-import { autoLockText } from './key.js';
 import {
   DEFAULTS, LIMITS, lowBatteryVolts, meshAfterMins, notHeardHours, regionBrokers, removeRegionBroker, setLowBatteryVolts,
   setMeshAfterMins, setNotHeardHours, setRegionBroker, validHost, validRegion,
@@ -17,33 +15,7 @@ export const route = 'settings';
 export const title = 'nav.settings';
 
 const block = (id, heading, ...children) => h('section', { class: 'key-block', 'aria-labelledby': id },
-  h('h2', { id }, heading), ...children);
-
-function autoLockBlock(ctx) {
-  const { t } = ctx;
-  const slot = h('div', {});
-  const draw = (s) => {
-    if (!s.exists) { slot.replaceChildren(h('p', { class: 'muted' }, t('settings.autoLockNoKey'))); return; }
-    const saved = h('p', { role: 'status', class: 'hint-line' });
-    const fieldset = h('fieldset', { class: 'choice' }, h('legend', {}, t('key.autolock')),
-      AUTO_LOCK_CHOICES.map((m) => {
-        const input = h('input', { type: 'radio', name: 'autolock', value: String(m), checked: m === s.autoLockMinutes });
-        input.addEventListener('change', async () => {
-          if (!input.checked) return;
-          try {
-            await keyring().setAutoLock(m);
-            saved.textContent = t('settings.saved');
-          } catch (ex) { saved.textContent = ex.message; }
-        });
-        return h('label', {}, input, ' ', autoLockText(t, m));
-      }));
-    slot.replaceChildren(fieldset, h('p', { class: 'hint' }, t('settings.autoLockHint')), saved);
-  };
-  draw(keyStatus());
-  const stop = onKeyStatus((s) => { if (!slot.contains(document.activeElement)) draw(s); });
-  ctx.signal.addEventListener('abort', stop, { once: true });
-  return block('autolock-title', t('settings.autoLock'), slot);
-}
+  h('h3', { id }, heading), ...children);
 
 // A number field that saves on change: label, input with its unit, hint, status.
 function numberField(ctx, { id, label, unit, hint, value, step, limits, save }) {
@@ -112,25 +84,48 @@ function brokersBlock(ctx) {
     draw();
   });
   return block('brokers-title', t('settings.brokers'), h('p', {}, t('settings.brokersBody')), list, form, status,
-    h('p', {}, h('a', { href: '#/help/ownregion' }, t('settings.brokersHelp'))));
+    h('p', {}, h('a', { href: '#help/ownregion' }, t('settings.brokersHelp'))));
 }
 
-export function render(ctx) {
+// Sections another stream adds to a tab (the area dropdown, W-20b): fn(ctx) -> element | null.
+const extra = { area: [], warnings: [] };
+export function addSection(tab, fn) {
+  if (!extra[tab]) throw new Error(`no settings tab ${tab}`);
+  extra[tab].push(fn);
+}
+const extras = (tab, ctx) => extra[tab].map((fn) => fn(ctx)).filter(Boolean);
+
+const tabSection = (id, title, ...children) => h('section', { 'aria-labelledby': id, class: 'scr key-screen' },
+  h('h2', { id }, title), ...children);
+
+// Setup's "Area and brokers" tab: where commands go (a region's own broker) and the companion
+// radio the mesh road uses.
+export function renderArea(ctx) {
   useStyles();
   const { t } = ctx;
-  return h('section', { 'aria-labelledby': 'settings-title', class: 'scr key-screen' },
-    h('h1', { id: 'settings-title' }, t('nav.settings')),
-    block('display-title', t('settings.display'), h('p', { class: 'muted' }, t('settings.displayBody')), ctx.displaySettings()),
-    autoLockBlock(ctx),
-    block('warn-title', t('settings.warnings'), h('p', { class: 'muted' }, t('settings.warningsBody')),
-      numberField(ctx, { id: 'low-battery', label: t('settings.lowBattery'), unit: 'V', step: 0.05, limits: LIMITS.lowBatteryVolts,
-        value: lowBatteryVolts(), hint: t('settings.lowBatteryHint', { v: DEFAULTS.lowBatteryVolts }), save: setLowBatteryVolts }),
-      numberField(ctx, { id: 'not-heard', label: t('settings.notHeard'), unit: t('settings.hoursUnit'), step: 1, limits: LIMITS.notHeardHours,
-        value: notHeardHours(), hint: t('settings.notHeardHint', { h: DEFAULTS.notHeardHours }), save: setNotHeardHours })),
+  return tabSection('area-title', t('setup.tab.area'),
+    ...extras('area', ctx),
     brokersBlock(ctx),
     block('companion-title', t('companion.title'), h('p', {}, t('companion.lede')),
       companionControl(ctx),
-      numberField(ctx, { id: 'mesh-after', label: t('settings.meshAfter'), unit: t('settings.minutesUnit'), step: 1, limits: LIMITS.meshAfterMins,
-        value: meshAfterMins(), hint: t('settings.meshAfterHint', { m: DEFAULTS.meshAfterMins }), save: setMeshAfterMins }),
-      h('p', {}, h('a', { href: '#/help/mesh' }, t('road.help')))));
+      h('p', {}, h('a', { href: '#help/mesh' }, t('road.help')))));
 }
+
+// Setup's "Warnings" tab: when a node is listed as needing attention, and when the auto road
+// takes the mesh.
+export function renderWarnings(ctx) {
+  useStyles();
+  const { t } = ctx;
+  return tabSection('warnings-title', t('setup.tab.warnings'),
+    h('p', { class: 'muted' }, t('settings.warningsBody')),
+    numberField(ctx, { id: 'low-battery', label: t('settings.lowBattery'), unit: 'V', step: 0.05, limits: LIMITS.lowBatteryVolts,
+      value: lowBatteryVolts(), hint: t('settings.lowBatteryHint', { v: DEFAULTS.lowBatteryVolts }), save: setLowBatteryVolts }),
+    numberField(ctx, { id: 'not-heard', label: t('settings.notHeard'), unit: t('settings.hoursUnit'), step: 1, limits: LIMITS.notHeardHours,
+      value: notHeardHours(), hint: t('settings.notHeardHint', { h: DEFAULTS.notHeardHours }), save: setNotHeardHours }),
+    numberField(ctx, { id: 'mesh-after', label: t('settings.meshAfter'), unit: t('settings.minutesUnit'), step: 1, limits: LIMITS.meshAfterMins,
+      value: meshAfterMins(), hint: t('settings.meshAfterHint', { m: DEFAULTS.meshAfterMins }), save: setMeshAfterMins }),
+    ...extras('warnings', ctx));
+}
+
+// The old settings screen (#/settings) is Setup's area tab now; kept for the screen list.
+export const render = renderArea;
