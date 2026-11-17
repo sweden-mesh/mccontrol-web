@@ -4,6 +4,7 @@
 // once the node has asked for it. Nothing is written to the port without a button press. The
 // same lines are shown to type by hand, each with its own Copy button, for an iPhone, an iPad or any browser without Web Serial.
 import { h } from '../dom.js';
+import { openQuiet } from '../../lib/mesh/serial.js';
 import { copyButton, groupedHex, useStyles } from './key-kit.js';
 import { keyStatus, onKeyStatus } from './key-session.js';
 
@@ -104,7 +105,7 @@ function serialPanel(ctx, pub) {
   connect.addEventListener('click', async () => {
     try {
       port = await navigator.serial.requestPort();
-      await port.open({ baudRate: BAUD });
+      await openQuiet(port, BAUD);
     } catch (err) {
       port = null;
       state.textContent = err?.name === 'NotFoundError' ? t('setup.noPortChosen') : t('setup.openFailed', { reason: err?.message || err });
