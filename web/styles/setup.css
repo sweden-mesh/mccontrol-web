@@ -6,6 +6,9 @@
 .setup .tabs li { flex: none; }
 .setup .tabs a { white-space: nowrap; }
 .setup-tab > .scr > h2:first-child { margin-top: 12px; }
+/* The tab row already names the tab: its heading stays for a screen reader only. The groups tab
+   keeps it, since it turns into the open group's name. */
+.setup-tab > .scr:not(.scr-groups) > h2:first-child { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; margin: 0; }
 
 /* A line to type (or the key) with its own Copy button at the end. */
 .lines { margin: 8px 0; padding: 0; list-style: none; display: grid; gap: 6px; }
@@ -14,6 +17,8 @@
   border: 1px solid var(--line); border-radius: var(--radius-xs); background: var(--surface); }
 .copy-button { min-inline-size: 7ch; }
 .copy-button[data-copied] { border-color: var(--online); color: var(--online); }
+/* The button already says "Copied": its status line is then for a screen reader only. */
+.copy-button[data-copied] + .copy-status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
 /* Registration, one line per broker: a glyph and words, never colour alone. */
 .reg-lines { margin: 8px 0; padding: 0; list-style: none; display: grid; gap: 4px; }
@@ -24,6 +29,7 @@
 
 /* A command set's steps, each with what it does. */
 .step-help li { margin: 2px 0; }
+.step-what { margin-inline-start: 1.5ch; }
 .sets-explain { max-width: 70ch; }
 
 /* The command palette: a non-modal dialog near the top, over the board. */

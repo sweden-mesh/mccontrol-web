@@ -23,7 +23,7 @@ export function stepList(ctx, svc, steps) {
   const table = svc.data.commands.table;
   return h('ol', { class: 'steps step-help' }, steps.map((c) => {
     const help = commandHelp(ctx.t, table, c.replaceAll('{arg}', 'x'));
-    return h('li', {}, h('code', {}, c), help ? h('span', { class: 'muted' }, ` ${help}`) : null);
+    return h('li', {}, h('code', {}, c), help ? h('span', { class: 'muted step-what' }, help) : null);
   }));
 }
 

@@ -67,6 +67,10 @@ function frame() {
     h('div', { class: 'palette-head' }, title, close), label, input, count, list);
   palette = { dialog, input, list, count, title, label, close, entries: [], shown: [], active: 0 };
   close.addEventListener('click', () => dialog.hidePopover());
+  // Closed by Esc or a click outside: the keys belong to the board again at once.
+  dialog.addEventListener('beforetoggle', (e) => {
+    if (e.newState === 'closed' && dialog.contains(document.activeElement)) document.activeElement.blur();
+  });
   input.addEventListener('input', () => { palette.active = 0; draw(); });
   input.addEventListener('keydown', onKey);
   list.addEventListener('click', (e) => {
@@ -100,9 +104,16 @@ function move(by) {
 }
 
 function onKey(e) {
-  if (e.key === 'ArrowDown') { e.preventDefault(); move(1); } else if (e.key === 'ArrowUp') { e.preventDefault(); move(-1); } else if (e.key === 'Enter') {
+  if (e.key === 'ArrowDown') {
     e.preventDefault();
-    choose(palette.shown[palette.active]);
+    move(1);
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    move(-1);
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    // Typed before the list had loaded: choose once it has.
+    Promise.resolve(palette.loading).then(() => choose(palette.shown[palette.active]));
   }
 }
 
@@ -127,8 +138,11 @@ export async function openPalette() {
   draw();
   if (!p.dialog.matches(':popover-open')) p.dialog.showPopover();
   p.input.focus();
-  p.entries = await gather();
-  if (p.dialog.matches(':popover-open')) draw();
+  p.loading = gather().then((entries) => {
+    p.entries = entries;
+    if (p.dialog.matches(':popover-open')) draw();
+  });
+  await p.loading;
 }
 
 // ui/app.js: the palette's keys, rebound on a language change. Returns the unbind functions.
