@@ -10,7 +10,9 @@ export const serialAvailable = (nav = globalThis.navigator) => Boolean(nav?.seri
 // USB (USB-Serial/JTAG, e.g. the Heltec V4) those are esptool's reset and boot lines, and the
 // board boot-loops until its reset button is pressed. Both are dropped right after open. A bench
 // override in the address, ?usbsignals=dtr0rts0|dtr1rts0|dtr0rts1|dtr1rts1|none, tries the other
-// combinations ('none' leaves the browser's defaults).
+// combinations ('none' leaves the browser's defaults). Chrome still toggles the lines inside
+// open(), before they can be dropped, so the board may restart once (bench 2026-11-17): app start
+// is asked again until it has booted (USB_START_WITHIN_MS, companion.js).
 export const USB_SIGNALS = Object.freeze({
   dtr0rts0: { dataTerminalReady: false, requestToSend: false },
   dtr1rts0: { dataTerminalReady: true, requestToSend: false },
@@ -19,6 +21,9 @@ export const USB_SIGNALS = Object.freeze({
   none: null,
 });
 export const DEFAULT_USB_SIGNALS = 'dtr0rts0';
+
+// How long app start keeps asking after the port opens: a board that restarted boots in 1 to 3 s.
+export const USB_START_WITHIN_MS = 8000;
 
 // The signals to set for an address's query string: the default when absent or unknown.
 export function usbSignals(search = globalThis.location?.search || '') {
@@ -61,6 +66,9 @@ export async function connectSerial({ serial = globalThis.navigator?.serial, bau
   const info = port.getInfo?.() || {};
   return {
     kind: 'usb',
+    // Opening may have restarted the board (Chrome toggles DTR and RTS inside open()): app start
+    // is asked again until it has booted, the boot log in between skipped by the deframer.
+    startWithinMs: USB_START_WITHIN_MS,
     label: info.usbProductId ? `USB ${info.usbVendorId?.toString(16)}:${info.usbProductId.toString(16)}` : 'USB',
     onFrame(fn) { frameFn = fn; },
     onClose(fn) { closeFn = fn; },

@@ -3,7 +3,7 @@
 // meshcore_py: start, find the node as a contact, add it when it is not one, send the request,
 // wait for the answer with the request's tag.
 //
-//   link     { write(bytes): Promise, onFrame(fn), onClose(fn), close(): Promise, kind, label }
+//   link     { write(bytes): Promise, onFrame(fn), onClose(fn), close(): Promise, kind, label, startWithinMs? }
 //   const c = await openCompanion(link)        // app start; c.self = { publicKey, name }
 //   await c.contact(keyHex)                    // { name, hops } (hops -1: no path, floods) | null
 //   await c.addContact(keyHex, name)
@@ -26,8 +26,13 @@ export class CompanionError extends Error {
 }
 
 export const COMMAND_TIMEOUT_MS = 5000;
+export const START_FIRST_MS = 1500;    // the first app start's wait before it is asked again
+export const START_EVERY_MS = 500;     // then again this often, until the link's startWithinMs
 
-export async function openCompanion(link, { appName = 'mccontrol', timeoutMs = COMMAND_TIMEOUT_MS } = {}) {
+export async function openCompanion(link, {
+  appName = 'mccontrol', timeoutMs = COMMAND_TIMEOUT_MS,
+  startWithinMs = link.startWithinMs ?? timeoutMs, startFirstMs = START_FIRST_MS, startEveryMs = START_EVERY_MS,
+} = {}) {
   let waiting = null;          // { resolve, reject, timer } for the command in flight
   let queue = Promise.resolve();
   let closed = false;
@@ -98,9 +103,43 @@ export async function openCompanion(link, { appName = 'mccontrol', timeoutMs = C
     return next;
   }
 
-  const hello = await ask(appStart(appName));
-  if (hello.kind !== 'selfInfo') throw new CompanionError('the device did not answer as a MeshCore companion');
+  const hello = await start();
   const self = Object.freeze({ publicKey: hello.publicKey, name: hello.name });
+
+  // App start. A board on native USB may restart when its port opens (Chrome toggles DTR and RTS
+  // inside open(), before serial.js can drop them, W-21) and spends a second or two booting, so
+  // the first ask can go unheard: ask again every `startEveryMs` after `startFirstMs`, until
+  // `startWithinMs`, taking only SELF_INFO as the answer (a boot log's stray frame is not one).
+  function start() {
+    const frame = appStart(appName);
+    return new Promise((resolve, reject) => {
+      let other = null;
+      let writeError = null;
+      let retry = null;
+      let sent = 0;
+      const stop = () => { clearTimeout(retry); clearTimeout(deadline); waiting = null; };
+      const fail = (e) => { stop(); reject(e); };
+      const take = (f) => {
+        if (f.kind === 'selfInfo') { stop(); resolve(f); return; }
+        other = f;
+        waiting = { resolve: take, reject: fail, timer: null };
+      };
+      const send = () => {
+        if (closed) { fail(new CompanionError('the companion is not connected', 'closed')); return; }
+        Promise.resolve(link.write(frame)).then(() => { writeError = null; }, (e) => { writeError = e; });
+        retry = setTimeout(send, sent++ ? startEveryMs : startFirstMs);
+      };
+      const deadline = setTimeout(() => {
+        stop();
+        if (other) reject(new CompanionError('the device did not answer as a MeshCore companion'));
+        else if (writeError) reject(new CompanionError(`cannot write to the companion: ${writeError?.message || writeError}`));
+        else if (link.kind === 'usb') reject(new CompanionError("the companion didn't answer after it restarted: is it running companion firmware for USB?", 'timeout'));
+        else reject(new CompanionError(`the companion did not answer in ${Math.round(startWithinMs / 1000)} s`, 'timeout'));
+      }, startWithinMs);
+      waiting = { resolve: take, reject: fail, timer: null };
+      send();
+    });
+  }
 
   const asContact = (f) => ({ name: f.name, hops: f.hops });
 
