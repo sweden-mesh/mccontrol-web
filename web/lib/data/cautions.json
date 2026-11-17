@@ -35,10 +35,6 @@
    "why": "moves the node to another region's topics: this tool must change its region to match."
   },
   {
-   "prefix": "set mqtt.presets",
-   "why": "changes how many MQTT slots run; the control plane's slot may stop."
-  },
-  {
    "prefix": "set mqtt1*",
    "why": "changes slot 1's broker or credentials; if the control plane rides this slot, it may go silent."
   },
