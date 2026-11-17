@@ -7,6 +7,7 @@ import * as setupScreen from '../screens/setup.js';
 import * as settings from '../screens/settings.js';
 import * as groups from '../screens/groups.js';
 import * as sets from '../screens/sets.js';
+import { areaPicker } from '../area.js';
 
 const displayTab = {
   route: 'display',
@@ -14,10 +15,18 @@ const displayTab = {
     h('h2', { id: 'display-title' }, ctx.t('display.title')), ctx.displaySettings()),
 };
 
+// Area and brokers (proposal §2.5, tab 3): the area picker (ui/area.js, W-20b).
+const areaTab = {
+  route: 'area',
+  render: (ctx) => h('section', { class: 'scr', 'aria-labelledby': 'area-title' },
+    h('h2', { id: 'area-title' }, ctx.t('area.label')), areaPicker(ctx, { id: 'area-choice' })),
+};
+
 // tab -> [label key, screen]
 export const TABS = Object.freeze({
   key: ['nav.key', key],
   node: ['nav.setup', setupScreen],
+  area: ['area.label', areaTab],
   settings: ['nav.settings', settings],
   groups: ['nav.groups', groups],
   sets: ['sets.title', sets],
