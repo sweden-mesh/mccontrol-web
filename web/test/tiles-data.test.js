@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
-  byAttention, fit, frame, hourly, isSeen, mapModel, markAllSeen, markSeen, matches, nodeStatus,
+  byAttention, fit, frame, historyFor, hourly, mapFrame, newCounts, isSeen, mapModel, markAllSeen, markSeen, matches, nodeStatus,
   outlinePaths, project, sharedPrefix, sparkRuns, waterPaths,
 } from '../ui/tiles/data.js';
 import {
@@ -106,6 +106,35 @@ test('the map frame, its fit to the box, the projection and the outlines', () =>
   assert.ok(ids.includes('06'), ids.join());
   assert.ok(!ids.includes('25'), ids.join());
   for (const o of outlinePaths(geo, wide, proj)) assert.match(o.d, /^M[\d.-]+,[\d.-]+(L[\d.-]+,[\d.-]+)+Z/);
+});
+
+// W-25c: the frame is the owner's nodes; the region's (others) only when none of them is placed.
+test('the map frames the owner\'s nodes, the region only when none is placed', () => {
+  const mineA = { lat: 57.70, lng: 14.10 };
+  const mineB = { lat: 57.75, lng: 14.20 };
+  const far = { lat: 58.6, lng: 16.2 };
+  const f = mapFrame({ mine: [{ node: mineA }, { node: mineB }, { node: null }], others: [far] });
+  assert.deepEqual(f, frame([mineA, mineB]));
+  assert.ok(f.n < far.lat && f.e < far.lng, 'a far neighbour stays outside the frame');
+  assert.deepEqual(mapFrame({ mine: [{ node: null }], others: [far, mineA] }), frame([far, mineA]));
+  assert.equal(mapFrame({ mine: [], others: [] }), null);
+});
+
+// W-25d: HISTORY shows the selected node's results (every node's with none); NODES counts the new.
+test('HISTORY for one node or all, and the new results per node', () => {
+  const ev = [
+    { id: '1', at: '2026-11-17T10:00:00Z', node: 'AA', command: 'ver' },
+    { id: '2', at: '2026-11-17T11:00:00Z', node: 'BB', command: 'ver' },
+    { id: '3', at: '2026-11-17T12:00:00Z', node: 'AA', command: 'get name' },
+    { id: '4', at: '2026-11-17T12:30:00Z', region: 'JKG', command: 'ver' },
+  ];
+  assert.deepEqual(historyFor(ev, 'AA').map((e) => e.id), ['1', '3']);
+  assert.deepEqual(historyFor(ev, null).map((e) => e.id), ['1', '2', '3', '4']);
+  assert.deepEqual(newCounts(ev, null), { AA: 2, BB: 1 });
+  // one node marked seen leaves the other's new
+  const seen = markSeen(null, historyFor(ev, 'AA').map((e) => e.id));
+  assert.deepEqual(newCounts(ev, seen), { BB: 1 });
+  assert.deepEqual(newCounts(ev, markAllSeen(ev)), {});
 });
 
 test('the lakes and the coast: small, Sweden only, Vättern near Jönköping (W-23c)', () => {

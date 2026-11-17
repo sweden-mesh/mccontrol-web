@@ -118,13 +118,13 @@ export function render(ctx) {
   // missing in this browser) instead of two buttons on the line (W-23a).
   function companionLine() {
     const c = companionState();
-    if (c.status === 'connecting') return line('companion', 'unknown', ctx.t('companion.connecting'));
+    if (c.status === 'connecting') return line('companion', 'unknown', ctx.t(c.phase === 'reconnecting' ? 'companion.reconnectingBrief' : 'companion.connecting'));
     const state = c.status === 'connected' ? 'ok' : c.status === 'error' ? 'alert' : 'unknown';
     const word = c.status === 'connected' ? c.name || ctx.t(`companion.kind.${c.kind}`)
       : c.status === 'error' ? ctx.t('tile.companionError') : ctx.t('tile.notConnected');
     const open = h('button', { type: 'button', class: 'link-button status-pick', 'aria-haspopup': 'dialog' }, stateMark(ctx, state, word));
     open.addEventListener('click', () => companionChooser(ctx));
-    return h('li', { class: `row status-row${state === 'alert' ? ' alert' : ''}`, 'data-line': 'companion', title: c.error || null },
+    return h('li', { class: `row status-row${state === 'alert' ? ' alert' : ''}`, 'data-line': 'companion', title: c.errorKey ? ctx.t(c.errorKey) : c.error || null },
       h('span', { class: 'row-name' }, ctx.t('tile.line.companion')), open);
   }
 

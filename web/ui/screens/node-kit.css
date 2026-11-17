@@ -156,9 +156,11 @@ details.block[open] > summary { margin-bottom: .5rem; }
 .companion-state { margin: .25rem 0 0; }
 .companion .row { margin: .5rem 0; }
 .road-mark { color: var(--muted); font-size: .875rem; }
-/* The companion chooser (W-23a): one button per way in, why one is missing under it. */
-.chooser-list { list-style: none; padding: 0; margin: 0; display: grid; gap: .75rem; }
-.chooser-list .button { min-width: 10rem; }
+/* The companion chooser (W-23a): one button per way in, why one is missing under it. Side by side
+   when the dialog has room for two 12rem columns (W-25a), stacked on a phone. */
+.chooser-list { list-style: none; padding: 0; margin: 0; display: grid; gap: .75rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); align-items: start; }
+.chooser-list .button { width: 100%; }
 .chooser-list .hint-line { margin: .25rem 0 0; }
 /* Possible mesh-only nodes (W-24): name, id, where it was found, Check; the outcome under it. */
 .mesh-found { list-style: none; padding: 0; margin: .5rem 0; display: grid; gap: .25rem; }

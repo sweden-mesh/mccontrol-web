@@ -4,7 +4,8 @@
 // origin. The outlines are the regional template's se-lan.geojson (Natural Earth 10m admin-1,
 // public domain, simplified to ~1 km), copied as se-lan.json; positions and neighbours are Beacon's
 // /nodes?iatas=<region>&neighbors=true (the origin the CSP already names), read once per region and
-// kept 15 minutes.
+// kept 15 minutes. The map frames the owner's own nodes, not the region (W-25c); the region frames
+// it only when none of them has a position.
 //
 // A mark's shape is its status, the same as the NODES glyph (● ok, ▲ needs attention, ✕ refused,
 // ○ not known), so nothing rests on colour. A click or Enter on a mark selects the node; its name
@@ -18,7 +19,7 @@ import { lowBatteryVolts, notHeardHours } from '../screens/settings-store.js';
 import { beaconBase } from '../../lib/stats/beacon.js';
 import { nameOf } from '../screens/node-kit.js';
 import { forKey, s, stateMark } from './kit.js';
-import { fit, frame, mapModel, nodeStatus, outlinePaths, project, sharedPrefix, waterPaths } from './data.js';
+import { fit, mapFrame, mapModel, nodeStatus, outlinePaths, project, sharedPrefix, waterPaths } from './data.js';
 import { onDataChanged } from './sources.js';
 
 export const id = 'map';
@@ -101,7 +102,7 @@ function fill(ctx, svc, body) {
     const model = mapModel(devices, rows);
     const selected = ctx.board.selected();
     const placedMine = model.mine.filter((m) => m.node);
-    const f = frame([...placedMine.map((m) => m.node), ...model.links.map(([, b]) => b)]);
+    const f = mapFrame(model);
     listBox.replaceChildren(...model.mine.map((m) => h('li', { class: 'row' },
       stateMark(ctx, status.get(m.device.node)), ' ', h('span', { class: 'node-name' }, nameOf(m.device)), ' ',
       h('span', { class: 'muted' }, m.node
@@ -182,5 +183,5 @@ function fill(ctx, svc, body) {
   watch.observe(figure);
   ctx.signal.addEventListener('abort', () => watch.disconnect(), { once: true });
   ctx.board.on((st) => { if (st.what === 'selected') redraw(); });
-  ctx.signal.addEventListener('abort', onDataChanged((what) => { if (what !== 'history') redraw(); }), { once: true });
+  ctx.signal.addEventListener('abort', onDataChanged((what) => { if (what !== 'history' && what !== 'seen') redraw(); }), { once: true });
 }

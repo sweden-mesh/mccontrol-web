@@ -4,7 +4,8 @@
 //   nodeStatus(device, opts)      { state, reasons }: the NODES row's glyph and second line
 //   byAttention(rows, lang)       sort: refused/forged, then needs attention, unknown, ok; then name
 //   matches(device, query)        the NODES search
-//   isSeen(event, seen), markSeen(seen, ids), markAllSeen(events)   RESULTS: kept until seen
+//   isSeen(event, seen), markSeen(seen, ids), markAllSeen(events)   HISTORY: kept until seen
+//   historyFor(events, node), newCounts(events, seen)              HISTORY's view, NODES' new counts
 //   sparkPoints(values, w, h)     a sparkline's SVG points ('' when fewer than 2 known values)
 //   hourly(points, key, now)      24 hourly values of a telemetry field (null where unknown)
 //   frame(points, pad), fit(frame, aspect), project(frame, w), outlinePaths(geo, frame, proj)   the MAP
@@ -51,7 +52,7 @@ export function matches(device, query) {
     .some((v) => String(v || '').toLowerCase().includes(q));
 }
 
-// RESULTS keeps a result until it is seen: opened, or "mark all seen". `seen` is the stored
+// HISTORY keeps a result new until it is seen: opened, or "mark all seen". `seen` is the stored
 // { upTo: ISO | null, ids: [id] }: everything at or before upTo, and each id opened since.
 export const SEEN_IDS = 200;
 export function isSeen(event, seen) {
@@ -65,6 +66,17 @@ export function markSeen(seen, ids) {
 export function markAllSeen(events) {
   const upTo = events.reduce((m, e) => (e.at > m ? e.at : m), '');
   return { upTo: upTo || null, ids: [] };
+}
+// HISTORY's view (W-25d): the selected node's results, or every node's when none is selected (or
+// the selected one is not among the owner's nodes).
+export function historyFor(events, node) {
+  return node ? events.filter((e) => e.node === node) : events;
+}
+// The new (unseen) results per node, for NODES: { node: n }.
+export function newCounts(events, seen) {
+  const out = {};
+  for (const e of events) if (e.node && !isSeen(e, seen)) out[e.node] = (out[e.node] || 0) + 1;
+  return out;
 }
 
 // "x,y x,y ..." for a polyline in a w × h box, nulls skipped (the line breaks over a gap: one
@@ -129,6 +141,13 @@ export function frame(points, { pad = 0.15, minKm = 30 } = {}) {
   if (e - w < minLng) { const c = (e + w) / 2; w = c - minLng / 2; e = c + minLng / 2; }
   const dl = (n - s) * pad; const dg = (e - w) * pad;
   return { s: s - dl, n: n + dl, w: w - dg, e: e + dg, k };
+}
+
+// The map's frame (W-25c): the nodes the key controls, so the owner's own nodes fill the map; the
+// region's other nodes and the links run off its edge. Only when none of them has a position does
+// it fall back to the region's nodes.
+export function mapFrame(model) {
+  return frame(model.mine.map((m) => m.node).filter(Boolean)) || frame(model.others);
 }
 
 // The frame widened (in latitude or longitude) to a box `aspect` (width / height) wide, so the map

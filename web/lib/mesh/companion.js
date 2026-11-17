@@ -3,7 +3,8 @@
 // meshcore_py: start, find the node as a contact, add it when it is not one, send the request,
 // wait for the answer with the request's tag.
 //
-//   link     { write(bytes): Promise, onFrame(fn), onClose(fn), close(): Promise, kind, label, startWithinMs? }
+//   link     { write(bytes): Promise, onFrame(fn), onClose(fn), close(): Promise, kind, label, startWithinMs?,
+//              onStatus?(fn) -> unsubscribe: { state: 'reconnecting' | 'open' | 'gone' } (serial.js) }
 //   const c = await openCompanion(link)        // app start; c.self = { publicKey, name }
 //   await c.contact(keyHex)                    // { name, hops } (hops -1: no path, floods) | null
 //   await c.addContact(keyHex, name)
@@ -21,18 +22,22 @@ import {
 export class CompanionError extends Error {
   constructor(message, code = 'companion') {
     super(message);
-    this.code = code;          // 'companion' | 'timeout' | 'closed' | 'full' | 'refused'
+    this.code = code;          // 'companion' | 'timeout' | 'closed' | 'full' | 'refused' | 'otherFirmware'
   }
 }
 
 export const COMMAND_TIMEOUT_MS = 5000;
+export const OTHER_FIRMWARE = "The companion restarted but doesn't answer over USB. It probably runs the Bluetooth (or Wi-Fi) companion firmware, which only talks over that link: connect by Bluetooth, or flash the USB companion firmware.";
 export const START_FIRST_MS = 1500;    // the first app start's wait before it is asked again
 export const START_EVERY_MS = 500;     // then again this often, until the link's startWithinMs
+export const START_BOOTING_EVERY_MS = 2000;   // this often once a USB board is heard booting (W-25b)
 
 export async function openCompanion(link, {
   appName = 'mccontrol', timeoutMs = COMMAND_TIMEOUT_MS,
   startWithinMs = link.startWithinMs ?? timeoutMs, startFirstMs = START_FIRST_MS, startEveryMs = START_EVERY_MS,
+  startBootingEveryMs = START_BOOTING_EVERY_MS,
 } = {}) {
+  let started = false;         // after the first SELF_INFO, a late duplicate is dropped
   let waiting = null;          // { resolve, reject, timer } for the command in flight
   let queue = Promise.resolve();
   let closed = false;
@@ -46,6 +51,9 @@ export async function openCompanion(link, {
       for (const w of watchers) w();
       return;
     }
+    // Every app start queued while the board booted is answered at once when it is up (the V4:
+    // 15 SELF_INFO at 7.4 s); only the first counts, the rest must not answer the next command.
+    if (started && f.kind === 'selfInfo') return;
     if (f.push || !waiting) return;
     const w = waiting;
     waiting = null;
@@ -104,12 +112,15 @@ export async function openCompanion(link, {
   }
 
   const hello = await start();
+  started = true;
   const self = Object.freeze({ publicKey: hello.publicKey, name: hello.name });
 
   // App start. A board on native USB may restart when its port opens (Chrome toggles DTR and RTS
   // inside open(), before serial.js can drop them, W-21) and spends a second or two booting, so
   // the first ask can go unheard: ask again every `startEveryMs` after `startFirstMs`, until
   // `startWithinMs`, taking only SELF_INFO as the answer (a boot log's stray frame is not one).
+  // On an ESP32-S3's native USB that restart drops the port: while the link reopens it (W-25b) the
+  // asking pauses, and once it is open again it starts over with a fresh `startWithinMs`.
   function start() {
     const frame = appStart(appName);
     return new Promise((resolve, reject) => {
@@ -117,7 +128,9 @@ export async function openCompanion(link, {
       let writeError = null;
       let retry = null;
       let sent = 0;
-      const stop = () => { clearTimeout(retry); clearTimeout(deadline); waiting = null; };
+      let deadline = null;
+      let unwatch = () => {};
+      const stop = () => { clearTimeout(retry); clearTimeout(deadline); unwatch(); waiting = null; };
       const fail = (e) => { stop(); reject(e); };
       const take = (f) => {
         if (f.kind === 'selfInfo') { stop(); resolve(f); return; }
@@ -127,15 +140,28 @@ export async function openCompanion(link, {
       const send = () => {
         if (closed) { fail(new CompanionError('the companion is not connected', 'closed')); return; }
         Promise.resolve(link.write(frame)).then(() => { writeError = null; }, (e) => { writeError = e; });
-        retry = setTimeout(send, sent++ ? startEveryMs : startFirstMs);
+        // A USB board heard booting (its ROM log) is waited for quietly: once every 2 s.
+        const every = link.kind === 'usb' && link.heardBytes > 0 ? Math.max(startEveryMs, startBootingEveryMs) : startEveryMs;
+        retry = setTimeout(send, sent++ ? every : startFirstMs);
       };
-      const deadline = setTimeout(() => {
+      const late = () => {
         stop();
         if (other) reject(new CompanionError('the device did not answer as a MeshCore companion'));
         else if (writeError) reject(new CompanionError(`cannot write to the companion: ${writeError?.message || writeError}`));
+        // A board that printed its boot log but never framed an answer runs a companion build for
+        // another link: a build has one interface (examples/companion_radio/main.cpp: BLE_PIN_CODE
+        // gives SerialBLEInterface, else ArduinoSerialInterface), so a Bluetooth or Wi-Fi companion
+        // never answers over USB (operator's V4 capture, 2026-11-17).
+        else if (link.kind === 'usb' && link.heardBytes > 0) reject(new CompanionError(OTHER_FIRMWARE, 'otherFirmware'));
         else if (link.kind === 'usb') reject(new CompanionError("the companion didn't answer after it restarted: is it running companion firmware for USB?", 'timeout'));
         else reject(new CompanionError(`the companion did not answer in ${Math.round(startWithinMs / 1000)} s`, 'timeout'));
-      }, startWithinMs);
+      };
+      unwatch = link.onStatus?.((st) => {
+        if (st.state === 'reconnecting') { clearTimeout(retry); clearTimeout(deadline); return; }
+        if (st.state === 'open') { other = null; writeError = null; sent = 0; deadline = setTimeout(late, startWithinMs); send(); return; }
+        if (st.state === 'gone') fail(new CompanionError('the companion restarted and did not come back over USB', 'closed'));
+      }) || (() => {});
+      deadline = setTimeout(late, startWithinMs);
       waiting = { resolve: take, reject: fail, timer: null };
       send();
     });

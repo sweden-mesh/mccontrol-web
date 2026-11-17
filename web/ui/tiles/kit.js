@@ -83,7 +83,7 @@ export function stateMark(ctx, state, word = ctx.t(`tile.state.${state}`)) {
     h('span', { class: 'mark-word' }, word));
 }
 
-// "14:02" today, else the date ("16 nov"): the RESULTS time column.
+// "14:02" today, else the date ("16 nov"): the HISTORY time column.
 export function clockTime(ctx, at, now = Date.now()) {
   const d = new Date(at);
   const today = new Date(now);

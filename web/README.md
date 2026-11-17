@@ -13,7 +13,7 @@ USB (Web Serial), the overview, nodes, one node, send, groups, command sets, his
 admits `ota update` over the control plane.
 
 **Redesign (W-20, `planning/mccontrol/web-redesign-proposal-20261117.md`):** wave 1 is in: one board
-(NODES | NODE | STATUS + MAP + RESULTS) with the status line and the key bar, everything else in a
+(NODES | NODE | STATUS + MAP + HISTORY) with the status line and the key bar, everything else in a
 modal in front of it, four themes as one setting. Wave 2 filled the tiles (below, "What the tiles
 do"); beta.2's other screens open as modals. Wave 3: the phone pass (360 to 412 px and landscape,
 checked with fake data by `test/smoke/filled.mjs`), the strings, the old overview and menu list
@@ -164,9 +164,9 @@ The stores, jobs, rules and Beacon come from `ui/screens/node-services.js` (`wit
 ### The board's tiles
 
 Five mount points, fixed by `TILES` in `ui/board.js`: `nodes`, `node`, `status`, `map`, `results`.
-The grid (`styles/app.css`): one column on a phone (under 45em: NODES, RESULTS, MAP, STATUS; the NODE
+The grid (`styles/app.css`): one column on a phone (under 45em: NODES, HISTORY, MAP, STATUS; the NODE
 tile is not shown and a node opens full screen as the `node` modal); NODES | NODE with the others
-below from 45em; NODES | NODE | STATUS + MAP + RESULTS from 1100 px; from 1600 px RESULTS runs under
+below from 45em; NODES | NODE | STATUS + MAP + HISTORY from 1100 px; from 1600 px HISTORY runs under
 NODE and the right column. From 1100 px the board fills the window and each tile body scrolls.
 
 A tile is a module in `ui/tiles/` exporting:
@@ -205,12 +205,14 @@ the `.alert` class (inverse in Amber and Green).
 - **NODE** (`node.js`, `node-view.js`): facts with their age, 24-hour sparklines from Beacon
   (battery, airtime sent, noise floor), links to details, statistics and history, and the command
   area at the bottom: two fixed rows, the line with the road (auto, MQTT, mesh) and the companion's
-  line when the road may take the mesh. A reply shows only in RESULTS (W-23g); what is wrong with a
+  line when the road may take the mesh. A reply shows only in HISTORY (W-23g); what is wrong with a
   command tints the field and is its description, Send off when it cannot go (W-23h). It sends to the tagged nodes when any are tagged, else to this one,
   through `lib/jobs` with the checks before signing. The `node` modal (`#node/<id>`) is the same
   view full screen; beta.2's node screen (firmware update, name, region, forget) is `#nodeinfo/<id>`.
-- **RESULTS** (`results.js`): every answer, refusal and silence, new ones first, kept until opened or
-  "Mark all seen" (meta `resultsSeen` per key); running jobs as bars; the `result` modal shows one.
+- **HISTORY** (`results.js`, RESULTS until W-25d): the selected node's answers, refusals and silences,
+  new ones first, kept new until opened or marked seen (meta `resultsSeen` per key); with no node
+  selected every node's, the title saying "all nodes". How many are new shows per node in NODES
+  ("2 new" ahead of the reason), not in the title. Running jobs as bars; the `result` modal shows one.
 - **STATUS** (`status.js`): broker (Test), key (Lock), registration, companion (the word opens the
   chooser, `companionChooser` in `ui/screens/road-kit.js`, W-23a), status
   refresh and discovery, each with its action; sets the status line's `broker`.
@@ -219,12 +221,14 @@ the `.alert` class (inverse in Amber and Green).
   links and the area's other repeaters (`/nodes?iatas=<region>&neighbors=true`), "As a list" as
   the text alternative. Under the outlines, faintly, lakes and the coast (`ui/tiles/se-water.json`,
   Natural Earth 1:10m, made by `scripts/water-outline.py`, W-23c). No map tiles, no new origin.
+  The frame is the owner's own nodes (`mapFrame` in `data.js`, W-25c); the region's nodes frame it
+  only when none of the owner's has a position.
 
 What the tiles share besides the selection is `ui/tiles/sources.js` (no DOM): `provideSource(name,
 { state, on, run, undo })` for STATUS's `broker`, `registration`, `refresh` and `discovery` lines
 (`ui/tiles/automation-sources.js` provides `refresh` and `discovery` from `ui/automation.js`, and
 `registration` from `ui/screens/key-register.js`); `reportBroker`;
-`startJob({ label })` for RESULTS' bars; `dataChanged(what)` / `onDataChanged(fn)` when the stores
+`startJob({ label })` for HISTORY' bars; `dataChanged(what)` / `onDataChanged(fn)` when the stores
 changed (a send, discovery, Beacon). The arithmetic is `ui/tiles/data.js` (`test/tiles-data.test.js`).
 Styles: `styles/tiles.css`; each tile body is a size container, so columns drop with the tile's width.
 
@@ -419,8 +423,29 @@ line at the bottom. `--shots` adds the beta notes' screenshots.
 
 USB (W-21): `lib/mesh/serial.js`'s `openQuiet` drops DTR and RTS right after `port.open`, for the
 companion and for Setup's node tab, because on an ESP32-S3's native USB they reset the board into a
-boot loop. On the bench, `?usbsignals=dtr0rts0|dtr1rts0|dtr0rts1|dtr1rts1|none` in the address picks
-another combination (`none`: the browser's defaults).
+boot loop. The chip resets while RTS is 1 and DTR 0, so RTS is dropped first and DTR after, in two
+`setSignals` calls (W-25b; dropping DTR first passed through that state and reset the V4). On the
+bench, `?usbsignals=dtr0rts0|dtr0rts0-old|dtr1rts0|dtr0rts1|dtr1rts1|none` in the address picks
+another (`dtr0rts0-old`: both in one call, as beta.3 to beta.6; `none`: the browser's defaults,
+which is all meshcore.js, the official web clients' library, does: `open({ baudRate: 115200 })`, no
+`setSignals`, app start at once).
+
+App start over USB waits up to 20 s (the V4 answered 7.4 s after the reset): every 0.5 s after the
+first 1.5 s, but only every 2 s once the board's boot log has been heard, and a SELF_INFO after the
+first (one per app start queued during the boot) is dropped, never taken as the next command's answer.
+
+When the board restarts anyway (W-25b), an ESP32-S3 on native USB leaves the bus and comes back as a
+new device, so the opened port dies: its read fails and `disconnect` fires. `connectSerial` then lets
+go of it and looks every 250 ms in `navigator.serial.getPorts()` (ports already granted, so no new
+click) for the same USB vendor and product, reopens it after 300 ms, and app start begins again; up
+to 15 s, and at most 3 restarts per connection. Meanwhile the companion line says "The companion
+restarted, reconnecting…". With `?usbdebug=1` in the address a box in the top corner records every
+step (open, signals, bytes in and out as hex and text, lost, retries, reopened) with the milliseconds
+since the first, open from the start, and "Copy" puts it on the clipboard (`lib/mesh/usblog.js`, `ui/usb-debug.js`).
+A board that sends bytes (its ROM boot log) but frames no answer within those 20 s is said to run the Bluetooth
+or Wi-Fi companion build: a companion build has one interface (`examples/companion_radio/main.cpp`:
+`BLE_PIN_CODE` gives `SerialBLEInterface`, else `ArduinoSerialInterface`), so it never answers over
+USB (the operator's V4 capture, 2026-11-17).
 
 The modals come from `ui/modal.js`'s registry, so a new modal is covered without editing the runner.
 `--only board,help` limits the hashes. Firefox is not run: Puppeteer would need a Firefox download

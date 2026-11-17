@@ -1,8 +1,11 @@
-// RESULTS (W-20c): every answer, refusal and silence, newest first, kept until seen. A result is
+// HISTORY (W-20c, renamed from RESULTS in W-25d): the selected node's answers, refusals and
+// silences, newest first; every node's, labelled so, when none is selected. A result stays new
+// until it is seen. A result is
 // seen when it is opened (click or Enter: the "result" modal shows it whole) or with "Mark all
 // seen"; a reload does not clear anything (beta.2's "since your last visit" emptied itself on
 // every load, finding 2). Seen results stay, dimmed, under the new ones. A running job is a bar
-// on its own line at the top. "All history" opens the history modal.
+// on its own line at the top. "All history" opens the history modal. How many are new is per node
+// in NODES (newCounts in data.js), not in this tile's title, which names whose history it shows.
 //
 // What is seen is kept per key in the meta store ('resultsSeen': { upTo, ids }), so it survives a
 // reload and holds on another tab of the same browser after its next draw.
@@ -11,8 +14,8 @@ import { setSelected } from '../board-state.js';
 import { explainEvent, nameOf } from '../screens/node-kit.js';
 import { resultKind } from '../../lib/store/index.js';
 import { clockTime, everyMinute, forKey, stateMark } from './kit.js';
-import { isSeen, markAllSeen, markSeen, sharedPrefix } from './data.js';
-import { jobs, onDataChanged, onJobs } from './sources.js';
+import { historyFor, isSeen, markAllSeen, markSeen, sharedPrefix } from './data.js';
+import { dataChanged, jobs, onDataChanged, onJobs } from './sources.js';
 
 export const id = 'results';
 export const title = 'tile.results';
@@ -28,11 +31,12 @@ export function render(ctx) {
 
 function fill(ctx, svc, body) {
   const bars = h('ul', { class: 'rows job-rows', 'aria-label': ctx.t('tile.running') });
-  const list = h('ul', { class: 'rows result-rows', 'aria-label': ctx.t('tile.results') });
+  const list = h('ul', { class: 'rows result-rows' });
   const markAll = h('button', { type: 'button', class: 'link-button' }, ctx.t('tile.markAllSeen'));
   const foot = h('p', { class: 'tile-foot' }, markAll, ' ', h('a', { href: '#history' }, ctx.t('tile.openHistory')));
   body.replaceChildren(bars, list, foot);
-  let events = [];
+  let shownNew = [];
+  let scope = null;          // the node whose history is shown, or null: every node's
 
   const drawJobs = () => {
     bars.replaceChildren(...jobs().map((j) => {
@@ -43,20 +47,27 @@ function fill(ctx, svc, body) {
     bars.hidden = !bars.children.length;
   };
 
+  let drawing = 0;
   async function draw() {
+    const mine = ++drawing;   // a later draw (another node selected meanwhile) wins
     const [all, devices, seen] = await Promise.all([
       svc.stores.history.list({ limit: 200 }), svc.stores.devices.list(), svc.stores.meta.get('resultsSeen')]);
-    if (ctx.signal.aborted) return;
+    if (ctx.signal.aborted || mine !== drawing) return;
     // The column is narrow: the part of each name that tells it apart (the whole one in its title).
     const full = Object.fromEntries(devices.map((d) => [d.node, nameOf(d)]));
     const byNode = Object.fromEntries(devices.map((d) => [d.node, d]));
     const prefix = sharedPrefix(Object.values(full));
     const names = Object.fromEntries(Object.entries(full).map(([k, v]) => [k, v.startsWith(prefix) ? v.slice(prefix.length) : v]));
-    events = all;
-    const fresh = all.filter((e) => !isSeen(e, seen));
-    const old = all.filter((e) => isSeen(e, seen)).slice(0, Math.max(0, SHOWN - fresh.length));
-    ctx.tile.setTitle(fresh.length ? ctx.t('tile.newCount', { n: fresh.length }) : '');
+    const selected = ctx.board.selected();
+    scope = selected && byNode[selected] ? selected : null;
+    const events = historyFor(all, scope);
+    const fresh = events.filter((e) => !isSeen(e, seen));
+    const old = events.filter((e) => isSeen(e, seen)).slice(0, Math.max(0, SHOWN - fresh.length));
+    shownNew = fresh;
+    ctx.tile.setTitle(scope ? names[scope] || scope : ctx.t('tile.historyAll'));
+    list.setAttribute('aria-label', scope ? ctx.t('tile.historyOf', { name: full[scope] }) : ctx.t('tile.historyAllNodes'));
     markAll.hidden = !fresh.length;
+    markAll.textContent = ctx.t(scope ? 'tile.markNodeSeen' : 'tile.markAllSeen');
     const now = Date.now();
     const row = (e, isNew) => {
       const kind = resultKind(e);
@@ -73,13 +84,16 @@ function fill(ctx, svc, body) {
       return h('li', { class: `result-item${isNew ? ' is-new' : ' is-seen'}${isNew && KIND_STATE[kind] === 'alert' ? ' alert' : ''}` }, button);
     };
     const shown = [...fresh.slice(0, SHOWN).map((e) => row(e, true)), ...old.map((e) => row(e, false))];
-    list.replaceChildren(...(shown.length ? shown : [h('li', { class: 'row muted' }, ctx.t('tile.noResults'))]));
+    const none = scope ? ctx.t('tile.noResultsNode', { name: full[scope] }) : ctx.t('tile.noResults');
+    list.replaceChildren(...(shown.length ? shown : [h('li', { class: 'row muted' }, none)]));
   }
 
   markAll.addEventListener('click', async () => {
-    await svc.stores.meta.set('resultsSeen', markAllSeen(events));
-    ctx.announce(ctx.t('tile.allSeen'));
-    draw();
+    // Every node's: all up to the newest. One node's: only its own, the others stay new.
+    const seen = await svc.stores.meta.get('resultsSeen');
+    await svc.stores.meta.set('resultsSeen', scope ? markSeen(seen, shownNew.map((e) => e.id)) : markAllSeen(shownNew));
+    ctx.announce(ctx.t(scope ? 'tile.nodeSeen' : 'tile.allSeen'));
+    dataChanged('seen');
   }, { signal: ctx.signal });
 
   // ↑ ↓ between results (one tab stop would hide them from a quick Tab; each is a button).
@@ -99,6 +113,7 @@ function fill(ctx, svc, body) {
   ctx.signal.addEventListener('abort', onDataChanged(redraw), { once: true });
   // Opening a result marks it seen; closing the modal redraws.
   ctx.modal.on((m) => { if (!m) redraw(); });
+  ctx.board.on((st) => { if (st.what === 'selected') redraw(); });
   everyMinute(ctx.signal, redraw);
   drawJobs();
   redraw();
@@ -142,7 +157,7 @@ export const resultModal = Object.freeze({
           pair(ctx.t('tile.topic'), e.topic ? h('code', {}, e.topic) : null)),
         h('p', { class: 'row wrap' }, open, e.node ? h('a', { class: 'tool', href: `#history/${e.node}` }, ctx.t('tile.history')) : null));
       const seen = await svc.stores.meta.get('resultsSeen');
-      if (!isSeen(e, seen)) await svc.stores.meta.set('resultsSeen', markSeen(seen, [e.id]));
+      if (!isSeen(e, seen)) { await svc.stores.meta.set('resultsSeen', markSeen(seen, [e.id])); dataChanged('seen'); }
     });
     return h('section', { class: 'result-modal', 'aria-labelledby': 'result-title' }, heading, body);
   },

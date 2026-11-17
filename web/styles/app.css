@@ -73,8 +73,8 @@ p { max-width: 70ch; }
   .status-items { gap: 4px 12px; }
 }
 
-/* The board: NODES | NODE | STATUS + MAP + RESULTS (operator decision 1). Phone: one column,
-   NODES, RESULTS, MAP, STATUS; the node opens full screen instead of the NODE tile. */
+/* The board: NODES | NODE | STATUS + MAP + HISTORY (operator decision 1). Phone: one column,
+   NODES, HISTORY, MAP, STATUS; the node opens full screen instead of the NODE tile. */
 main { min-width: 0; }
 main:focus { outline: none; }
 .board {
@@ -103,7 +103,7 @@ main:focus { outline: none; }
   .tile { min-height: 0; display: flex; flex-direction: column; }
   .tile-body { flex: 1; min-height: 0; overflow: auto; }
 }
-/* From 1600 px: RESULTS under NODE, across NODE and the right column. */
+/* From 1600 px: HISTORY under NODE, across NODE and the right column. */
 @media (width >= 100em) {
   .board { grid-template-rows: auto minmax(10rem, 1fr) minmax(10rem, 1fr); grid-template-areas: "nodes node status" "nodes node map" "nodes results results"; }
 }
@@ -218,3 +218,13 @@ main:focus { outline: none; }
   .tile, .modal { border-color: CanvasText; }
   .alert { forced-color-adjust: none; background: Mark; color: MarkText; }
 }
+
+/* The USB debug capture (W-25b, ?usbdebug=1 only): a box in the top corner, closed until opened. */
+.usb-debug {
+  position: fixed; inset-block-start: 8px; inset-inline-end: 8px; z-index: 20; max-inline-size: min(48rem, calc(100vw - 16px));
+  padding: 4px 8px; background: var(--bg); color: var(--fg); border: 1px solid var(--field-border); border-radius: var(--radius-xs);
+  font-size: .8125rem;
+}
+.usb-debug summary { cursor: pointer; min-height: 24px; }
+.usb-debug .row { gap: 8px; margin: 4px 0; align-items: center; }
+.usb-debug-log { max-block-size: 50vh; overflow: auto; margin: 0; white-space: pre; font-family: var(--font-mono, monospace); }

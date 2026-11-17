@@ -193,6 +193,9 @@ async function interact(page, go, sample) {
     return (await state()).modal ? 'Back did not close it' : null;
   });
   await step('Mark all seen empties the new results', async () => {
+    // Scrolled clear of the fixed key bar first, as a person would: Puppeteer's own scroll stops
+    // with it at the bottom edge, under the bar, once HISTORY shows one node's few rows (W-25d).
+    await page.$eval('.tile[data-tile="results"] .tile-foot .link-button', (b) => b.scrollIntoView({ block: 'center' }));
     await page.click('.tile[data-tile="results"] .tile-foot .link-button'); await wait(500);
     const s = await state();
     return s.fresh === 0 ? null : `${s.fresh} still new`;

@@ -4,14 +4,15 @@
 //
 //   support()        { bluetooth, usb, ios }: what this browser can reach
 //   connect(kind)    'bluetooth' | 'usb'; must run in a click (the browser shows its chooser)
-//   state()          { status: 'none' | 'connecting' | 'connected' | 'error', kind, name, error }
+//   state()          { status: 'none' | 'connecting' | 'connected' | 'error', kind, name, error, phase }
+//                    phase 'reconnecting': a USB companion restarted and its port is being reopened (W-25b)
 import { openCompanion } from '../lib/mesh/companion.js';
 import { bluetoothAvailable, connectBluetooth } from '../lib/mesh/ble.js';
 import { connectSerial, serialAvailable } from '../lib/mesh/serial.js';
 import { setCompanionKind } from './screens/settings-store.js';
 
 let radio = null;
-let current = { status: 'none', kind: '', name: '', error: '' };
+let current = { status: 'none', kind: '', name: '', error: '', errorKey: '', phase: '' };
 const listeners = new Set();
 
 function set(next) {
@@ -37,22 +38,33 @@ export function onCompanion(fn) {
 export async function connect(kind) {
   if (current.status === 'connecting') return current;
   await disconnect();
-  set({ status: 'connecting', kind, name: '', error: '' });
+  set({ status: 'connecting', kind, name: '', error: '', errorKey: '', phase: '' });
   let link = null;
+  let name = '';
   try {
     link = kind === 'bluetooth' ? await connectBluetooth() : await connectSerial();
+    // A USB companion that restarts drops its port; serial.js reopens it (W-25b). Said here while
+    // it does, before app start and after.
+    link.onStatus?.((st) => {
+      if (st.state === 'reconnecting') set({ status: 'connecting', phase: 'reconnecting' });
+      else if (st.state === 'open' && name) set({ status: 'connected', name, phase: '' });
+      else if (st.state === 'open') set({ phase: '' });
+    });
     const opened = await openCompanion(link);
     radio = opened;
     link.onClose(() => {
-      if (radio === opened) { radio = null; set({ status: 'none', name: '', error: '' }); }
+      if (radio === opened) { radio = null; set({ status: 'none', name: '', error: '', phase: '' }); }
     });
     try { setCompanionKind(kind); } catch { /* remembered for this page only */ }
-    set({ status: 'connected', name: opened.self.name || link.label || '', error: '' });
+    name = opened.self.name || link.label || '';
+    set({ status: 'connected', name, error: '', phase: '' });
   } catch (e) {
     try { await link?.close(); } catch { /* nothing to close */ }
     // the person closed the browser's chooser: not an error worth a sentence
     const cancelled = e?.name === 'NotFoundError' || e?.name === 'AbortError';
-    set({ status: cancelled ? 'none' : 'error', name: '', error: cancelled ? '' : (e?.message || String(e)) });
+    // errorKey: a reason the page says in its own language (the message stays English for a log).
+    const errorKey = e?.code === 'otherFirmware' ? 'companion.otherFirmware' : '';
+    set({ status: cancelled ? 'none' : 'error', name: '', error: cancelled ? '' : (e?.message || String(e)), errorKey, phase: '' });
   }
   return current;
 }
@@ -61,5 +73,5 @@ export async function disconnect() {
   const r = radio;
   radio = null;
   if (r) { try { await r.close(); } catch { /* already gone */ } }
-  if (current.status !== 'none') set({ status: 'none', name: '', error: '' });
+  if (current.status !== 'none') set({ status: 'none', name: '', error: '', phase: '' });
 }
