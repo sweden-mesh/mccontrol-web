@@ -1,0 +1,20 @@
+# Response headers on Cloudflare Pages (mccontrol.meshcoresverige.se). The CSP is index.html's
+# <meta> policy plus frame-ancestors, which a <meta> cannot carry; test/shell-headers.test.js keeps
+# the two in step. A self-hosted copy from the release zip should send the same headers.
+/*
+  Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self' wss: https://beacon.meshat.se; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'; require-trusted-types-for 'script'; frame-ancestors 'none'
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: no-referrer
+  Permissions-Policy: serial=(self), bluetooth=(self), usb=(), hid=(), camera=(), microphone=(), geolocation=(), payment=(), browsing-topics=()
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Resource-Policy: same-origin
+
+# Read fresh on every visit, so a new release is noticed at once.
+/sw.js
+  Cache-Control: no-cache
+/version.json
+  Cache-Control: no-cache
+/integrity.json
+  Cache-Control: no-cache

@@ -1,0 +1,30 @@
+/* The phosphor theme (W-17): a terminal's green or amber on black, chosen per device in the
+   display settings (html[data-phosphor="green"|"amber"], ui/prefs.js). Colours and the monospace
+   font only: the layout is the same as the regular look. Always dark (boot.js pins the scheme).
+   Contrast, measured on --bg / --surface: text 15.4 / 14.5 (green), 11.8 / 11.1 (amber); muted
+   text 8.3 / 6.9; danger 7.9; warning 12.5 / 15.7; control outlines 4.6 / 4.3. */
+:root[data-phosphor] {
+  --font-body: "IBM Plex Mono", ui-monospace, monospace;
+  --font-head: "IBM Plex Mono", ui-monospace, monospace;
+  --radius: 2px;
+  --radius-sm: 2px;
+  --radius-xs: 0;
+  --shadow: 0 0 0 1px var(--line);
+  --caution: var(--warn);
+  --info: var(--accent);
+  --strong: var(--accent);
+}
+:root[data-phosphor="green"] {
+  --bg: #020a04; --surface: #06140a; --fg: #5cff8a; --muted: #2fbf5c; --accent: #9dffb8;
+  --accent-2: #9dffb8; --online: #5cff8a; --warn: #ffc24d; --danger: #ff7a6b;
+  --line: #1c5a2e; --field-border: #2a8a47;
+}
+:root[data-phosphor="amber"] {
+  --bg: #0a0600; --surface: #160e02; --fg: #ffb84d; --muted: #c98a28; --accent: #ffd88f;
+  --accent-2: #9ee07a; --online: #9ee07a; --warn: #ffe08a; --danger: #ff7a6b;
+  --line: #5a3d0c; --field-border: #9a6a1c;
+}
+/* Colour-blind mode on top: the status colours move to Okabe-Ito's dark-ground values. */
+:root[data-phosphor][data-cvd="1"] { --online: #56b4e9; --accent-2: #56b4e9; --warn: #e69f00; --danger: #e48fc0; }
+:root[data-phosphor] ::selection { background: var(--fg); color: var(--bg); }
+:root[data-phosphor] :is(h1, h2, h3, .brand) { letter-spacing: 0; }
