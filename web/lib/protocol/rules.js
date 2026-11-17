@@ -145,6 +145,47 @@ export function rulesFrom({ denylist, cautions, commands, firmware, facts }) {
   };
   const speaksV2 = from(firmware.v2_from);
   const admitsUtf8 = from(firmware.utf8_from);
+  // -- the mesh road (denylist.mesh_refusal, firmware.speaks_mesh / mesh_only) ------------------
+
+  const mesh = denylist.mesh;
+
+  // Is `command` on the mesh road's repair allowance (with an uplink)? Case-sensitive, as the
+  // node's CLI matches, and only with a value after a with-value prefix.
+  const meshAllowed = (command) => {
+    const text = command || '';
+    return mesh.allowance_with_value.some((p) => text.length > p.length && text.startsWith(p))
+      || mesh.allowance_exact.includes(text);
+  };
+
+  const needsUplink = (command) => mesh.needs_uplink.includes(squash(command).toLowerCase());
+
+  // Why the firmware will refuse `command` over the mesh road, or null when it travels.
+  function meshRefusal(command, meshOnly = false) {
+    if (meshOnly) {
+      if (needsUplink(command) || meshAllowed(squash(command))) return mesh.mesh_only_why;
+      return refusal(command);
+    }
+    if (meshAllowed(squash(command))) return null;
+    return refusal(command);
+  }
+
+  // true from lou-19 with the plane (rc), false when the version says otherwise, null unknown.
+  function speaksMesh(versionText) {
+    const rev = revision(versionText);
+    if (rev === null) return null;
+    return rev >= firmware.mesh_from && has(versionText, 'rc');
+  }
+
+  // The plane without the Observer bridge: no Wi-Fi, no MQTT.
+  function meshOnly(versionText) {
+    const text = (versionText || '').toLowerCase();
+    return text.includes('-lou-') && has(versionText, 'rc') && !text.includes('-observer');
+  }
+
+  // A device's own meshOnly flag when set, else what its version says.
+  const deviceMeshOnly = (device) => (device?.meshOnly === true || device?.meshOnly === false
+    ? device.meshOnly : meshOnly(device?.ver));
+
   const privateSubtype = (versionText) => (from(firmware.private_subtype.from)(versionText)
     ? firmware.private_subtype.new : firmware.private_subtype.old);
 
@@ -193,6 +234,7 @@ export function rulesFrom({ denylist, cautions, commands, firmware, facts }) {
   return Object.freeze({
     refusal, broadcastRefusal, caution, isRead, build,
     revision, features, has, entryFor, admits, lacks, needs, speaksV2, admitsUtf8, privateSubtype,
+    meshAllowed, needsUplink, meshRefusal, speaksMesh, meshOnly, deviceMeshOnly,
     parseFacts, reader,
   });
 }
