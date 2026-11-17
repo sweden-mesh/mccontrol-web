@@ -391,7 +391,7 @@ another one has installed; it switches only when the owner presses it. A copy wi
 
 `node web/test/smoke/run.mjs` opens the board and every modal (with sample arguments: a node id
 from the fixture, help topics, the unlock variants, every Setup tab) in headless Chrome, at 360 and
-1280 px, in all four themes, and the board alone at 1100 and 1600 px. It fails on any console
+1280 px, in all four themes, and the board alone at 390, 1100 and 1600 px. It fails on any console
 error, uncaught page error, CSP violation, sideways page scroll, a board without the tiles that
 width shows, or a modal that did not open labelled by its heading. Then it checks the frame: old
 routes land where `legacyHash` says, `,` and `?` open Setup and Help, Back, Esc and the close

@@ -59,7 +59,7 @@ function fill(ctx, svc, body) {
     list.replaceChildren(...(shown.length ? shown.map((r) => row(ctx, svc, r, { now, selected, tags, focusId, prefix }))
       : [h('li', { class: 'row muted', role: 'status' }, ctx.t('nodes.noMatch'))]));
     foot.textContent = [
-      shown.length === devices.length ? ctx.t('tile.nodesCount', { n: devices.length }) : ctx.t('nodes.count', { n: shown.length, of: devices.length }),
+      shown.length === devices.length ? ctx.t(devices.length === 1 ? 'tile.nodesCountOne' : 'tile.nodesCount', { n: devices.length }) : ctx.t('nodes.count', { n: shown.length, of: devices.length }),
       tags.size ? ctx.t('tile.taggedCount', { n: tags.size }) : ctx.t('tile.nodesKeys'),
     ].join(' · ');
   }
