@@ -199,21 +199,26 @@ the `.alert` class (inverse in Amber and Green).
 ### What the tiles do (wave 2)
 
 - **NODES** (`ui/tiles/nodes.js`): one row per node, refused or forged first, then what needs
-  attention, not known, ok; the reason on a second line. A click selects (on a phone: the node full
-  screen), the box tags. Keys in the list: ↑ ↓ Home End, Enter selects, Space tags; `/` searches.
+  attention, not known, ok; each on one line, the reason in place of the status word (whole in its
+  tooltip and on the selected row), the row tinted by severity (W-23d). A click selects (on a phone:
+  the node full screen; the selection is remembered by the browser), the box tags. Keys in the list: ↑ ↓ Home End, Enter selects, Space tags; `/` searches.
 - **NODE** (`node.js`, `node-view.js`): facts with their age, 24-hour sparklines from Beacon
-  (battery, airtime sent, noise floor), the last commands, and the command line at the bottom with
-  the road (auto, MQTT, mesh). It sends to the tagged nodes when any are tagged, else to this one,
+  (battery, airtime sent, noise floor), links to details, statistics and history, and the command
+  area at the bottom: two fixed rows, the line with the road (auto, MQTT, mesh) and the companion's
+  line when the road may take the mesh. A reply shows only in RESULTS (W-23g); what is wrong with a
+  command tints the field and is its description, Send off when it cannot go (W-23h). It sends to the tagged nodes when any are tagged, else to this one,
   through `lib/jobs` with the checks before signing. The `node` modal (`#node/<id>`) is the same
   view full screen; beta.2's node screen (firmware update, name, region, forget) is `#nodeinfo/<id>`.
 - **RESULTS** (`results.js`): every answer, refusal and silence, new ones first, kept until opened or
   "Mark all seen" (meta `resultsSeen` per key); running jobs as bars; the `result` modal shows one.
-- **STATUS** (`status.js`): broker (Test), key (Lock), registration, companion (Connect), status
+- **STATUS** (`status.js`): broker (Test), key (Lock), registration, companion (the word opens the
+  chooser, `companionChooser` in `ui/screens/road-kit.js`, W-23a), status
   refresh and discovery, each with its action; sets the status line's `broker`.
 - **MAP** (`map.js`): the owner's nodes on the county outlines (`ui/tiles/se-lan.json`, the
   regional template's Natural Earth outlines, public domain), shape = status, Beacon's neighbour
   links and the area's other repeaters (`/nodes?iatas=<region>&neighbors=true`), "As a list" as
-  the text alternative. No map tiles, no new origin.
+  the text alternative. Under the outlines, faintly, lakes and the coast (`ui/tiles/se-water.json`,
+  Natural Earth 1:10m, made by `scripts/water-outline.py`, W-23c). No map tiles, no new origin.
 
 What the tiles share besides the selection is `ui/tiles/sources.js` (no DOM): `provideSource(name,
 { state, on, run, undo })` for STATUS's `broker`, `registration`, `refresh` and `discovery` lines
@@ -338,7 +343,12 @@ button because it starts a discovery), mounted in Setup's `area` tab (`#setup/ar
 line's `area` item links there. The table is `lib/data/areas.json`, exported from `mccontrol/areas.py`,
 which is the regional template's counties (`tests/test_areas.py` compares it with a template
 checkout). Mesh-only nodes: `meshCandidates()` lists the repeaters in the connected companion's
-contacts that are not in the list, `addMeshNode(c)` adds one as mesh-only in the area.
+contacts that are not in the list, `addMeshNode(c)` adds one as mesh-only in the area. Setup's area
+tab finds them (W-24, `ui/screens/mesh-find.js`): `findMeshNodes(geo)` adds Beacon's repeaters that
+are not observers and lie inside the county's outline (`lib/discovery/mesh-candidates.js`; by
+position, since Beacon's IATA is only where a node was heard), sending nothing; `checkMeshNode(c)`
+(`jobs.checkMeshNode`) sends one signed `ver` on `meshcore/mesh/<key>/cmd` through the companion,
+only on the owner's press, and adds the node as mesh-only when it answers.
 
 Strings: `area.*`, `disc.*`, `refresh.*`.
 

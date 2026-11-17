@@ -39,38 +39,37 @@
 .node-item { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; column-gap: 4px; }
 .tag-hit { display: inline-flex; align-items: center; justify-content: center; min-width: 24px; min-height: var(--row); cursor: pointer; }
 .tag-box { width: 1rem; height: 1rem; margin: 0; }
-/* glyph, word, name, region, firmware, battery, heard. The word drops (still read aloud) under
-   36em, the region under 24em, the firmware under 20em (em: the tile's text, larger on a phone). */
-.node-row { grid-template-columns: 2ch 9ch minmax(6ch, 1fr) 3ch 6ch 6ch 6ch; column-gap: 6px; }
+/* glyph, name, reason (or the status word), region, firmware, battery, heard: one line (W-23d).
+   The glyph's word is read aloud, not shown. The name takes up to 14 characters (whole in its
+   tooltip and in NODE), the reason what is left, at least 4. The battery drops under 28em (a low
+   one is a reason), the region under 24em, the firmware under 20em (em: the tile's text). */
+.node-row { grid-template-columns: 2ch fit-content(14ch) minmax(4ch, 1fr) 3ch 6ch 6ch 6ch; column-gap: 6px; }
 .node-row .mark { display: contents; }
 .node-row .mark .glyph { grid-column: 1; }
+.node-row .mark-word { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .node-row[aria-current="true"] { background: var(--surface); box-shadow: inset 3px 0 0 var(--accent); }
 .node-name { font-weight: 600; }
 :is(.node-batt, .node-heard) { text-align: end; }
-.node-why { grid-column: 2; margin-inline-start: calc(2ch + 10px); padding: 0 4px 2px; color: var(--muted); font-size: .9em;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.node-why.alert { padding-block: 2px; color: var(--alert-fg); }
-.node-item[data-state="warn"] .node-why { color: var(--fg); }
-@container tile (width < 36em) {
-  .node-row { grid-template-columns: 2ch minmax(6ch, 1fr) 3ch 6ch 6ch 6ch; }
-  .node-row .mark-word { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
-}
-@container tile (width < 24em) {
-  .node-row { grid-template-columns: 2ch minmax(6ch, 1fr) 6ch 6ch 6ch; }
-  .node-reg { display: none; }
-}
-/* Under 23em the battery goes too (a low one is the row's second line), so a name such as
-   SE-JKG-Ekbacken still shows whole on a phone; under 20em the firmware. */
-@container tile (width < 23em) {
-  .node-row { grid-template-columns: 2ch minmax(6ch, 1fr) 6ch 6ch; }
+.node-why { font-size: .9em; }
+/* The row tinted by severity: refused or forged stronger than "needs attention". Glyph and words
+   still carry it, so the tint is never the only sign. */
+.node-item[data-state="alert"] { background: color-mix(in srgb, var(--danger) 22%, var(--bg)); }
+.node-item[data-state="warn"] { background: color-mix(in srgb, var(--caution) 12%, var(--bg)); }
+.node-item:is([data-state="alert"], [data-state="warn"]) .node-row[aria-current="true"] { background: transparent; }
+@container tile (width < 28em) {
+  .node-row { grid-template-columns: 2ch fit-content(12ch) minmax(4ch, 1fr) 3ch 6ch 6ch; }
   .node-batt { display: none; }
 }
+@container tile (width < 24em) {
+  .node-row { grid-template-columns: 2ch fit-content(12ch) minmax(4ch, 1fr) 6ch 6ch; }
+  .node-reg { display: none; }
+}
 @container tile (width < 20em) {
-  .node-row { grid-template-columns: 2ch minmax(6ch, 1fr) 6ch; }
+  .node-row { grid-template-columns: 2ch fit-content(12ch) minmax(4ch, 1fr) 6ch; }
   .node-ver { display: none; }
 }
 
-/* NODE: facts, sparklines and the log above, the command line pinned to the bottom. */
+/* NODE: facts and sparklines above, the command area pinned to the bottom. */
 .node-tile, .node-view { height: 100%; }
 .node-view { display: flex; flex-direction: column; min-height: 0; }
 .node-scroll { flex: 1; min-height: 0; overflow: auto; }
@@ -84,6 +83,8 @@
   .tile[data-tile="node"] .tile-body { overflow: hidden; }
 }
 .node-meta { color: var(--muted); flex-wrap: wrap; column-gap: .5em; }
+.node-why-line { flex-wrap: wrap; gap: 0 .5em; }
+.node-why-line.alert { padding-inline: 4px; }
 .meta-part { white-space: nowrap; }
 .rule { border: 0; border-top: 1px dashed var(--line); margin: 4px 0; }
 .fact-list .fact { display: grid; grid-template-columns: 14ch minmax(0, 1fr) auto; gap: 8px; }
@@ -96,17 +97,12 @@
 .spark-empty { width: 96px; height: 1px; border-top: 1px dashed var(--line); }
 .spark-line { fill: none; stroke: var(--fg); stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
 .spark-dot { fill: var(--accent); }
-.node-log .log-row { display: grid; grid-template-columns: minmax(10ch, 1.3fr) 11ch minmax(0, 1fr) auto; gap: 8px; }
-.log-row > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.log-cmd { font-family: inherit; }
 .node-links { gap: 16px; flex-wrap: wrap; }
 @container tile (width < 30rem) {
   .fact-list .fact { grid-template-columns: 11ch minmax(0, 1fr) auto; }
   .fact-list .spark-row { grid-template-columns: 11ch 8ch 72px; }
   .spark-row .fact-age { display: none; }
   .spark { width: 72px; }
-  .node-log .log-row { grid-template-columns: minmax(0, 1fr) 10ch auto; }
-  .node-log .log-text { display: none; }
 }
 
 .cmd-line { border-top: 1px solid var(--field-border); padding-top: 6px; margin-top: 4px; background: var(--bg); }
@@ -124,14 +120,14 @@
   .cmd-row { flex-wrap: wrap; row-gap: 4px; }
   .cmd-prompt { flex-basis: 100%; max-width: none; }
 }
-.cmd-check { margin: 4px 0 0; }
-.cmd-check[data-kind="alert"] { background: var(--alert-bg); color: var(--alert-fg); font-weight: 600; padding-inline: 4px; }
-.cmd-check[data-kind="warn"] { color: var(--warn); }
-.cmd-out .rows { margin-top: 2px; }
-.cmd-out .row { flex-wrap: wrap; gap: 4px 8px; }
-.log-who { font-weight: 600; }
-.cmd-companion:empty { display: none; }
-.cmd-companion .companion { margin-top: 4px; }
+/* What is wrong with a command is the field's state (W-23h): tinted when it cannot go (Send is
+   off), its border marked when it goes with a caution; the reason is its description. */
+.cmd[data-check="invalid"] { background: color-mix(in srgb, var(--caution) 22%, var(--bg)); border-color: var(--caution); }
+.cmd[data-check="warn"] { border-color: var(--caution); border-width: 2px; }
+/* The companion's one line: always there, empty on the MQTT road, so the area never changes
+   height and the tile never scrolls because of it (W-23i). */
+.cmd-companion { display: flex; align-items: center; gap: .5ch; min-height: var(--row); white-space: nowrap; overflow: hidden; }
+.companion-brief { overflow: hidden; text-overflow: ellipsis; }
 
 /* Progress bars: a job is state, not decoration; the fill moves in steps, no animation. */
 .job-line { gap: 8px; }
@@ -171,6 +167,7 @@
 .status-act { margin-inline-start: auto; white-space: nowrap; }
 .status-acts { display: inline-flex; flex-wrap: wrap; justify-content: flex-end; column-gap: 12px; margin-inline-start: auto; max-width: 100%; }
 .status-acts .status-act { margin-inline-start: 0; }
+.status-pick .mark-word { text-decoration: underline; }
 .status-row.alert { padding-inline: 4px; }
 .status-row.alert :is(.row-name, a, .link-button) { color: inherit; }
 
@@ -183,6 +180,11 @@
   .map-figure.fills .map-svg { position: absolute; }
   .map-figure.fills { position: relative; }
 }
+/* Lakes and the coast, faint and under the county lines (W-23c): the coast a wide soft line so
+   the sea edge reads apart from a county border, lakes a light fill. */
+.map-water path { vector-effect: non-scaling-stroke; stroke-linejoin: round; stroke-linecap: round; }
+.map-coast { fill: none; stroke: var(--muted); stroke-width: 3; opacity: .22; }
+.map-lakes { fill: var(--muted); fill-opacity: .1; stroke: var(--muted); stroke-width: 1; stroke-opacity: .3; }
 .map-outline path { fill: none; stroke: var(--line); stroke-width: 1; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
 .map-links line { stroke: var(--muted); stroke-width: 1; opacity: .45; vector-effect: non-scaling-stroke; }
 .map-links line.link-own { stroke: var(--accent); opacity: .9; stroke-width: 1.5; }

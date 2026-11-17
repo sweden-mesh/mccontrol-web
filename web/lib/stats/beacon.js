@@ -6,6 +6,9 @@
 // The shapes this relies on, verified against beacon.meshcore-jkp.se 2.2.0 on 2026-11-17:
 //   GET /nodes?pubkeyPrefix=<hex>&limit=2   items[]: publicKey, name, observerId (absent when the
 //                                            node has never published a status)
+//   GET /nodes?limit=1000[&cursor=<n>]      every node, newest first; hasMore, nextCursor (an
+//                                            integer) for the next page (1341 nodes in 2 pages on
+//                                            beacon.meshcoresverige.se, 2026-11-17)
 //   GET /observers/<id>                      statusMetadata.stats {...}, lastStatusAt (epoch ms)
 //   GET /observers/<id>/telemetry?range=24h|168h&interval=1h
 //                                            points[]: t, batteryMv, airtimeTxSecs, airtimeRxSecs,
@@ -69,6 +72,19 @@ export function beaconClient({ base, fetch: get = globalThis.fetch, signal } = {
       const hits = (data.items || []).filter((n) => String(n.publicKey || '').toLowerCase().startsWith(prefix));
       if (hits.length !== 1) throw new StatsError(`Beacon does not know ${nodeId}`, 'unknown');
       return hits[0];
+    },
+    // Every node Beacon knows, page by page, at most `maxPages` pages (W-24: the mesh-only search
+    // filters them by position, since a node's IATA is only where observers heard it).
+    async allNodes({ maxPages = 5, limit = 1000 } = {}) {
+      const out = [];
+      let cursor = null;
+      for (let page = 0; page < maxPages; page += 1) {
+        const data = await json(`/nodes?limit=${limit}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`);
+        out.push(...(Array.isArray(data?.items) ? data.items : []));
+        if (!data?.hasMore || !Number.isFinite(Number(data.nextCursor))) break;
+        cursor = String(data.nextCursor);
+      }
+      return out;
     },
     observer: (id) => json(`/observers/${encodeURIComponent(id)}`),
     telemetry: (id, range) => json(`/observers/${encodeURIComponent(id)}/telemetry?range=${range}&interval=1h`),

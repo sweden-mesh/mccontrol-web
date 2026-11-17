@@ -69,7 +69,8 @@ export function blocker(rules, { command, device = null, region = null, road = '
   return null;
 }
 
-// Everything a send screen shows before the button: the blocker, the caution, and what the
+// Everything a send screen shows before the button: the blocker, the caution, the table entry the
+// command stops short of a value for (incomplete), and what the
 // node's firmware says about the command (admits: true | false | null when the version is not
 // known; lacks: 'ar' | 'rc' | null; needs: the oldest tag that admits it), whether it goes
 // encrypted (v2: the firmware opens it and the whole key is known), and for one node the road
@@ -87,6 +88,7 @@ export function preflight(rules, { command, device = null, region = null, road =
     command: text,
     block,
     caution: text ? rules.caution(text) : null,
+    incomplete: text ? rules.missingValue(text) : null,
     admits: known && text && !onMesh ? rules.admits(device.ver, text) : null,
     lacks: known && text && !onMesh ? rules.lacks(device.ver, text) : null,
     needs: text ? rules.needs(text) : null,

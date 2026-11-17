@@ -1,6 +1,8 @@
-// NODES (W-20c): one row per node, what needs attention first. Each row: the status as a glyph and
-// a word, the name, region, firmware, battery and when it was last heard; a node that needs
-// attention has its reason on a second line. The title says "4 · 1 needs attention".
+// NODES (W-20c): one row per node, what needs attention first. Each row, on ONE line (W-23d): the
+// status glyph, the name, the reason it needs attention (else the status word), region, firmware,
+// battery and when it was last heard; the row is tinted by severity. The reason is cut to fit,
+// whole in its tooltip and to a screen reader, and whole in NODE (on a phone the node opens full
+// screen, the way in on a touch screen). The title says "4 · 1 needs attention".
 //
 // Pointer: a click on a row selects it (the NODE tile follows; on a phone the node opens full
 // screen); the box at the row's start tags it for a send to several. Keyboard: '/' searches,
@@ -76,10 +78,17 @@ function fill(ctx, svc, body) {
     const heard = lastHeard(d);
     const reason = status.reasons.find((r) => r.kind === 'refused' || r.kind === 'forged') || status.reasons[0];
     const reasonText = reason ? ctx.t(`dash.att.${reason.kind}`, reason.vars) : null;
+    const allReasons = status.reasons.map((r) => ctx.t(`dash.att.${r.kind}`, r.vars)).join('; ');
+    // The glyph's word is read aloud; the column shows the reason, or the word when there is none.
+    const why = reasonText
+      ? h('span', { class: 'node-why', title: allReasons }, reasonText,
+        status.reasons.length > 1 ? ` ${ctx.t('tile.more', { n: status.reasons.length - 1 })}` : '')
+      : h('span', { class: 'node-why muted', 'aria-hidden': 'true' }, ctx.t(`tile.state.${status.state}`));
     const button = h('button', { type: 'button', class: 'node-row', 'data-node': d.node, tabindex: d.node === f ? '0' : '-1',
-      'aria-current': d.node === selected ? 'true' : null, 'aria-describedby': reasonText ? `why-${d.node}` : null },
+      'aria-current': d.node === selected ? 'true' : null },
     stateMark(ctx, status.state),
     h('span', { class: 'node-name', title: name }, short),
+    why,
     h('span', { class: 'node-reg' }, d.region),
     h('span', { class: 'node-ver' }, d.ver ? shortVersion(svc.rules, d.ver) : '–'),
     h('span', { class: 'node-batt' }, volts(d.fleet?.batteryMv)),
@@ -87,10 +96,7 @@ function fill(ctx, svc, body) {
     button.addEventListener('click', () => { focusId = d.node; ctx.board.select(d.node); });
     return h('li', { class: `node-item${tagged ? ' is-tagged' : ''}`, 'data-state': status.state },
       h('label', { class: 'tag-hit' }, box),
-      button,
-      reasonText ? h('span', { class: `node-why${status.state === 'alert' ? ' alert' : ''}`, id: `why-${d.node}`,
-        title: status.reasons.map((r) => ctx.t(`dash.att.${r.kind}`, r.vars)).join('; ') },
-      reasonText, status.reasons.length > 1 ? ` ${ctx.t('tile.more', { n: status.reasons.length - 1 })}` : '') : null);
+      button);
   }
 
   // One tab stop: arrows move the roving focus, Space tags, Enter is the button's own click.

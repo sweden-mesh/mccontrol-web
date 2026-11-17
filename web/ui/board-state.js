@@ -3,13 +3,19 @@
 // 8-hex control ids the stores use ("4AC61A7F").
 //
 //   selected()          the selected node's id, or null
-//   setSelected(id)     select a node (null for none); the board's ctx.board.select(id) also opens
-//                       the node full screen on a phone
+//   setSelected(id)     select a node (null for none), remembered across visits; the board's
+//                       ctx.board.select(id) also opens the node full screen on a phone
 //   tagged()            the tagged ids, a new array in tagging order
 //   setTagged(ids), toggleTag(id), clearTags()
 //   onBoardChange(fn)   fn({ selected, tagged, what: 'selected' | 'tagged' }); returns unsubscribe
 
-let current = null;
+// The selected node is remembered by this browser (W-23e), so a reload comes back to it; a
+// convenience only: storage may be blocked or empty, and a node no longer in the list just shows
+// as missing until another is chosen. The tags are not kept.
+const SAVED = 'mccontrol.selected';
+const saved = () => { try { return globalThis.localStorage?.getItem(SAVED) || null; } catch { return null; } };
+
+let current = saved();
 let tags = [];
 const listeners = new Set();
 
@@ -25,6 +31,7 @@ export function setSelected(id) {
   const next = id ? String(id).toUpperCase() : null;
   if (next === current) return;
   current = next;
+  try { if (next) globalThis.localStorage?.setItem(SAVED, next); else globalThis.localStorage?.removeItem(SAVED); } catch { /* this page only */ }
   tell('selected');
 }
 

@@ -815,7 +815,7 @@
    },
    {
     "command": "set mqtt.presets 2",
-    "caution": "changes how many MQTT slots run; the control plane's slot may stop."
+    "caution": null
    },
    {
     "command": "set mqtt1.server x.se",

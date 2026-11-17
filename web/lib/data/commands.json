@@ -176,6 +176,14 @@
    "read": true
   },
   {
+   "text": "get mqtt.presets",
+   "group": "reads",
+   "kind": "none",
+   "choices": [],
+   "examples": [],
+   "read": true
+  },
+  {
    "text": "board",
    "group": "reads",
    "kind": "none",
@@ -250,17 +258,6 @@
    "examples": [
     "3",
     "8"
-   ],
-   "read": false
-  },
-  {
-   "text": "set autoreply.delay",
-   "group": "auto-reply",
-   "kind": "text",
-   "choices": [],
-   "examples": [
-    "60",
-    "300"
    ],
    "read": false
   },
@@ -521,10 +518,10 @@
    "group": "tuning",
    "kind": "choice",
    "choices": [
-    "0",
-    "1",
-    "2",
-    "3"
+    "off",
+    "minimal",
+    "moderate",
+    "strict"
    ],
    "examples": [],
    "read": false
@@ -534,8 +531,8 @@
    "group": "tuning",
    "kind": "choice",
    "choices": [
-    "on",
-    "off"
+    "0",
+    "1"
    ],
    "examples": [],
    "read": false
@@ -604,16 +601,6 @@
     "off"
    ],
    "examples": [],
-   "read": false
-  },
-  {
-   "text": "set mqtt.presets",
-   "group": "MQTT",
-   "kind": "text",
-   "choices": [],
-   "examples": [
-    "2"
-   ],
    "read": false
   },
   {

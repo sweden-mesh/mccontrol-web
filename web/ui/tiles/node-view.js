@@ -1,28 +1,33 @@
 // The selected node (W-20c, W-20j): its facts with their age, three 24-hour sparklines from
-// Beacon (battery, airtime sent per hour, noise floor), its last commands and answers, and at the
-// bottom the command line: type, Enter signs and sends to this node, or to the tagged nodes when
-// some are tagged. The road switch (Auto / MQTT / Mesh) sits on the same line.
+// Beacon (battery, airtime sent per hour, noise floor), links to its details, statistics and
+// history, and at the bottom the command line: type, Enter signs and sends to this node, or to
+// the tagged nodes when some are tagged. The road switch (Auto / MQTT / Mesh) sits on the same
+// line. A command's answer is shown once, in RESULTS (W-23g): not here as a log, not under the
+// line. The command area is two fixed rows (W-23h, W-23i): the line, and the companion's state
+// when the road may take the mesh; what is wrong with a command tints the field and is its
+// description, never a third row.
 //
 // The NODE tile shows it on a desktop; on a phone the "node" modal shows it full screen with the
 // command line pinned to the bottom. nodeView(ctx, svc, id) works with either ctx: the tagged
 // nodes come from ui/board-state.js, not from ctx.board.
 //
 // Sending reuses the jobs (lib/jobs) and the checks before signing (lib/jobs/checks preflight):
-// a blocked command is said and not sent, a caution asks first, the mesh road connects the
-// companion here. Every outcome lands in the history store (jobs.js) and so in RESULTS.
+// a blocked command is not sent, a caution asks first, the mesh road connects the companion
+// here. Every outcome lands in the history store (jobs.js) and so in RESULTS.
 import { h } from '../dom.js';
 import { deriveFacts } from '../../lib/store/index.js';
 import { lastHeard, shortVersion } from '../../lib/jobs/overview.js';
 import { blocker, preflight } from '../../lib/jobs/checks.js';
 import { beaconBase, beaconClient } from '../../lib/stats/beacon.js';
 import { CompanionError } from '../../lib/mesh/companion.js';
-import { meshAfterMins } from '../screens/settings-store.js';
-import { confirm, explain, explainEvent, nameOf } from '../screens/node-kit.js';
-import { companionControl, roadLine } from '../screens/road-kit.js';
+import { lowBatteryVolts, meshAfterMins, notHeardHours } from '../screens/settings-store.js';
+import { confirm, nameOf } from '../screens/node-kit.js';
+import { companionBrief } from '../screens/road-kit.js';
 import { whyText } from '../screens/send.js';
 import { tagged as taggedIds, onBoardChange, clearTags } from '../board-state.js';
-import { age, s, stateMark } from './kit.js';
-import { hourly, known, sparkRuns } from './data.js';
+import { age, s } from './kit.js';
+import { GLYPH } from '../statusline.js';
+import { hourly, known, nodeStatus, sparkRuns } from './data.js';
 import { dataChanged, onDataChanged, reportBroker, startJob } from './sources.js';
 
 const TELEMETRY_MAX_AGE = 15 * 60000;
@@ -90,13 +95,12 @@ export function nodeView(ctx, svc, nodeId, { heading = null } = {}) {
   const head = h('div', { class: 'node-head' });
   const sparks = h('ul', { class: 'rows fact-list' });
   const facts = h('ul', { class: 'rows fact-list' });
-  const log = h('ol', { class: 'rows node-log', 'aria-label': ctx.t('tile.log') });
   const links = h('p', { class: 'row node-links' },
     h('a', { href: `#nodeinfo/${nodeId}` }, ctx.t('tile.details')), ' ',
     h('a', { href: `#stats/${nodeId}` }, ctx.t('tile.stats')), ' ',
     h('a', { href: `#history/${nodeId}` }, ctx.t('tile.history')));
   const line = commandLine(ctx, svc, nodeId);
-  const scroller = h('div', { class: 'node-scroll' }, head, sparks, h('hr', { class: 'rule' }), facts, h('hr', { class: 'rule' }), log, links);
+  const scroller = h('div', { class: 'node-scroll' }, head, sparks, h('hr', { class: 'rule' }), facts, h('hr', { class: 'rule' }), links);
   const el = h('div', { class: 'node-view' }, scroller, line.el);
   let device = null;
 
@@ -116,8 +120,12 @@ export function nodeView(ctx, svc, nodeId, { heading = null } = {}) {
     const meta = [device.region, device.ver ? shortVersion(svc.rules, device.ver) : ctx.t('nodes.verUnknown'),
       [`${ctx.t('tile.heard')} `, heard ? age(ctx, heard) : ctx.t('nodes.heardUnknown')],
       device.key && svc.rules.speaksV2(device.ver) ? ctx.t('tile.v2') : ctx.t('tile.v1')];
+    // Why it needs attention, whole: NODES cuts it to fit its row (W-23d).
+    const st = nodeStatus(device, { now: Date.now(), hours: notHeardHours(), thresholdMv: lowBatteryVolts() * 1000, rules: svc.rules });
+    const why = st.reasons.map((r) => ctx.t(`dash.att.${r.kind}`, r.vars)).join('; ');
     head.replaceChildren(h('p', { class: 'row node-meta' },
-      meta.map((m, i) => h('span', { class: 'meta-part' }, m, i < meta.length - 1 ? '\u00a0·' : ''))));
+      meta.map((m, i) => h('span', { class: 'meta-part' }, m, i < meta.length - 1 ? '\u00a0·' : ''))),
+    why ? h('p', { class: `row node-why-line${st.state === 'alert' ? ' alert' : ''}` }, h('span', { class: 'glyph', 'aria-hidden': 'true' }, GLYPH[st.state]), h('span', {}, why)) : null);
     // facts with their age, the configured labels first
     const { facts: f, raw } = deriveFacts(device, events, svc.rules.parseFacts);
     const order = svc.data.facts.labels.map(([k]) => k);
@@ -129,17 +137,6 @@ export function nodeView(ctx, svc, nodeId, { heading = null } = {}) {
     const rows = [...keys.map((k) => factRow(label[k] || k, f[k].value, f[k])),
       ...Object.entries(raw).slice(0, 6).map(([cmd, r]) => factRow(cmd, r.reply.length > 40 ? `${r.reply.slice(0, 40)}…` : r.reply, r))];
     facts.replaceChildren(...(rows.length ? rows : [h('li', { class: 'row muted' }, ctx.t('node.noFacts'))]));
-    // the log: last commands and their answers
-    const recent = events.slice(0, 12).map((e) => {
-      const x = explainEvent(ctx, svc, e);
-      const state = { ok: 'ok', refused: 'alert', forged: 'alert', silent: 'warn' }[x.kind] || 'unknown';
-      return h('li', { class: `row log-row${x.kind === 'refused' || x.kind === 'forged' ? ' alert' : ''}` },
-        h('code', { class: 'log-cmd' }, `> ${e.command}`),
-        stateMark(ctx, state, ctx.t(`history.kind.${x.kind}`)),
-        h('span', { class: 'log-text' }, x.kind === 'ok' ? x.text : x.kind === 'refused' ? x.text : ''),
-        h('span', { class: 'fact-age muted' }, e.road === 'mesh' ? `${ctx.t('tile.mesh')} · ` : '', age(ctx, e.at)));
-    });
-    log.replaceChildren(...(recent.length ? recent : [h('li', { class: 'row muted' }, ctx.t('node.noHistory'))]));
     drawSparks();
   }
 
@@ -166,20 +163,24 @@ export function nodeView(ctx, svc, nodeId, { heading = null } = {}) {
   return el;
 }
 
-// The command line: "Gisebo ▶ [command] road [auto|mqtt|mesh] [Send]", the checks under it.
+// The command line: "Gisebo ▶ [command] road [auto|mqtt|mesh] [Send]", and under it one row for
+// the companion when the road may take the mesh (empty otherwise, so the area keeps its height).
+// The checks are the field's state and description: a command that cannot go (or stops before
+// its value) tints the field and disables Send; a caution or a refusal to come marks its border;
+// the reason is the field's description and its tooltip (W-23h).
 function commandLine(ctx, svc, nodeId) {
   const list = commandList(svc);
+  const checkId = `cl-check-${nodeId}`;
   const input = h('input', { type: 'text', list: list.id, class: 'cmd', autocomplete: 'off', autocapitalize: 'none',
-    spellcheck: 'false', enterkeyhint: 'send', 'aria-describedby': `cl-check-${nodeId}` });
+    spellcheck: 'false', enterkeyhint: 'send', 'aria-describedby': checkId, 'aria-invalid': 'false' });
   const prompt = h('label', { class: 'cmd-prompt' });
   const road = h('select', { class: 'road', 'aria-label': ctx.t('road.legend') },
     ['auto', 'mqtt', 'mesh'].map((r) => h('option', { value: r }, ctx.t(`tile.road.${r}`))));
   const send = h('button', { type: 'submit', class: 'button cmd-send' }, ctx.t('tile.send'));
-  const check = h('p', { class: 'cmd-check', id: `cl-check-${nodeId}`, 'aria-live': 'polite' });
+  const check = h('span', { class: 'visually-hidden', id: checkId });
   const companionSlot = h('div', { class: 'cmd-companion' });
-  const out = h('div', { class: 'cmd-out', 'aria-live': 'polite' });
   const form = h('form', { class: 'cmd-line', novalidate: true },
-    h('div', { class: 'cmd-row' }, prompt, input, road, send), list.el, check, companionSlot, out);
+    h('div', { class: 'cmd-row' }, prompt, input, road, send), list.el, check, companionSlot);
   const id = `cmd-${nodeId}`;
   input.id = id;
   prompt.setAttribute('for', id);
@@ -216,30 +217,44 @@ function commandLine(ctx, svc, nodeId) {
     if (meshOnly && road.value === 'mqtt') road.value = 'auto';
   }
 
-  function drawChecks() {
+  const needsText = (c) => (c.kind === 'text'
+    ? ctx.t('tile.needsText', { command: c.text, example: c.examples.find((e) => !e.includes('<')) || c.examples[0] || '' })
+    : ctx.t('tile.needsChoice', { command: c.text, choices: c.choices.join(', ') }));
+
+  // { text, kind }: kind 'invalid' (not sent: Send is off), 'warn' (sent, but read this) or ''.
+  function checkText() {
     const p = verdict();
     const to = targets();
-    let text = '';
-    let kind = '';
-    if (p.command && p.block) { text = `${ctx.t('send.blocked')} ${whyText(ctx, p.block)}`; kind = 'alert'; }
-    else if (p.command && p.caution) { text = `${ctx.t('send.caution')} ${p.caution}`; kind = 'warn'; }
-    else if (p.command && to.length === 1 && p.admits === false) {
-      text = p.lacks ? ctx.t('send.lacks', { feature: p.lacks, version: to[0].ver }) : ctx.t('send.notAdmitted', { version: to[0].ver, needs: p.needs || '?' });
-      kind = 'warn';
-    } else if (p.command && to.length === 1 && p.road?.road === 'mesh') {
-      text = p.road.why ? ctx.t('road.willMesh', { why: ctx.t(`road.why.${p.road.why.code}`, p.road.why.vars) }) : ctx.t('road.willMeshPlain');
-    } else if (p.command && to.length > 1) {
-      text = [ctx.t('send.perNode', { n: to.length }),
+    if (!p.command) return { text: '', kind: '' };
+    if (p.block) return { text: `${ctx.t('send.blocked')} ${whyText(ctx, p.block)}`, kind: 'invalid' };
+    if (p.incomplete) return { text: needsText(p.incomplete), kind: 'invalid' };
+    if (p.caution) return { text: `${ctx.t('send.caution')} ${p.caution}`, kind: 'warn' };
+    if (to.length === 1 && p.admits === false) {
+      return { text: p.lacks ? ctx.t('send.lacks', { feature: p.lacks, version: to[0].ver }) : ctx.t('send.notAdmitted', { version: to[0].ver, needs: p.needs || '?' }), kind: 'warn' };
+    }
+    if (to.length === 1 && p.road?.road === 'mesh') {
+      return { text: p.road.why ? ctx.t('road.willMesh', { why: ctx.t(`road.why.${p.road.why.code}`, p.road.why.vars) }) : ctx.t('road.willMeshPlain'), kind: '' };
+    }
+    if (to.length > 1) {
+      const text = [ctx.t('send.perNode', { n: to.length }),
         p.skip.length ? ctx.t('tile.skipped', { n: p.skip.length, names: p.skip.map(([d]) => nameOf(d)).join(', ') }) : '',
         p.refuse.length ? ctx.t('send.someRefuse', { n: p.refuse.length, names: p.refuse.map(nameOf).join(', ') }) : ''].filter(Boolean).join(' ');
-      if (p.skip.length || p.refuse.length) kind = 'warn';
+      return { text, kind: p.skip.length || p.refuse.length ? 'warn' : '' };
     }
+    return { text: '', kind: '' };
+  }
+
+  function drawChecks() {
+    const { text, kind } = checkText();
     check.textContent = text;
-    check.dataset.kind = kind;
-    check.hidden = !text;
+    input.title = text;
+    input.dataset.check = kind;
+    input.setAttribute('aria-invalid', kind === 'invalid' ? 'true' : 'false');
+    send.disabled = running || kind === 'invalid' || !input.value.trim();
+    const to = targets();
     const show = road.value !== 'mqtt' || to.some((d) => svc.rules.deviceMeshOnly(d));
-    if (show && !companion) companion = companionControl(ctx);
-    companionSlot.replaceChildren(show ? companion : '');
+    if (show && !companion) companion = companionBrief(ctx);
+    companionSlot.replaceChildren(...(show ? [h('span', { class: 'muted' }, ctx.t('tile.line.companion'), ' '), companion] : []));
   }
 
   input.addEventListener('input', drawChecks, { signal: ctx.signal });
@@ -252,8 +267,7 @@ function commandLine(ctx, svc, nodeId) {
     if (running) return;
     const p = verdict();
     const to = targets();
-    if (!p.command || !to.length) { input.focus(); return; }
-    if (p.block) { drawChecks(); input.focus(); return; }
+    if (!p.command || !to.length || p.block || p.incomplete) { drawChecks(); input.focus(); return; }
     if (p.caution) {
       const ok = await confirm(ctx, {
         title: ctx.t('send.confirmTitle'),
@@ -264,49 +278,31 @@ function commandLine(ctx, svc, nodeId) {
     }
     running = true;
     send.disabled = true;
+    // The progress is RESULTS' job bar; the answers are RESULTS' rows.
     const label = `${p.command} → ${to.length === 1 ? nameOf(to[0]) : ctx.t('tile.nNodes', { n: to.length })}`;
     const job = startJob({ label });
-    const bar = h('progress', { max: '1', 'aria-label': label });
-    const words = h('span', {});
-    out.replaceChildren(h('div', { class: 'row job-line' }, bar, words));
     try {
       const res = await svc.jobs.send({
         command: p.command, nodes: to.map((d) => d.node), road: road.value,
         onProgress: (st) => {
           const fraction = st.total ? st.elapsed / st.total : null;
-          const text = ctx.t('send.waitNode', { name: st.name, i: (st.index ?? 0) + 1, of: st.count ?? to.length });
-          if (fraction === null) bar.removeAttribute('value'); else bar.value = Math.max(0, Math.min(1, fraction));
-          words.textContent = text;
-          job.progress(fraction, text);
+          job.progress(fraction, ctx.t('send.waitNode', { name: st.name, i: (st.index ?? 0) + 1, of: st.count ?? to.length }));
         },
       });
       if (res.outcomes.some((o) => o.sent && o.road !== 'mesh')) reportBroker({ ok: true });
-      const lines = res.outcomes.map((o) => {
-        if (!o.sent) return h('li', { class: 'row' }, h('span', { class: 'log-who' }, o.name), stateMark(ctx, 'alert', ctx.t('send.notSent')),
-          h('span', {}, o.reason ? ctx.t(`send.why.${o.reason.code}`, o.reason.vars) : ''));
-        const x = explain(ctx, svc, o.result, all.find((d) => d.node === o.node), o.road);
-        const how = roadLine(ctx, o);
-        return h('li', { class: 'row' }, h('span', { class: 'log-who' }, o.name),
-          stateMark(ctx, { ok: 'ok', refused: 'alert', forged: 'alert', silent: 'warn' }[x.kind], ctx.t(`history.kind.${x.kind}`)),
-          h('span', {}, x.kind === 'ok' || x.kind === 'refused' ? x.text : x.help), how ? h('span', { class: 'muted' }, ` ${how}`) : null);
-      });
-      out.replaceChildren(h('p', { class: 'row' }, ctx.t('send.summary', { command: res.command, answered: res.answered, asked: res.asked })),
-        h('ul', { class: 'rows' }, lines));
       ctx.announce(ctx.t('send.doneSummary', { answered: res.answered, asked: res.asked }));
       if (taggedIds().length && res.outcomes.every((o) => o.sent)) clearTags();
       input.value = '';
-      drawChecks();
     } catch (err) {
       if (err?.code === 'broker' || (!err?.code && !(err instanceof CompanionError))) reportBroker({ ok: false, detail: err.message });
       const text = err.code === 'locked' ? ctx.t('send.locked')
         : err instanceof CompanionError ? ctx.t('send.why.companion', { detail: err.message })
           : err.code ? ctx.t(`send.why.${err.code}`, err.vars) : err.message;
-      out.replaceChildren(h('p', { class: 'row tile-err', role: 'alert' }, text,
-        err.code === 'locked' ? [' ', h('a', { href: '#unlock' }, ctx.t('send.unlockLink'))] : null));
+      ctx.notify(text, { kind: 'error', actions: err.code === 'locked' ? [{ label: ctx.t('send.unlockLink'), run: () => ctx.navigate('#unlock') }] : [] });
     } finally {
       job.done();
       running = false;
-      send.disabled = false;
+      drawChecks();
       dataChanged('history');
     }
   }, { signal: ctx.signal });

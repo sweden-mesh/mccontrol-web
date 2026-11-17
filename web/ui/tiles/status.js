@@ -1,6 +1,6 @@
 // STATUS (W-20c, W-20e): the states that gate everything, one line each, and each line a button
 // where it can act: broker (Test), key (Unlock / Lock), registration (Register), companion
-// (Connect / Disconnect), the Beacon status refresh (Refresh now) and discovery (Look now). It
+// (the chooser), the Beacon status refresh (Refresh now) and discovery (Look now). It
 // also sets the header's `broker` item.
 //
 // Registration, refresh and discovery are other streams' work (automatic registration, W-20e's
@@ -17,7 +17,8 @@ import { h } from '../dom.js';
 import { setStatusItem } from '../statusline.js';
 import { keyStatus, keyring, currentHandle } from '../screens/key-session.js';
 import { brokerConfig } from '../screens/settings-store.js';
-import { connect, disconnect, onCompanion, state as companionState, support } from '../companion-session.js';
+import { onCompanion, state as companionState } from '../companion-session.js';
+import { companionChooser } from '../screens/road-kit.js';
 import { testConnection } from '../../lib/protocol/transport.js';
 import { services } from '../screens/node-services.js';
 import { everyMinute, shortAge, shortUntil, stateMark } from './kit.js';
@@ -113,16 +114,18 @@ export function render(ctx) {
       src.run && unlocked && st.state !== 'running' ? act(ctx.t(st.state === 'ok' ? 'tile.registerAgain' : 'tile.register'), () => src.run()) : null, st.detail);
   }
 
+  // Not connected: the word itself opens the small chooser (USB, Bluetooth, and why one is
+  // missing in this browser) instead of two buttons on the line (W-23a).
   function companionLine() {
     const c = companionState();
-    const can = support();
-    if (c.status === 'connected') return line('companion', 'ok', c.name || ctx.t(`companion.kind.${c.kind}`), act(ctx.t('companion.disconnect'), () => disconnect()));
     if (c.status === 'connecting') return line('companion', 'unknown', ctx.t('companion.connecting'));
-    const buttons = [can.bluetooth ? act(ctx.t('companion.bluetooth'), () => connect('bluetooth')) : null,
-      can.usb ? act(ctx.t('companion.usb'), () => connect('usb')) : null].filter(Boolean);
-    return line('companion', c.status === 'error' ? 'alert' : 'unknown',
-      c.status === 'error' ? ctx.t('tile.companionError') : ctx.t('tile.none'),
-      buttons.length ? h('span', { class: 'status-acts' }, buttons) : h('span', { class: 'muted' }, ctx.t('tile.noRadioHere')), c.error || null);
+    const state = c.status === 'connected' ? 'ok' : c.status === 'error' ? 'alert' : 'unknown';
+    const word = c.status === 'connected' ? c.name || ctx.t(`companion.kind.${c.kind}`)
+      : c.status === 'error' ? ctx.t('tile.companionError') : ctx.t('tile.notConnected');
+    const open = h('button', { type: 'button', class: 'link-button status-pick', 'aria-haspopup': 'dialog' }, stateMark(ctx, state, word));
+    open.addEventListener('click', () => companionChooser(ctx));
+    return h('li', { class: `row status-row${state === 'alert' ? ' alert' : ''}`, 'data-line': 'companion', title: c.error || null },
+      h('span', { class: 'row-name' }, ctx.t('tile.line.companion')), open);
   }
 
   function refreshLine() {

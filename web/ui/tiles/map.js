@@ -10,12 +10,15 @@
 // ○ not known), so nothing rests on colour. A click or Enter on a mark selects the node; its name
 // and state are the mark's tooltip and accessible name. "As a list" under the map is the text
 // alternative: every node, its state, its neighbours, or that Beacon has no position for it.
+// Under the outlines, faintly, the lakes and the coast (se-water.json: Natural Earth 1:10m lakes
+// and coastline, public domain, clipped to Sweden and simplified; scripts/water-outline.py), so
+// the land reads as land (W-23c). Same origin, so the CSP is unchanged.
 import { h } from '../dom.js';
 import { lowBatteryVolts, notHeardHours } from '../screens/settings-store.js';
 import { beaconBase } from '../../lib/stats/beacon.js';
 import { nameOf } from '../screens/node-kit.js';
 import { forKey, s, stateMark } from './kit.js';
-import { fit, frame, mapModel, nodeStatus, outlinePaths, project, sharedPrefix } from './data.js';
+import { fit, frame, mapModel, nodeStatus, outlinePaths, project, sharedPrefix, waterPaths } from './data.js';
 import { onDataChanged } from './sources.js';
 
 export const id = 'map';
@@ -23,11 +26,17 @@ export const title = 'tile.map';
 
 const MAX_AGE = 15 * 60000;
 let outline = null;
+let water = null;
 const areas = new Map();   // region -> { at, promise of rows }
 
 const loadOutline = () => {
   if (!outline) outline = fetch(new URL('./se-lan.json', import.meta.url)).then((r) => (r.ok ? r.json() : null)).catch(() => null);
   return outline;
+};
+
+const loadWater = () => {
+  if (!water) water = fetch(new URL('./se-water.json', import.meta.url)).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+  return water;
 };
 
 async function areaNodes(region, now = Date.now()) {
@@ -87,7 +96,7 @@ function fill(ctx, svc, body) {
     for (const r of regions) {
       try { rows = rows.concat(await areaNodes(r)); } catch { failed = true; }
     }
-    const geo = await loadOutline();
+    const [geo, wet] = await Promise.all([loadOutline(), loadWater()]);
     if (ctx.signal.aborted) return;
     const model = mapModel(devices, rows);
     const selected = ctx.board.selected();
@@ -111,6 +120,7 @@ function fill(ctx, svc, body) {
     const proj = project(fit(f, width / height), width);
     const P = (n) => [Number(proj.x(n.lng).toFixed(1)), Number(proj.y(n.lat).toFixed(1))];
     const outlines = geo ? outlinePaths(geo, f, proj) : [];
+    const sea = wet ? waterPaths(wet, f, proj) : { lakes: '', coast: '' };
     const own = new Set(model.links.map(([a]) => a.id));
     const sel = placedMine.find((m) => m.device.node === selected);
     const label = placedMine.length <= 8;
@@ -128,6 +138,9 @@ function fill(ctx, svc, body) {
     const order = [...placedMine].sort((a, b) => (b.device.node === selected) - (a.device.node === selected));
     const labelled = new Set(order.filter((m) => (label || m.device.node === selected) && fits(...P(m.node), short(m))).map((m) => m.device.node));
     const svg = s('svg', { class: 'map-svg', viewBox: `0 0 ${width} ${proj.height}`, width, height: proj.height, role: 'group', 'aria-labelledby': 'map-caption', preserveAspectRatio: 'xMidYMid meet' },
+      s('g', { class: 'map-water', 'aria-hidden': 'true' },
+        sea.coast ? s('path', { class: 'map-coast', d: sea.coast }) : null,
+        sea.lakes ? s('path', { class: 'map-lakes', d: sea.lakes }) : null),
       s('g', { class: 'map-outline', 'aria-hidden': 'true' }, outlines.map((o) => s('path', { d: o.d }))),
       s('g', { class: 'map-links', 'aria-hidden': 'true' }, model.links.map(([a, b]) => {
         const [x1, y1] = P(a); const [x2, y2] = P(b);

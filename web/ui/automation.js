@@ -15,6 +15,11 @@
 //   areaChoices(lang)   [{ scb, county, scope, iatas, label }] for a picker (ui/area.js)
 //   meshCandidates()    repeaters in the connected companion's contacts not in the list ([] without one)
 //   addMeshNode(c)      add one as a mesh-only node in the area
+//   findMeshNodes(geo)  W-24: possible mesh-only nodes, no transmission: the companion's contacts and
+//                       Beacon's repeaters (not observers) placed inside the area's county outline
+//                       (`geo`, se-lan.json) -> { area, companion: [c], beacon: [c], beaconError }
+//   checkMeshNode(c)    W-24: one signed `ver` over the mesh to c (the owner's press only); an
+//                       answer adds it as mesh-only -> { answered, result, device }
 //   startAutomation({ t, notify })   the shell, once, after the strings are loaded; t is a getter
 //
 // SNAPSHOT
@@ -28,7 +33,8 @@
 //   changed      what the last change was: 'key' | 'area' | 'discovery' | 'refresh' | 'nodes';
 //                'nodes' when discovery added or removed nodes, so the NODES tile reloads its list
 import { load } from '../lib/data/load.js';
-import { createDiscovery } from '../lib/discovery/index.js';
+import { createDiscovery, META } from '../lib/discovery/index.js';
+import { beaconCandidates } from '../lib/discovery/mesh-candidates.js';
 import { areaByScb, areaLabel, areaList } from '../lib/discovery/areas.js';
 import { createRefresh } from '../lib/refresh/index.js';
 import { beaconBase, beaconClient } from '../lib/stats/beacon.js';
@@ -95,11 +101,11 @@ async function makeFor(owner) {
   const svc = await services(owner);
   const unlocked = () => !keyStatus().locked;
   const discovery = createDiscovery({ stores: svc.stores, jobs: svc.jobs, table, unlocked });
+  const beacon = beaconClient({ base: await beaconBase() });
   const refresh = createRefresh({
-    stores: svc.stores, jobs: svc.jobs, unlocked, meshOnly: (d) => svc.rules.deviceMeshOnly(d),
-    beacon: beaconClient({ base: await beaconBase() }),
+    stores: svc.stores, jobs: svc.jobs, unlocked, meshOnly: (d) => svc.rules.deviceMeshOnly(d), beacon,
   });
-  return { discovery, refresh };
+  return { discovery, refresh, beacon, stores: svc.stores, jobs: svc.jobs };
 }
 
 let make = makeFor;
@@ -131,7 +137,9 @@ async function follow(status) {
     await parts.refresh.start();
   }
   if (live) {
-    if (status.locked) live.discovery.stop();
+    // Locked (as every reload starts): nothing is scheduled, but the stored area is still read,
+    // so the status line and Setup show it (W-23e: it read "not chosen" until the unlock).
+    if (status.locked) { live.discovery.stop(); await live.discovery.refresh(); }
     else if (!live.discovery.state().scheduled) await live.discovery.start();
     else await live.discovery.refresh();
   }
@@ -172,6 +180,35 @@ export async function setArea(scb) {
 export const areaChoices = (lang) => areaList(table, lang);
 
 export const meshCandidates = () => need().discovery.meshCandidates(companion());
+
+export async function findMeshNodes(geo) {
+  const l = need();
+  const area = snapshot.area;
+  const fromCompanion = await l.discovery.meshCandidates(companion()).catch(() => []);
+  let beacon = [];
+  let beaconError = null;
+  if (area && l.beacon && l.stores) {
+    try {
+      const known = new Set((await l.stores.devices.list()).map((d) => d.node));
+      const ignored = new Set((await l.stores.meta.get(META.ignored)) || []);
+      const inCompanion = new Set(fromCompanion.map((c) => c.node));
+      beacon = beaconCandidates(await l.beacon.allNodes(), { geo, scb: area.scb, known, ignored })
+        .filter((c) => !inCompanion.has(c.node));
+    } catch (e) {
+      beaconError = e?.message || String(e);
+    }
+  }
+  return { area, companion: fromCompanion, beacon, beaconError };
+}
+
+export async function checkMeshNode(candidate, { signal, onProgress } = {}) {
+  const l = need();
+  if (!l.jobs) throw new Error('There is no key.');
+  const region = snapshot.area?.iatas?.[0] || null;
+  const out = await l.jobs.checkMeshNode({ candidate, region, signal, onProgress });
+  if (out.answered) { await l.discovery.refresh(); publish('nodes'); }
+  return out;
+}
 
 export async function addMeshNode(candidate) {
   const d = await need().discovery.addMeshNode(candidate);
