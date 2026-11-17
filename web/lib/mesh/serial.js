@@ -9,23 +9,26 @@ import { usbLog } from './usblog.js';
 export const serialAvailable = (nav = globalThis.navigator) => Boolean(nav?.serial?.requestPort);
 
 // DTR and RTS after open (W-21). Chrome opens a port with both asserted; on an ESP32-S3's native
-// USB (USB-Serial/JTAG, e.g. the Heltec V4) those are esptool's reset and boot lines, and the
-// board boot-loops until its reset button is pressed. Both are dropped right after open. A bench
-// override in the address, ?usbsignals=dtr0rts0|dtr1rts0|dtr0rts1|dtr1rts1|none, tries the other
-// combinations ('none' leaves the browser's defaults, which is what meshcore.js, the official web
-// clients' library, does: open at 115200 and nothing else; W-25b). Chrome still toggles the lines
-// inside open(), before they can be dropped, so the board may restart once (bench 2026-11-17).
+// USB (USB-Serial/JTAG, e.g. the Heltec V4) those are esptool's reset and boot lines: the chip
+// resets while RTS is 1 and DTR is 0 (W-25b, the operator's capture). Dropping DTR first passes
+// through exactly that state, so RTS is dropped first and DTR after, in two steps. Each name below
+// is a list of setSignals steps. A bench override in the address,
+// ?usbsignals=dtr0rts0|dtr0rts0-old|dtr1rts0|dtr0rts1|dtr1rts1|none, tries the others
+// ('dtr0rts0-old': both in one call, beta.3 to beta.6; 'none' leaves the browser's defaults, which
+// is what meshcore.js, the official web clients' library, does: open at 115200 and nothing else).
 export const USB_SIGNALS = Object.freeze({
-  dtr0rts0: { dataTerminalReady: false, requestToSend: false },
-  dtr1rts0: { dataTerminalReady: true, requestToSend: false },
-  dtr0rts1: { dataTerminalReady: false, requestToSend: true },
-  dtr1rts1: { dataTerminalReady: true, requestToSend: true },
+  dtr0rts0: [{ requestToSend: false }, { dataTerminalReady: false }],
+  'dtr0rts0-old': [{ dataTerminalReady: false, requestToSend: false }],
+  dtr1rts0: [{ requestToSend: false }],
+  dtr0rts1: [{ dataTerminalReady: false, requestToSend: true }],
+  dtr1rts1: [{ dataTerminalReady: true, requestToSend: true }],
   none: null,
 });
 export const DEFAULT_USB_SIGNALS = 'dtr0rts0';
 
-// How long app start keeps asking after the port opens (or reopens): a board boots in 1 to 3 s.
-export const USB_START_WITHIN_MS = 8000;
+// How long app start keeps asking after the port opens (or reopens): the operator's V4 answered
+// 7.4 s after the reset that opening caused (W-25b), so 20 s.
+export const USB_START_WITHIN_MS = 20000;
 // W-25b: an ESP32-S3 on native USB that restarts leaves the USB bus and comes back as a new
 // device, so the opened port dies under us. How long to wait for it to come back, how often to
 // look, how long to let it settle before opening, and how many restarts to follow in one session
@@ -43,16 +46,19 @@ export function usbSignals(search = globalThis.location?.search || '') {
   return { name, signals: USB_SIGNALS[name] };
 }
 
-// Open `port` and set the chosen signals at once. A browser without setSignals keeps its defaults.
+// Open `port` and set the chosen signals, step by step, at once. A browser without setSignals keeps its defaults.
 export async function openQuiet(port, baudRate, search, log = usbLog) {
   log.add('open', `baudRate ${baudRate}`);
   await port.open({ baudRate });
   const { name, signals } = usbSignals(search);
   if (signals && typeof port.setSignals === 'function') {
-    try {
-      await port.setSignals(signals);
-      log.add('signals', `${name} (DTR ${signals.dataTerminalReady ? 1 : 0}, RTS ${signals.requestToSend ? 1 : 0})`);
-    } catch (e) { log.add('signals', `${name} refused: ${e?.message || e}`); }
+    for (const step of signals) {
+      const words = Object.entries(step).map(([k, v]) => `${k === 'dataTerminalReady' ? 'DTR' : 'RTS'} ${v ? 1 : 0}`).join(', ');
+      try {
+        await port.setSignals(step);
+        log.add('signals', `${name}: ${words}`);
+      } catch (e) { log.add('signals', `${name}: ${words} refused: ${e?.message || e}`); break; }
+    }
   } else {
     log.add('signals', signals ? 'this browser cannot set them' : 'none: left as the browser opened them');
   }

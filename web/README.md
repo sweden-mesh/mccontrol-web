@@ -423,9 +423,16 @@ line at the bottom. `--shots` adds the beta notes' screenshots.
 
 USB (W-21): `lib/mesh/serial.js`'s `openQuiet` drops DTR and RTS right after `port.open`, for the
 companion and for Setup's node tab, because on an ESP32-S3's native USB they reset the board into a
-boot loop. On the bench, `?usbsignals=dtr0rts0|dtr1rts0|dtr0rts1|dtr1rts1|none` in the address picks
-another combination (`none`: the browser's defaults, which is all meshcore.js, the official web
-clients' library, does: `open({ baudRate: 115200 })`, no `setSignals`, app start at once).
+boot loop. The chip resets while RTS is 1 and DTR 0, so RTS is dropped first and DTR after, in two
+`setSignals` calls (W-25b; dropping DTR first passed through that state and reset the V4). On the
+bench, `?usbsignals=dtr0rts0|dtr0rts0-old|dtr1rts0|dtr0rts1|dtr1rts1|none` in the address picks
+another (`dtr0rts0-old`: both in one call, as beta.3 to beta.6; `none`: the browser's defaults,
+which is all meshcore.js, the official web clients' library, does: `open({ baudRate: 115200 })`, no
+`setSignals`, app start at once).
+
+App start over USB waits up to 20 s (the V4 answered 7.4 s after the reset): every 0.5 s after the
+first 1.5 s, but only every 2 s once the board's boot log has been heard, and a SELF_INFO after the
+first (one per app start queued during the boot) is dropped, never taken as the next command's answer.
 
 When the board restarts anyway (W-25b), an ESP32-S3 on native USB leaves the bus and comes back as a
 new device, so the opened port dies: its read fails and `disconnect` fires. `connectSerial` then lets
@@ -435,7 +442,7 @@ to 15 s, and at most 3 restarts per connection. Meanwhile the companion line say
 restarted, reconnecting…". With `?usbdebug=1` in the address a box in the top corner records every
 step (open, signals, bytes in and out as hex and text, lost, retries, reopened) with the milliseconds
 since the first, open from the start, and "Copy" puts it on the clipboard (`lib/mesh/usblog.js`, `ui/usb-debug.js`).
-A board that sends bytes (its ROM boot log) but never frames an answer is said to run the Bluetooth
+A board that sends bytes (its ROM boot log) but frames no answer within those 20 s is said to run the Bluetooth
 or Wi-Fi companion build: a companion build has one interface (`examples/companion_radio/main.cpp`:
 `BLE_PIN_CODE` gives `SerialBLEInterface`, else `ArduinoSerialInterface`), so it never answers over
 USB (the operator's V4 capture, 2026-11-17).

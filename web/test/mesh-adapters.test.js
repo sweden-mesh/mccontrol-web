@@ -83,15 +83,23 @@ test('USB: DTR and RTS dropped right after open, a bench override from the addre
     if (withSignals) port.setSignals = async (s) => calls.push(['signals', s]);
     return { port, calls };
   };
-  const off = { dataTerminalReady: false, requestToSend: false };
+  // W-25b: the chip resets while RTS is 1 and DTR 0, so the default drops RTS first, then DTR.
+  const off = [['signals', { requestToSend: false }], ['signals', { dataTerminalReady: false }]];
   for (const [search, want] of [['', off], ['?x=1', off], ['?usbsignals=bogus', off], ['?usbsignals=dtr0rts0', off],
-    ['?usbsignals=dtr1rts0', { dataTerminalReady: true, requestToSend: false }],
-    ['?usbsignals=dtr0rts1', { dataTerminalReady: false, requestToSend: true }],
-    ['?usbsignals=dtr1rts1', { dataTerminalReady: true, requestToSend: true }]]) {
+    ['?usbsignals=dtr0rts0-old', [['signals', { dataTerminalReady: false, requestToSend: false }]]],
+    ['?usbsignals=dtr1rts0', [['signals', { requestToSend: false }]]],
+    ['?usbsignals=dtr0rts1', [['signals', { dataTerminalReady: false, requestToSend: true }]]],
+    ['?usbsignals=dtr1rts1', [['signals', { dataTerminalReady: true, requestToSend: true }]]]]) {
     const { port, calls } = fakePort();
     await openQuiet(port, 115200, search);
-    assert.deepEqual(calls, [['open', { baudRate: 115200 }], ['signals', want]], search);
+    assert.deepEqual(calls, [['open', { baudRate: 115200 }], ...want], search);
   }
+  // never DTR 0 with RTS 1 on the way down from the browser's DTR 1 RTS 1
+  let lines = { dataTerminalReady: true, requestToSend: true };
+  const { port: p2 } = fakePort();
+  p2.setSignals = async (s) => { lines = { ...lines, ...s }; assert.ok(!(lines.requestToSend && !lines.dataTerminalReady), 'passed through DTR 0, RTS 1'); };
+  await openQuiet(p2, 115200, '');
+  assert.deepEqual(lines, { dataTerminalReady: false, requestToSend: false });
   // 'none' keeps the browser's defaults; a browser without setSignals or a refusing port still opens.
   let f = fakePort();
   await openQuiet(f.port, 115200, '?usbsignals=none');
@@ -103,14 +111,14 @@ test('USB: DTR and RTS dropped right after open, a bench override from the addre
   f.port.setSignals = async () => { throw new Error('refused'); };
   await openQuiet(f.port, 115200, '');
   assert.equal(usbSignals('?usbsignals=none').signals, null);
-  assert.deepEqual(Object.keys(USB_SIGNALS), ['dtr0rts0', 'dtr1rts0', 'dtr0rts1', 'dtr1rts1', 'none']);
+  assert.deepEqual(Object.keys(USB_SIGNALS), ['dtr0rts0', 'dtr0rts0-old', 'dtr1rts0', 'dtr0rts1', 'dtr1rts1', 'none']);
   // connectSerial applies it too.
   const calls = [];
   const port = { open: async () => calls.push('open'), setSignals: async (s) => calls.push(s),
     writable: { getWriter: () => ({ releaseLock() {} }) },
     readable: { getReader: () => ({ read: () => new Promise(() => {}), releaseLock() {} }) } };
   await connectSerial({ serial: { requestPort: async () => port }, search: '?usbsignals=dtr1rts0' });
-  assert.deepEqual(calls, ['open', { dataTerminalReady: true, requestToSend: false }]);
+  assert.deepEqual(calls, ['open', { requestToSend: false }]);
 });
 
 // Beta.4: opening the port restarted a Heltec V4 once, and app start went unanswered while it
@@ -153,14 +161,14 @@ test('USB: a board that restarted on open boots for 2 s, app start is asked agai
   const { openCompanion } = await import('../lib/mesh/companion.js');
   const port = bootingPort();
   const link = await connectSerial({ serial: { requestPort: async () => port } });
-  assert.equal(link.startWithinMs, 8000);
+  assert.equal(link.startWithinMs, 20000);
   const began = Date.now();
   const c = await openCompanion(link);
   assert.equal(c.self.name, 'Heltec V4');
   const took = Date.now() - began;
   assert.ok(took >= 1900 && took < 4000, `answered after ${took} ms`);
   const starts = port.written.filter((b) => b[3] === 1).length;
-  assert.ok(starts >= 2 && starts <= 6, `${starts} app starts`);   // 0, 1.5 s, then every 0.5 s
+  assert.ok(starts >= 2 && starts <= 3, `${starts} app starts`);   // 0, 1.5 s, then every 2 s once the boot log is heard
   await c.close();
 });
 
@@ -178,7 +186,7 @@ test('USB: a board that prints its boot log but never answers runs another link\
     return true;
   });
   assert.ok(Date.now() - began >= 1150);
-  assert.equal(port.written.filter((b) => b[3] === 1).length, 5);   // 0, 400, 600, 800, 1000 ms
+  assert.equal(port.written.filter((b) => b[3] === 1).length, 2);   // 0, 400 ms, then quiet: the boot log was heard
   await link.close();
 });
 
@@ -332,4 +340,30 @@ test('USB debug capture: off by default, hex and text, the header, ?usbdebug=1',
   assert.match(on.text(), /^mccontrol USB capture/);
   assert.equal(usbDebugOn('?usbdebug=1'), true);
   assert.equal(usbDebugOn('?usbsignals=none'), false);
+});
+
+// The operator's V4 (second capture, 2026-11-17): every app start queued during its 7.4 s boot was
+// answered at once, 15 SELF_INFO in a row. The first is the answer; the rest must not be taken as
+// the answer to the next command.
+test('USB: duplicate SELF_INFO after the first are dropped, the next command gets its own answer', async () => {
+  const { openCompanion } = await import('../lib/mesh/companion.js');
+  let frameFn = () => {};
+  const writes = [];
+  const link = {
+    kind: 'usb', label: 'USB', heardBytes: 100,
+    onFrame(fn) { frameFn = fn; }, onClose() {},
+    async write(b) {
+      writes.push([...b]);
+      if (writes.length === 3) {        // the board is up: all three queued app starts answered at once
+        const body = selfFrame('SE-JKG-LouMob3').slice(3);
+        setTimeout(() => { frameFn(body); frameFn(body); frameFn(body); }, 5);
+        setTimeout(() => { frameFn(body); }, 30);   // a straggler, after app start resolved
+      }
+      if (b[0] === 0x1e) setTimeout(() => frameFn(Uint8Array.of(0x01, 0x02)), 60);   // ERR NOT_FOUND to the lookup
+    },
+    async close() {},
+  };
+  const c = await openCompanion(link, { startWithinMs: 9000, startFirstMs: 20, startEveryMs: 20, startBootingEveryMs: 20 });
+  assert.equal(c.self.name, 'SE-JKG-LouMob3');
+  assert.equal(await c.contact('AB'.repeat(32)), null);    // not a SELF_INFO taken as its answer
 });

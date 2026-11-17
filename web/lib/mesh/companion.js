@@ -30,11 +30,14 @@ export const COMMAND_TIMEOUT_MS = 5000;
 export const OTHER_FIRMWARE = "The companion restarted but doesn't answer over USB. It probably runs the Bluetooth (or Wi-Fi) companion firmware, which only talks over that link: connect by Bluetooth, or flash the USB companion firmware.";
 export const START_FIRST_MS = 1500;    // the first app start's wait before it is asked again
 export const START_EVERY_MS = 500;     // then again this often, until the link's startWithinMs
+export const START_BOOTING_EVERY_MS = 2000;   // this often once a USB board is heard booting (W-25b)
 
 export async function openCompanion(link, {
   appName = 'mccontrol', timeoutMs = COMMAND_TIMEOUT_MS,
   startWithinMs = link.startWithinMs ?? timeoutMs, startFirstMs = START_FIRST_MS, startEveryMs = START_EVERY_MS,
+  startBootingEveryMs = START_BOOTING_EVERY_MS,
 } = {}) {
+  let started = false;         // after the first SELF_INFO, a late duplicate is dropped
   let waiting = null;          // { resolve, reject, timer } for the command in flight
   let queue = Promise.resolve();
   let closed = false;
@@ -48,6 +51,9 @@ export async function openCompanion(link, {
       for (const w of watchers) w();
       return;
     }
+    // Every app start queued while the board booted is answered at once when it is up (the V4:
+    // 15 SELF_INFO at 7.4 s); only the first counts, the rest must not answer the next command.
+    if (started && f.kind === 'selfInfo') return;
     if (f.push || !waiting) return;
     const w = waiting;
     waiting = null;
@@ -106,6 +112,7 @@ export async function openCompanion(link, {
   }
 
   const hello = await start();
+  started = true;
   const self = Object.freeze({ publicKey: hello.publicKey, name: hello.name });
 
   // App start. A board on native USB may restart when its port opens (Chrome toggles DTR and RTS
@@ -133,7 +140,9 @@ export async function openCompanion(link, {
       const send = () => {
         if (closed) { fail(new CompanionError('the companion is not connected', 'closed')); return; }
         Promise.resolve(link.write(frame)).then(() => { writeError = null; }, (e) => { writeError = e; });
-        retry = setTimeout(send, sent++ ? startEveryMs : startFirstMs);
+        // A USB board heard booting (its ROM log) is waited for quietly: once every 2 s.
+        const every = link.kind === 'usb' && link.heardBytes > 0 ? Math.max(startEveryMs, startBootingEveryMs) : startEveryMs;
+        retry = setTimeout(send, sent++ ? every : startFirstMs);
       };
       const late = () => {
         stop();
