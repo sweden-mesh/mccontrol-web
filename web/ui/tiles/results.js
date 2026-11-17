@@ -47,10 +47,12 @@ function fill(ctx, svc, body) {
     bars.hidden = !bars.children.length;
   };
 
+  let drawing = 0;
   async function draw() {
+    const mine = ++drawing;   // a later draw (another node selected meanwhile) wins
     const [all, devices, seen] = await Promise.all([
       svc.stores.history.list({ limit: 200 }), svc.stores.devices.list(), svc.stores.meta.get('resultsSeen')]);
-    if (ctx.signal.aborted) return;
+    if (ctx.signal.aborted || mine !== drawing) return;
     // The column is narrow: the part of each name that tells it apart (the whole one in its title).
     const full = Object.fromEntries(devices.map((d) => [d.node, nameOf(d)]));
     const byNode = Object.fromEntries(devices.map((d) => [d.node, d]));
