@@ -2,6 +2,7 @@
 // key gate, ages, a result in words, the confirmation dialog, a progress line and downloads.
 import { h } from '../dom.js';
 import { codeHelp, codeName } from '../../lib/protocol/results.js';
+import { shortVersion } from '../../lib/jobs/overview.js';
 import { services } from './node-services.js';
 import { unlockHash } from './key-session.js';
 
@@ -81,16 +82,28 @@ export function explain(ctx, svc, result, device = null, road = 'mqtt') {
   if (result.ok) return { kind: 'ok', text: result.reply || 'OK', help: sig };
   const name = codeName(svc.data.results, result.code);
   let help = codeHelp(svc.data.results, result.code) || ctx.t('send.res.noHelp');
-  if (result.code === 14 && device?.ver && svc.rules.admits(device.ver, result.command)) help += ` ${ctx.t('send.res.finding')}`;
+  // not-allowed: say whether the node's firmware (its own `ver`, else what Beacon reports) is
+  // older than the command needs (W-23g: an ar-10 node refuses `ver`, which came in ar-11).
+  const version = device?.ver || device?.fleet?.firmware || null;
+  if (result.code === 14 && result.command) {
+    const needs = svc.rules.needs(result.command);
+    if (version && !svc.rules.admits(version, result.command)) {
+      const short = shortVersion(svc.rules, version);
+      return { kind: 'refused', text: ctx.t('send.res.tooOld', { name, version: short, needs: needs || '?' }),
+        help: ctx.t('send.res.tooOldHelp', { version: short, command: result.command, needs: needs || '?' }) };
+    }
+    if (version) help += ` ${ctx.t('send.res.finding')}`;
+    else if (needs) help += ` ${ctx.t('send.res.maybeOld', { needs })}`;
+  }
   return { kind: 'refused', text: name, help };
 }
 
 // The same for a stored history event (no Result object).
-export function explainEvent(ctx, svc, e) {
+export function explainEvent(ctx, svc, e, device = null) {
   if (e.code === null && e.node === null) return { kind: 'summary', text: e.note, help: '' };
   if (e.verified === false) return explain(ctx, svc, { verified: false });
   if (e.code === null) return explain(ctx, svc, null, null, e.road);
-  return explain(ctx, svc, { code: e.code, reply: e.reply, verified: e.verified, ok: e.code === 0, command: e.command });
+  return explain(ctx, svc, { code: e.code, reply: e.reply, verified: e.verified, ok: e.code === 0, command: e.command }, device);
 }
 
 // The words under a result's tag: the command (when given), the reply for an ok, the code

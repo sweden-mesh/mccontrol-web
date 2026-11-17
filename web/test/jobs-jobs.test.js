@@ -284,3 +284,13 @@ test('discover never replaces a stored key and learns none from a forged answer 
   const added = await jobs.adopt(got.find((f) => f.node === 'EEEE0005'));
   assert.equal(added.key, null);
 });
+
+test('preflight: a command that stops before its value is incomplete (W-23h)', () => {
+  const dev = { region: 'JKG', ver: LOU19 };
+  assert.equal(preflight(rules, { command: 'set autoreply', device: dev }).incomplete.text, 'set autoreply');
+  assert.deepEqual(preflight(rules, { command: 'set loop.detect', device: dev }).incomplete.choices, ['off', 'minimal', 'moderate', 'strict']);
+  assert.ok(preflight(rules, { command: 'get', device: dev }).incomplete);
+  for (const c of ['set autoreply on', 'ver', 'region', 'trigger test', 'set autoreply.hops 3', 'set autorep', '']) {
+    assert.equal(preflight(rules, { command: c, device: dev }).incomplete, null, c);
+  }
+});

@@ -49,6 +49,7 @@ function fill(ctx, svc, body) {
     if (ctx.signal.aborted) return;
     // The column is narrow: the part of each name that tells it apart (the whole one in its title).
     const full = Object.fromEntries(devices.map((d) => [d.node, nameOf(d)]));
+    const byNode = Object.fromEntries(devices.map((d) => [d.node, d]));
     const prefix = sharedPrefix(Object.values(full));
     const names = Object.fromEntries(Object.entries(full).map(([k, v]) => [k, v.startsWith(prefix) ? v.slice(prefix.length) : v]));
     events = all;
@@ -59,7 +60,7 @@ function fill(ctx, svc, body) {
     const now = Date.now();
     const row = (e, isNew) => {
       const kind = resultKind(e);
-      const x = explainEvent(ctx, svc, e);
+      const x = explainEvent(ctx, svc, e, byNode[e.node] || null);
       const who = e.node ? names[e.node] || e.node : e.region;
       const what = kind === 'ok' ? x.text : kind === 'refused' ? x.text : kind === 'summary' ? e.note : '';
       const button = h('button', { type: 'button', class: 'result-row', 'data-id': e.id },
@@ -120,7 +121,7 @@ export const resultModal = Object.freeze({
       if (!e) { body.replaceChildren(h('p', {}, ctx.t('tile.noSuchResult'), ' ', h('a', { href: '#history' }, ctx.t('tile.openHistory')))); return; }
       const device = e.node ? await svc.stores.devices.get(e.node) : null;
       const kind = resultKind(e);
-      const x = explainEvent(ctx, svc, e);
+      const x = explainEvent(ctx, svc, e, device);
       const who = device ? nameOf(device) : e.node || e.region;
       heading.textContent = ctx.t('tile.resultHeading', { command: e.command, who });
       const at = new Date(e.at);

@@ -68,6 +68,15 @@ export function rulesFrom({ denylist, cautions, commands, firmware, facts }) {
     return commands.table.some((c) => c.read && c.text === head);
   }
 
+  // The table entry `text` stops at when that entry needs a value (`set autoreply` without on or
+  // off, a bare `get`), or null: the command line says it is incomplete rather than sending it.
+  function missingValue(text) {
+    const head = squash(text).toLowerCase();
+    const hits = commands.table.filter((c) => c.text === head);
+    if (!hits.length || hits.some((c) => c.kind === 'none' || c.choices.includes(''))) return null;
+    return hits[0];
+  }
+
   // The command text with the chosen values appended (empty values skipped).
   const build = (entry, values) => `${entry.text} ${values.filter(Boolean).join(' ')}`.trim();
 
@@ -237,7 +246,7 @@ export function rulesFrom({ denylist, cautions, commands, firmware, facts }) {
   const reader = (key) => facts.readers[key] ?? facts.readers['*'].replace('{key}', key);
 
   return Object.freeze({
-    refusal, broadcastRefusal, caution, isRead, build,
+    refusal, broadcastRefusal, caution, isRead, missingValue, build,
     revision, features, has, entryFor, admits, lacks, needs, speaksV2, admitsUtf8, privateSubtype,
     meshAllowed, needsUplink, meshRefusal, speaksMesh, meshOnly, deviceMeshOnly,
     parseFacts, reader,
