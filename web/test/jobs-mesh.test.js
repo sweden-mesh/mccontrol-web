@@ -167,7 +167,8 @@ test('importing history keeps a road and refuses a made-up one', async () => {
 // W-26b, W-26c: the selector starts on the node's remembered road, else the mesh with a companion.
 test('the road the selector starts on: remembered, else mesh with a companion, else MQTT', () => {
   assert.equal(startRoad({}), 'mqtt');
-  assert.equal(startRoad({ companion: true }), 'mesh');
+  assert.equal(startRoad({ companion: true }), 'mqtt'); // a node with MQTT stays on MQTT
+  assert.equal(startRoad({ companion: true, meshOnly: true }), 'mesh');
   assert.equal(startRoad({ meshOnly: true }), 'auto');
   assert.equal(startRoad({ remembered: 'mqtt', companion: true }), 'mqtt');
   assert.equal(startRoad({ remembered: 'auto' }), 'auto');

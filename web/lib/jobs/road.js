@@ -31,12 +31,13 @@ export function mqttHeardAt(device, seen = null) {
   return known.length ? Math.max(...known) : null;
 }
 
-// The road the node view's selector starts on: the node's own last choice (W-26c), else the mesh
-// while a companion is connected (W-26b), else MQTT; a mesh-only node never starts on MQTT.
+// The road the node view's selector starts on: the node's own last choice (W-26c), else MQTT for a
+// node that has it, else (a node without MQTT) the mesh while a companion is connected and auto
+// otherwise (W-26b, operator 2026-11-18: an MQTT node would only answer mesh-closed).
 export function startRoad({ remembered = null, companion = false, meshOnly = false } = {}) {
   if (ROADS.includes(remembered) && !(meshOnly && remembered === 'mqtt')) return remembered;
-  if (companion) return 'mesh';
-  return meshOnly ? 'auto' : 'mqtt';
+  if (!meshOnly) return 'mqtt';
+  return companion ? 'mesh' : 'auto';
 }
 
 export function chooseRoad(rules, { device = null, command = '', via = 'mqtt', meshAfterMins = MESH_AFTER_MINS, heardAt = null, now = Date.now() } = {}) {

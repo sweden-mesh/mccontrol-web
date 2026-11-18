@@ -2,7 +2,7 @@
 // Beacon (battery, airtime sent per hour, noise floor), links to its details, statistics and
 // history, and at the bottom the command line: type, Enter signs and sends to this node, or to
 // the tagged nodes when some are tagged. The road switch (Auto / MQTT / Mesh) sits on the same
-// line (it starts on the node's last choice, else the mesh while a companion is connected: W-26b,
+// line (it starts on the node's last choice, else MQTT, or the mesh for a node without MQTT: W-26b,
 // W-26c). A command's answer is shown once, in HISTORY (W-23g): not here as a log, not under the
 // line. The command area is two fixed rows (W-23h, W-23i): the line, and the companion's state
 // when the road may take the mesh; what is wrong with a command tints the field and is its
@@ -264,7 +264,7 @@ function commandLine(ctx, svc, nodeId) {
     companionSlot.replaceChildren(...(show ? [h('span', { class: 'muted' }, ctx.t('tile.line.companion'), ' '), companion] : []));
   }
 
-  // The road starts on the node's last choice, else the mesh while a companion is connected (W-26b,
+  // The road starts on the node's last choice, else MQTT, or the mesh for a node without MQTT (W-26b,
   // W-26c); a choice made here is stored with the node, and until one is, a companion connecting
   // or going away moves the start with it.
   let chosen = false;
