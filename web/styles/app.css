@@ -244,3 +244,16 @@ main:focus { outline: none; }
    button: only unlocking (or making or importing a key) gets past it. Help stays reachable. */
 html[data-gate]:not([data-start-failed]) :is(#statusline, #main, #footer) { visibility: hidden; }
 html[data-gate] #modal[data-modal="unlock"] .modal-close { display: none; }
+
+/* The command field's suggestions (W-33c, ui/command-combo.js): a listbox in the top layer, in
+   the theme's colours, placed by script under or over the field. */
+.combo-list {
+  position: fixed; inset: auto; margin: 0; padding: 4px 0; max-height: 18rem; overflow: auto; list-style: none;
+  background: var(--bg); color: var(--fg); border: 1px solid var(--field-border); border-radius: var(--radius-xs);
+  box-shadow: var(--shadow); font: inherit; font-family: var(--font-mono); font-size: .875rem;
+}
+.combo-option { padding: 4px 10px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: none; }
+.combo-option:hover, .combo-option[aria-selected="true"] { background: var(--fg); color: var(--bg); }
+.combo-note { padding: 2px 10px 4px; color: var(--muted); font-family: var(--font-body); font-size: .8125rem; max-width: none; }
+@media (width < 45em), (pointer: coarse) { .combo-option { padding-block: 10px; } }
+@media (forced-colors: active) { .combo-option[aria-selected="true"] { outline: 2px solid Highlight; } }
