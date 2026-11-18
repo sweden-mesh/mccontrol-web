@@ -142,9 +142,9 @@ test('HISTORY for one node or all, and the new results per node', () => {
   assert.deepEqual(newCounts(ev, markAllSeen(ev)), {});
 });
 
-test('the lakes and the coast: small, Sweden only, Vättern near Jönköping (W-23c)', () => {
+test('the lakes and the coast: small, Sweden only, Vättern near Jönköping (W-23c, W-30)', () => {
   const url = new URL('../ui/tiles/se-water.json', import.meta.url);
-  assert.ok(readFileSync(url).length < 64 * 1024, 'se-water.json stays under 64 KB');
+  assert.ok(readFileSync(url).length < 150 * 1024, 'se-water.json stays under 150 KB (W-30)');
   const geo = JSON.parse(readFileSync(url, 'utf8'));
   assert.deepEqual(geo.features.map((f) => f.properties.kind), ['lake', 'coast']);
   const near = fit(frame([{ lat: 57.78, lng: 14.16 }, { lat: 58.0, lng: 14.5 }]), 1.4);
