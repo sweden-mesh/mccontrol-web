@@ -962,5 +962,6 @@
   "combo.label": "Kommandon",
   "combo.unknown": "Okänd version: alla kommandon visas",
   "hint.allOk": "Allt OK",
-  "hint.notKnown": "Inte hörd än: status okänd"
+  "hint.notKnown": "Inte hörd än: status okänd",
+  "std.foot.version": "mccontrol-web {version}"
 }

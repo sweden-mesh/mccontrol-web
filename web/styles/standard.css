@@ -176,7 +176,12 @@ html[data-layout="standard"] body { padding: 0; }
 .std-marker.is-selected { outline: 2px solid var(--fg); outline-offset: 1px; border-radius: 50%; }
 
 /* Footer */
-.std-foot { border-top: 1px solid var(--line); background: var(--surface); padding: 6px 16px; font-size: .8125rem; }
+.std-foot {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 20px;
+  border-top: 1px solid var(--line); background: var(--surface); padding: 6px 16px; font-size: .8125rem;
+}
+.std-foot-about { margin: 0 0 0 auto; max-width: none; }
+.std-foot-about a { color: inherit; }
 .std-foot-items { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 20px; }
 .std-foot-items li { max-width: none; }
 .std-foot-items .glyph, .std-row .glyph, .std .mark .glyph { color: var(--muted); }
