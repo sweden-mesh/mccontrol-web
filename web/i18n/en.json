@@ -961,5 +961,7 @@
   "tile.fitNext": "{ago}, next {next}",
   "tile.fitNextOnly": "next {next}",
   "combo.label": "Commands",
-  "combo.unknown": "Version unknown: every command is listed"
+  "combo.unknown": "Version unknown: every command is listed",
+  "hint.allOk": "All OK",
+  "hint.notKnown": "Not heard yet: no status known"
 }

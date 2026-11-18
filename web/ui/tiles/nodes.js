@@ -1,7 +1,7 @@
 // NODES (W-20c): one row per node, what needs attention first. Each row, on ONE line: the status
 // glyph, the name, firmware and when it was last heard (no region, W-33g) (no battery: NODE shows it, W-26f);
-// the row is tinted by severity. No status text at all (W-28c, which replaced W-23d's reason
-// column): the reason is NODE's, and on a phone the node opens full screen. The title says "4 · 1 needs attention". The "2 new"
+// the row is tinted by severity. No status text on the row (W-28c, which replaced W-23d's reason
+// column): the reason is NODE's and the row's tooltip's on hover or keyboard focus (W-35b); on a phone the node opens full screen. The title says "4 · 1 needs attention". The "2 new"
 // results count is NODE's (W-26g; W-25d had put it here).
 //
 // Pointer: a click on a row selects it (the NODE tile follows; on a phone the node opens full
@@ -15,6 +15,7 @@ import { nameOf } from '../screens/node-kit.js';
 import { age, everyMinute, forKey, stateMark } from './kit.js';
 import { byAttention, matches, nodeStatus, sharedPrefix } from './data.js';
 import { onDataChanged } from './sources.js';
+import { hintGone, statusHint } from '../status-hint.js';
 
 export const id = 'nodes';
 export const title = 'tile.nodes';
@@ -60,6 +61,7 @@ function fill(ctx, svc, body) {
     const prefix = sharedPrefix(devices.map(nameOf));
     list.replaceChildren(...(shown.length ? shown.map((r) => row(ctx, svc, r, { now, selected, tags, focusId, prefix }))
       : [h('li', { class: 'row muted', role: 'status' }, ctx.t('nodes.noMatch'))]));
+    hintGone();
     foot.textContent = [
       shown.length === devices.length ? ctx.t(devices.length === 1 ? 'tile.nodesCountOne' : 'tile.nodesCount', { n: devices.length }) : ctx.t('nodes.count', { n: shown.length, of: devices.length }),
       tags.size ? ctx.t('tile.taggedCount', { n: tags.size }) : ctx.t('tile.nodesKeys'),
@@ -87,7 +89,7 @@ function fill(ctx, svc, body) {
     button.addEventListener('click', () => { focusId = d.node; ctx.board.select(d.node); });
     return h('li', { class: `node-item${tagged ? ' is-tagged' : ''}`, 'data-state': status.state },
       h('label', { class: 'tag-hit' }, box),
-      button);
+      button, statusHint(ctx, button, status));
   }
 
   // One tab stop: arrows move the roving focus, Space tags, Enter is the button's own click.

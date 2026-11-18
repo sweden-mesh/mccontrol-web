@@ -257,3 +257,17 @@ html[data-gate] #modal[data-modal="unlock"] .modal-close { display: none; }
 .combo-note { padding: 2px 10px 4px; color: var(--muted); font-family: var(--font-body); font-size: .8125rem; max-width: none; }
 @media (width < 45em), (pointer: coarse) { .combo-option { padding-block: 10px; } }
 @media (forced-colors: active) { .combo-option[aria-selected="true"] { outline: 2px solid Highlight; } }
+
+/* A node row's full status on hover or keyboard focus (W-35b, ui/status-hint.js): a tooltip in
+   the top layer, placed by script under or over the row. */
+.status-hint {
+  position: fixed; inset: auto; margin: 0; padding: 6px 10px; max-width: min(28rem, calc(100vw - 8px));
+  background: var(--bg); color: var(--fg); border: 1px solid var(--field-border); border-radius: var(--radius-xs);
+  box-shadow: var(--shadow); font: inherit; font-family: var(--font-body); font-size: .8125rem;
+}
+.status-hint p { margin: 0; max-width: none; }
+.status-hint p + p { margin-top: 2px; }
+.status-hint .glyph { color: var(--muted); }
+.status-hint [data-state="ok"] .glyph { color: var(--online); }
+.status-hint [data-state="warn"] .glyph { color: var(--warn); }
+.status-hint [data-state="alert"] .glyph { color: var(--danger); }

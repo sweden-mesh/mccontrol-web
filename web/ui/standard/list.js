@@ -2,7 +2,8 @@
 // "All" or "Needs attention", and one row per node: the status mark, the name, and under it the
 // firmware and when it was last heard (no region: that is the node's details', W-33g). A click selects the node (board-state.js, shared
 // with the retro board); on a phone the detail then takes the screen. The row's tint and mark
-// carry the state (a glyph that differs in shape, read aloud as a word), never colour alone.
+// carry the state (a glyph that differs in shape, read aloud as a word), never colour alone; the
+// full status (every reason, or "All OK") is the row's tooltip on hover or keyboard focus (W-35b).
 import { h } from '../dom.js';
 import { lowBatteryVolts, notHeardHours } from '../screens/settings-store.js';
 import { lastHeard, shortVersion } from '../../lib/jobs/overview.js';
@@ -11,6 +12,7 @@ import { age, everyMinute, stateMark } from '../tiles/kit.js';
 import { onDataChanged } from '../tiles/sources.js';
 import { byAttention, nodeStatus } from '../tiles/data.js';
 import { nodeMatches } from './search.js';
+import { hintGone, statusHint } from '../status-hint.js';
 
 let lists = 0;
 
@@ -60,8 +62,9 @@ export function nodeList(ctx, svc, { selected, onPick }) {
           d.ver ? shortVersion(svc.rules, d.ver) : ctx.t('nodes.verUnknown'),
           ' · ', heard ? age(ctx, heard, now) : ctx.t('nodes.heardUnknown')));
       b.addEventListener('click', () => onPick(d.node));
-      return h('li', { 'data-state': status.state }, b);
+      return h('li', { 'data-state': status.state }, b, statusHint(ctx, b, status));
     }) : [h('li', { class: 'std-empty muted' }, ctx.t('nodes.noMatch'))]));
+    hintGone();
   }
 
   const redraw = () => draw().catch((e) => rows.replaceChildren(h('li', { class: 'std-empty tile-err' }, e.message)));
