@@ -105,12 +105,20 @@
 .cmd-line { border-top: 1px solid var(--field-border); padding-top: 6px; margin-top: 4px; background: var(--bg); }
 .cmd-row { display: flex; align-items: center; gap: 8px; }
 .cmd-prompt { white-space: nowrap; font-weight: 600; max-width: 40%; overflow: hidden; text-overflow: ellipsis; }
-.cmd, .road {
+.cmd {
   min-height: var(--row); padding: 0 8px; border: 1px solid var(--field-border); border-radius: var(--radius-xs);
   background: var(--bg); color: var(--fg); font: inherit;
 }
 .cmd { flex: 1; min-width: 6ch; width: auto; }
-.road { flex: 0 0 auto; width: auto; }
+/* The road (W-28d): three radios drawn as one segmented control in the .tool button's style. */
+.seg { display: inline-flex; flex: 0 0 auto; margin: 0; padding: 0; border: 1px solid var(--field-border); border-radius: var(--radius-xs); min-width: 0; }
+.seg-option { position: relative; display: inline-flex; align-items: center; min-height: calc(var(--row) - 2px); padding: 0 8px; cursor: pointer; color: var(--fg); white-space: nowrap; }
+.seg-option + .seg-option { border-inline-start: 1px solid var(--field-border); }
+.seg-input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: inherit; }
+.seg-option:has(.seg-input:checked) { background: var(--fg); color: var(--bg); font-weight: 600; }
+.seg-option:has(.seg-input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 1px; z-index: 1; }
+.seg-option:has(.seg-input:disabled) { opacity: .45; cursor: not-allowed; text-decoration: line-through; }
+.seg-option:hover:has(.seg-input:not(:checked, :disabled)) { color: var(--accent); }
 .cmd-send.button { min-height: var(--row); padding: 0 12px; font-size: inherit; }
 /* A narrow node view (the phone's sheet): the prompt on its own line, the field gets the width. */
 @container tile (width < 30rem) {

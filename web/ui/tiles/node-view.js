@@ -176,6 +176,24 @@ export function nodeView(ctx, svc, nodeId, { heading = null } = {}) {
   return el;
 }
 
+// The road (W-28d): a segmented switch of three radios in the page's button style, not a native
+// select, so it matches the fields and buttons in every theme and has no browser popup.
+// `value` reads and sets the checked one; setDisabled(value, on); 'change' bubbles from the radios.
+export function roadSwitch(ctx, nodeId) {
+  const name = `road-${nodeId}-${lists += 1}`;
+  const radios = ['auto', 'mqtt', 'mesh'].map((r) => h('input', { type: 'radio', name, value: r, class: 'seg-input' }));
+  const el = h('fieldset', { class: 'seg road' },
+    h('legend', { class: 'visually-hidden' }, ctx.t('road.legend')),
+    radios.map((input) => h('label', { class: 'seg-option' }, input, h('span', {}, ctx.t(`tile.road.${input.value}`)))));
+  radios[0].checked = true;
+  Object.defineProperty(el, 'value', {
+    get: () => radios.find((r) => r.checked)?.value || 'auto',
+    set: (v) => { const r = radios.find((x) => x.value === v); if (r) r.checked = true; },
+  });
+  el.setDisabled = (v, on) => { const r = radios.find((x) => x.value === v); if (r) r.disabled = on; };
+  return el;
+}
+
 // The command line: "Gisebo ▶ [command] road [auto|mqtt|mesh] [Send]", and under it one row for
 // the companion when the road may take the mesh (empty otherwise, so the area keeps its height).
 // The checks are the field's state and description: a command that cannot go (or stops before
@@ -187,8 +205,7 @@ function commandLine(ctx, svc, nodeId) {
   const input = h('input', { type: 'text', list: list.id, class: 'cmd', autocomplete: 'off', autocapitalize: 'none',
     spellcheck: 'false', enterkeyhint: 'send', 'aria-describedby': checkId, 'aria-invalid': 'false' });
   const prompt = h('label', { class: 'cmd-prompt' });
-  const road = h('select', { class: 'road', 'aria-label': ctx.t('road.legend') },
-    ['auto', 'mqtt', 'mesh'].map((r) => h('option', { value: r }, ctx.t(`tile.road.${r}`))));
+  const road = roadSwitch(ctx, nodeId);
   const send = h('button', { type: 'submit', class: 'button cmd-send' }, ctx.t('tile.send'));
   const check = h('span', { class: 'visually-hidden', id: checkId });
   const companionSlot = h('div', { class: 'cmd-companion' });
@@ -226,7 +243,7 @@ function commandLine(ctx, svc, nodeId) {
     prompt.replaceChildren(many ? ctx.t('tile.toTagged', { n: to.length }) : (device ? nameOf(device) : nodeId), h('span', { 'aria-hidden': 'true' }, ' ▶'));
     send.textContent = many ? ctx.t('tile.sendTagged', { n: to.length }) : ctx.t('tile.send');
     const meshOnly = to.some((d) => svc.rules.deviceMeshOnly(d));
-    road.querySelector('option[value="mqtt"]').disabled = meshOnly;
+    road.setDisabled('mqtt', meshOnly);
     if (meshOnly && road.value === 'mqtt') road.value = 'auto';
   }
 
