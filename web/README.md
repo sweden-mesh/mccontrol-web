@@ -204,7 +204,9 @@ the `.alert` class (inverse in Amber and Green).
   the node full screen; the selection is remembered by the browser), the box tags. Keys in the list: ↑ ↓ Home End, Enter selects, Space tags; `/` searches.
 - **NODE** (`node.js`, `node-view.js`): facts with their age, 24-hour sparklines from Beacon
   (battery, airtime sent, noise floor), links to details, statistics and history, and the command
-  area at the bottom: two fixed rows, the line with the road (auto, MQTT, mesh) and the companion's
+  area at the bottom: two fixed rows, the line with the road (auto, MQTT, mesh: the node's last
+  choice, kept as the device's `road`, else the mesh while a companion is connected, else MQTT;
+  `startRoad` in `lib/jobs/road.js`, W-26b, W-26c) and the companion's
   line when the road may take the mesh. A reply shows only in HISTORY (W-23g); what is wrong with a
   command tints the field and is its description, Send off when it cannot go (W-23h). It sends to the tagged nodes when any are tagged, else to this one,
   through `lib/jobs` with the checks before signing. The `node` modal (`#node/<id>`) is the same
