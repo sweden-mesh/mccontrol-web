@@ -41,7 +41,6 @@ import { beaconBase, beaconClient } from '../lib/stats/beacon.js';
 import { keyStatus, onKeyStatus } from './screens/key-session.js';
 import { services } from './screens/node-services.js';
 import { companion } from './companion-session.js';
-import { setStatusItem } from './statusline.js';
 
 const EMPTY = Object.freeze({ owner: null, unlocked: false, area: null, discovery: null, refresh: null, changed: 'key' });
 
@@ -68,23 +67,11 @@ function publish(changed) {
     refresh: live ? live.refresh.state() : null,
     changed,
   });
-  drawArea();
   for (const fn of listeners) { try { fn(snapshot); } catch { /* a listener's problem */ } }
 }
 
-let areaShown = false;
-function drawArea() {
-  const t = say.t();
-  if (!snapshot.owner) {
-    if (areaShown) setStatusItem('area', { word: t('area.none'), state: null });
-    return;
-  }
-  areaShown = true;
-  const a = snapshot.area;
-  setStatusItem('area', a
-    ? { word: a.county, state: null, href: '#setup/area', label: t('area.statusLabel', { area: a.label }) }
-    : { word: t('area.none'), state: 'warn', href: '#setup/area', label: t('area.chooseLabel') });
-}
+// The area is no longer in the status line (W-33g, operator 2026-11-18): it stays Setup's choice of
+// where discovery and Beacon look (#setup/area) until the IATA work replaces it.
 
 // What one finished discovery run says: "2 nodes answer your key: Gisebo, Torpa. Added." + Undo.
 function tell(outcome) {

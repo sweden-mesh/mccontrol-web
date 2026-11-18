@@ -1,5 +1,5 @@
 // ui/automation.js after a reload: the key starts locked, and the area stored for it must still
-// be in the snapshot and on the status line (W-23e), with nothing scheduled or signed.
+// be in the snapshot (W-23e; no longer on the status line, W-33g), with nothing scheduled or signed.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { automationState, startAutomation } from '../ui/automation.js';
@@ -31,6 +31,6 @@ test('a locked key shows the area stored for it', async () => {
   assert.equal(s.area.label, 'Jönköpings län · se-jkp');
   assert.equal(s.discovery.scheduled, false);
   assert.equal(s.discovery.nextRun, null);
-  assert.equal(statusItems().find((i) => i.name === 'area').word, 'Jönköpings län');
+  assert.equal(statusItems().find((i) => i.name === 'area'), undefined, 'no area in the status line (W-33g)');
   assert.equal(jobs.calls.length, 0);
 });

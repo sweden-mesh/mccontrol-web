@@ -2,7 +2,7 @@
 // laid out for people the board is hard to navigate for. The default for a new user (W-29h,
 // operator 2026-11-18); Settings and the button top right switch to the retro board.
 //
-//   header   app name, region, companion, Setup (gear), Help, Log out (W-29e), the layout switch
+//   header   app name (no area, W-33g), companion, Setup (gear), Help, Log out (W-29e), the layout switch
 //   list     the owner's nodes with a live search (W-29g)            ui/standard/list.js
 //   detail   the selected node: top panel, tabs, Overview's panels   ui/standard/detail.js
 //   footer   the states that gate everything, glyph and word each
@@ -18,7 +18,6 @@ import { services } from '../screens/node-services.js';
 import { confirm } from '../screens/node-kit.js';
 import { companionChooser } from '../screens/road-kit.js';
 import { onCompanion, state as companionState } from '../companion-session.js';
-import { automationState, onAutomation } from '../automation.js';
 import { GLYPH } from '../statusline.js';
 import { brokerWord } from '../tiles/status.js';
 import { shortAge } from '../tiles/kit.js';
@@ -51,8 +50,6 @@ export function layoutSwitch(ctx, to) {
 }
 
 function header(ctx, signal) {
-  const region = h('span', { class: 'std-region muted' });
-  const drawRegion = () => { region.textContent = automationState().area?.label || ''; };
   const comp = h('button', { type: 'button', class: 'tool std-companion', 'aria-haspopup': 'dialog' });
   const drawComp = () => {
     const c = companionState();
@@ -70,11 +67,9 @@ function header(ctx, signal) {
   out.addEventListener('click', () => logOut(ctx));
   const tie = (u) => signal.addEventListener('abort', u, { once: true });
   tie(onCompanion(drawComp));
-  tie(onAutomation(drawRegion));
   drawComp();
-  drawRegion();
   return h('header', { class: 'std-head' },
-    h('span', { class: 'std-brand' }, 'mccontrol'), region,
+    h('span', { class: 'std-brand' }, 'mccontrol'),
     h('div', { class: 'std-head-tools' }, comp, gear, help, out, layoutSwitch(ctx, 'retro')));
 }
 

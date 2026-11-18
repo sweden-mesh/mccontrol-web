@@ -302,7 +302,7 @@ Styles: `styles/tiles.css`; each tile body is a size container, so columns drop 
 
 `setStatusItem(name, { word, state, href, label })` in `ui/statusline.js`, for `broker`, `key`,
 `area`, `clock`. The shell sets `key` and `clock`, and a "connecting…" `broker` until its owner
-(the STATUS tile) sets it; `area` appears once discovery sets it. Hidden on a phone: area, clock.
+(the STATUS tile) sets it; `area` is no longer set (W-33g: the area is Setup's alone). Hidden on a phone: clock.
 
 ### Modals
 
@@ -410,7 +410,7 @@ Beacon ids, position, IATA codes); a node Beacon does not know has its fleet cle
 
 The area: `areaPicker(ctx, { id })` in `ui/area.js` (a county dropdown showing the scope, saved with a
 button because it starts a discovery), mounted in Setup's `area` tab (`#setup/area`); the status
-line's `area` item links there. The table is `lib/data/areas.json`, exported from `mccontrol/areas.py`,
+status line no longer shows it, nor does MAP's title (W-33g). The table is `lib/data/areas.json`, exported from `mccontrol/areas.py`,
 which is the regional template's counties (`tests/test_areas.py` compares it with a template
 checkout). Mesh-only nodes: `meshCandidates()` lists the repeaters in the connected companion's
 contacts that are not in the list, `addMeshNode(c)` adds one as mesh-only in the area. Setup's area

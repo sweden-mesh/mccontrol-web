@@ -89,7 +89,7 @@ function fill(ctx, svc, body) {
       return;
     }
     const regions = [...new Set(devices.map((d) => d.region))].sort();
-    ctx.tile.setTitle(regions.join(' '));
+    ctx.tile.setTitle('');   // just MAP (W-33g): no area or region in the title
     const now = Date.now();
     const opts = { now, hours: notHeardHours(), thresholdMv: lowBatteryVolts() * 1000, rules: svc.rules };
     const status = new Map(devices.map((d) => [d.node, nodeStatus(d, opts).state]));

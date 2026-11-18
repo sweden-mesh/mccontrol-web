@@ -335,7 +335,19 @@ async function main() {
           c = await count();
           if (c.rows !== 8) seen.push(`Esc: ${JSON.stringify(c)}`);
         } catch (err) { seen.push(err.message); }
-        report('std-dark the live search', [...problems, ...seen]);
+        // The suggestions (W-33c): an own listbox, the arrows mark one, Enter takes it, Esc closes.
+        try {
+          await page.click('.std-row'); await wait(1000);
+          await page.focus('.std-p-send .cmd');
+          await page.keyboard.type('get r'); await page.keyboard.press('ArrowDown'); await wait();
+          const c = await page.evaluate(() => { const i = document.activeElement; return { exp: i.getAttribute('aria-expanded'), act: i.getAttribute('aria-activedescendant'), n: document.querySelectorAll('.combo-list:popover-open [role="option"]').length }; });
+          if (c.exp !== 'true' || !c.act || !c.n) seen.push(`suggestions: ${JSON.stringify(c)}`);
+          await shot(page, 'std-dark-1280-suggestions');
+          await page.keyboard.press('Enter'); await wait();
+          const v = await page.$eval('.std-p-send .cmd', (i) => ({ value: i.value, exp: i.getAttribute('aria-expanded') }));
+          if (!/^get r/.test(v.value) || v.value === 'get r' || v.exp !== 'false') seen.push(`Enter on a suggestion: ${JSON.stringify(v)}`);
+        } catch (err) { seen.push(`suggestions: ${err.message}`); }
+        report('std-dark the live search and the suggestions', [...problems, ...seen]);
       }
       await ctx.close();
     }
