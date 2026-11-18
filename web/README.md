@@ -107,7 +107,7 @@ for this origin only (`test/shell-deploy.test.js` keeps the two in step):
 
 ```
 default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self';
-connect-src 'self' wss: https://beacon.meshcoresverige.se https://beacon.meshcore-jkp.se https://api.github.com https://tiles.openfreemap.org; manifest-src 'self';
+connect-src 'self' wss: ws: https://beacon.meshcoresverige.se https://beacon.meshcore-jkp.se https://api.github.com https://tiles.openfreemap.org; manifest-src 'self';
 worker-src 'self';
 base-uri 'none'; form-action 'none'; object-src 'none'; require-trusted-types-for 'script'; trusted-types mccontrol-sw mccontrol-map
 ```
@@ -122,7 +122,9 @@ What it means for code:
   `h(tag, attrs, ...children)`, which sets text as text; attach listeners with
   `addEventListener`.
 - **No third-party requests.** `connect-src` allows this origin, any `wss:` command server (an
-  owner may use their own, RB-1), Beacon's API (`lib/stats/beacon.json`) and GitHub's API for the firmware
+  owner may use their own, RB-1), `ws:` for mccontrol-bridge on the owner's own network (W-31e:
+  from the https page only a private or loopback address, behind Chrome's local-network prompt;
+  security review L7b), Beacon's API (`lib/stats/beacon.json`) and GitHub's API for the firmware
   release list (`lib/jobs/releases.json`). No fonts, images, analytics or scripts from
   elsewhere. A new origin is a CSP change and a security-review item, not a code change.
 - A `<meta>` CSP cannot carry `frame-ancestors`; `_headers` does.

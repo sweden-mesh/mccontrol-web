@@ -30,6 +30,7 @@ test('_headers: the page CSP plus frame-ancestors, and the companion headers', (
   const meta = read('index.html').match(/http-equiv="Content-Security-Policy" content="([^"]+)"/)[1];
   const h = headerBlock('/*');
   assert.equal(h['Content-Security-Policy'], `${meta}; frame-ancestors 'none'`);
+  assert.match(h['Content-Security-Policy'], /connect-src 'self' wss: ws: /, 'the bridge on the LAN (W-31e)');
   assert.match(h['Strict-Transport-Security'], /max-age=\d{7,}/);
   assert.equal(h['X-Content-Type-Options'], 'nosniff');
   assert.equal(h['Referrer-Policy'], 'no-referrer');

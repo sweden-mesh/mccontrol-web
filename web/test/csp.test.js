@@ -25,6 +25,11 @@ test('index.html carries the CSP and nothing inline', () => {
     assert.ok(csp.includes(part), part);
   }
   assert.ok(!/unsafe-inline|unsafe-eval|wasm-unsafe-eval/.test(csp));
+  // W-31e: ws: beside wss:, for mccontrol-bridge on the owner's network (an https page reaches only
+  // private addresses over ws://, behind the local-network prompt); never plain http:
+  const connect = csp.match(/connect-src ([^;]+)/)[1].split(' ');
+  assert.ok(connect.includes('wss:') && connect.includes('ws:'), 'connect-src wss: ws:');
+  assert.ok(!connect.includes('http:') && !connect.includes('https:') && !connect.includes('*'), 'no scheme-wide http');
   assert.ok(!/<script(?![^>]*\bsrc=)[^>]*>/.test(html), 'inline script');
   assert.ok(!/<style\b/.test(html), 'inline style');
   assert.ok(!/\son[a-z]+=/i.test(html), 'handler attribute');
