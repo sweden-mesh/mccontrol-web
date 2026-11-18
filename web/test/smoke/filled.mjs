@@ -305,7 +305,7 @@ async function main() {
           seen.push(...gaps);
           await shot(page, `${look}-${w}x${hh}-node`, w < 720);
           if (w === 1280) {
-            for (const tab of ['commands', 'history', 'firmware', 'settings']) {
+            for (const tab of ['history', 'firmware', 'settings']) {
               await page.click(`#std-tab-${tab}`); await wait(800);
               seen.push(...(await page.evaluate(inspect)).map((p) => `${tab}: ${p}`));
               await shot(page, `${look}-1280-tab-${tab}`);

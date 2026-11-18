@@ -2,8 +2,8 @@
 // tabs) and one tab at a time. Overview is four panels edge to edge, sharing 1 px borders and
 // touching the list and the top panel (no gaps, no padding between them): Status, Location,
 // Send a command and Recent results. The other tabs reuse the screens the retro board opens as
-// modals, so both layouts do the same jobs the same way:
-//   Commands  the send form with its checks (screens/send.js sendPanel) for this node
+// modals, so both layouts do the same jobs the same way (no Commands tab, W-35d: sending is
+// Overview's "Send a command", what came back is History):
 //   History   the history screen for this node (screens/history.js)
 //   Firmware  the version, the update and what is known (screens/node.js)
 //   Settings  name, region, notes, forget, and Set/update region (screens/node.js)
@@ -13,7 +13,6 @@ import { lastHeard, shortVersion } from '../../lib/jobs/overview.js';
 import { updateAvailable } from '../../lib/jobs/releases.js';
 import { lowBatteryVolts, notHeardHours } from '../screens/settings-store.js';
 import { explainEvent, nameOf, volts } from '../screens/node-kit.js';
-import { sendPanel } from '../screens/send.js';
 import * as historyScreen from '../screens/history.js';
 import { editForm, factList, firmwareBlock, REGION_SET } from '../screens/node.js';
 import { runSetPanel } from '../screens/sets.js';
@@ -25,7 +24,7 @@ import { onDataChanged } from '../tiles/sources.js';
 import { mapView } from './map.js';
 import { parseNeighbors } from './neighbours-data.js';
 
-export const TABS = Object.freeze(['overview', 'commands', 'history', 'firmware', 'settings']);
+export const TABS = Object.freeze(['overview', 'history', 'firmware', 'settings']);
 
 const statusOpts = (svc, release = null) => ({ now: Date.now(), hours: notHeardHours(), thresholdMv: lowBatteryVolts() * 1000, release, rules: svc.rules });
 
@@ -116,7 +115,6 @@ export function nodeDetail(ctx, svc, nodeId, { tab = 'overview', onTab, onPick }
       body);
     const tctx = tabCtx(ctx, nodeId, signal);
     if (tab === 'overview') body.append(overview(tctx, svc, device, st, release, onPick, onTab));
-    else if (tab === 'commands') body.append(h('div', { class: 'std-pad' }, sendPanel(tctx, svc, { devices: [device] })));
     else if (tab === 'history') body.append(h('div', { class: 'std-pad std-screen' }, historyScreen.render(tctx)));
     else if (tab === 'firmware') {
       const events = await svc.stores.history.list({ node: device.node });
