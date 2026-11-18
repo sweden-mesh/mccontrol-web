@@ -166,7 +166,7 @@
 /* STATUS: name, mark, action. The actions wrap below the state when the row has no room for
    them beside it (a narrow tile, a long word), never over it; a long state wraps inside its box. */
 .status-row { display: flex; flex-wrap: wrap; align-items: center; column-gap: 8px; }
-.status-row > .row-name { flex: 0 0 11ch; }   /* 'registrerad', the longest name */
+.status-row > .row-name { flex: 0 0 14ch; }   /* 'kommandoserver', the longest name (W-28a) */
 .status-row .mark { flex: 1 1 8ch; min-width: 0; white-space: normal; align-items: baseline; }
 .status-row .mark-word { min-width: 0; overflow-wrap: anywhere; }
 .status-act { margin-inline-start: auto; white-space: nowrap; }
