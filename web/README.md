@@ -255,7 +255,7 @@ the `.alert` class (inverse in Amber and Green).
 ### What the tiles do (wave 2)
 
 - **NODES** (`ui/tiles/nodes.js`): one row per node, refused or forged first, then what needs
-  attention, not known, ok; each on one line: name, region, firmware, last heard and the severity
+  attention, not known, ok; each on one line: name, firmware, last heard (no region, W-33g) and the severity
   mark and tint, no status text (W-28c: the reason is NODE's); no battery column (W-26f). A click selects (on a phone:
   the node full screen; the selection is remembered by the browser), the box tags. Keys in the list: ↑ ↓ Home End, Enter selects, Space tags; `/` searches.
 - **NODE** (`node.js`, `node-view.js`): facts with their age, 24-hour sparklines from Beacon

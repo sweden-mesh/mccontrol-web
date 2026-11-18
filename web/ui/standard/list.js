@@ -1,6 +1,6 @@
 // The standard layout's node list (W-29a, W-29g): a search over name and public key, the count,
 // "All" or "Needs attention", and one row per node: the status mark, the name, and under it the
-// firmware, region and when it was last heard. A click selects the node (board-state.js, shared
+// firmware and when it was last heard (no region: that is the node's details', W-33g). A click selects the node (board-state.js, shared
 // with the retro board); on a phone the detail then takes the screen. The row's tint and mark
 // carry the state (a glyph that differs in shape, read aloud as a word), never colour alone.
 import { h } from '../dom.js';
@@ -57,7 +57,7 @@ export function nodeList(ctx, svc, { selected, onPick }) {
         stateMark(ctx, status.state),
         h('span', { class: 'std-row-name' }, nameOf(d)),
         h('span', { class: 'std-row-sub muted' },
-          [d.ver ? shortVersion(svc.rules, d.ver) : ctx.t('nodes.verUnknown'), d.region].filter(Boolean).join(' · '),
+          d.ver ? shortVersion(svc.rules, d.ver) : ctx.t('nodes.verUnknown'),
           ' · ', heard ? age(ctx, heard, now) : ctx.t('nodes.heardUnknown')));
       b.addEventListener('click', () => onPick(d.node));
       return h('li', { 'data-state': status.state }, b);

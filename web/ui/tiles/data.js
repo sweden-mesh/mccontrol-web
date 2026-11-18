@@ -214,6 +214,12 @@ export function waterPaths(geo, f, proj) {
   return out;
 }
 
+// The IATA codes to ask Beacon for: every one the owner's nodes are in, their own and those Beacon
+// heard them in (fleet.iatas), whatever area Setup has chosen (W-33g). Sorted, no duplicates.
+export function nodeRegions(devices) {
+  return [...new Set(devices.flatMap((d) => [d.region, ...(d.fleet?.iatas || [])]).filter(Boolean).map((r) => String(r).toUpperCase()))].sort();
+}
+
 // Beacon's /nodes rows against the owner's devices: { mine: [{ device, node }], others: [node],
 // links: [[a, b]] } where a node is { id, name, lat, lng, neighborIds }. A device is matched by
 // the start of its key; links are the owner's nodes' neighbours that have a position.

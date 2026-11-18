@@ -19,7 +19,7 @@ import { lowBatteryVolts, notHeardHours } from '../screens/settings-store.js';
 import { beaconBase } from '../../lib/stats/beacon.js';
 import { nameOf } from '../screens/node-kit.js';
 import { forKey, s } from './kit.js';
-import { fit, mapFrame, mapModel, nodeStatus, outlinePaths, project, sharedPrefix, waterPaths } from './data.js';
+import { fit, mapFrame, mapModel, nodeRegions, nodeStatus, outlinePaths, project, sharedPrefix, waterPaths } from './data.js';
 import { onDataChanged } from './sources.js';
 
 export const id = 'map';
@@ -88,7 +88,9 @@ function fill(ctx, svc, body) {
       ctx.tile.setTitle('');
       return;
     }
-    const regions = [...new Set(devices.map((d) => d.region))].sort();
+    // Every IATA the owner's nodes are in, by their own and by what Beacon heard them in (W-33g):
+    // the map shows all of them wherever they are, not the area chosen in Setup.
+    const regions = nodeRegions(devices);
     ctx.tile.setTitle('');   // just MAP (W-33g): no area or region in the title
     const now = Date.now();
     const opts = { now, hours: notHeardHours(), thresholdMv: lowBatteryVolts() * 1000, rules: svc.rules };

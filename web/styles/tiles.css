@@ -39,10 +39,10 @@
 .node-item { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; column-gap: 4px; }
 .tag-hit { display: inline-flex; align-items: center; justify-content: center; min-width: 24px; min-height: var(--row); cursor: pointer; }
 .tag-box { width: 1rem; height: 1rem; margin: 0; }
-/* glyph, name, region, firmware, heard: one line, no status text (W-28c; the reason is NODE's).
-   No battery column (W-26f). The glyph's word is read aloud, not shown. The name takes what is
-   left. The region drops under 24em, the firmware under 20em (em: the tile's text). */
-.node-row { grid-template-columns: 2ch minmax(4ch, 1fr) 3ch 6ch 6ch; column-gap: 6px; }
+/* glyph, name, firmware, heard: one line, no status text (W-28c; the reason is NODE's), no region
+   (W-33g: a node's region is in its details only). No battery column (W-26f). The glyph's word is
+   read aloud, not shown. The name takes what is left; the firmware drops under 20em. */
+.node-row { grid-template-columns: 2ch minmax(4ch, 1fr) 6ch 6ch; column-gap: 6px; }
 .node-row .mark { display: contents; }
 .node-row .mark .glyph { grid-column: 1; }
 .node-row .mark-word { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
@@ -56,10 +56,6 @@
 .node-item[data-state="alert"] { background: color-mix(in srgb, var(--danger) 22%, var(--bg)); }
 .node-item[data-state="warn"] { background: color-mix(in srgb, var(--caution) 12%, var(--bg)); }
 .node-item:is([data-state="alert"], [data-state="warn"]) .node-row[aria-current="true"] { background: transparent; }
-@container tile (width < 24em) {
-  .node-row { grid-template-columns: 2ch minmax(4ch, 1fr) 6ch 6ch; }
-  .node-reg { display: none; }
-}
 @container tile (width < 20em) {
   .node-row { grid-template-columns: 2ch minmax(4ch, 1fr) 6ch; }
   .node-ver { display: none; }

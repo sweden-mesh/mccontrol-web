@@ -244,3 +244,9 @@ test('RESULTS: the shared start of the names, cut at a separator, so a narrow co
   assert.equal(sharedPrefix(['SE-JKG-Ekbacken']), '');
   assert.equal(sharedPrefix([]), '');
 });
+
+test('the map asks Beacon for every IATA the nodes are in, not the chosen area (W-33g)', async () => {
+  const { nodeRegions } = await import('../ui/tiles/data.js');
+  assert.deepEqual(nodeRegions([{ region: 'JKG', fleet: { iatas: ['jkg', 'GOT'] } }, { region: 'ARN' }, { region: null }]), ['ARN', 'GOT', 'JKG']);
+  assert.deepEqual(nodeRegions([]), []);
+});

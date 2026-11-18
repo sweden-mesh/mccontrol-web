@@ -19,7 +19,7 @@ import { editForm, factList, firmwareBlock, REGION_SET } from '../screens/node.j
 import { runSetPanel } from '../screens/sets.js';
 import { commandLine } from '../tiles/node-view.js';
 import { age, clockTime, stateMark } from '../tiles/kit.js';
-import { mapModel, nodeStatus } from '../tiles/data.js';
+import { mapModel, nodeRegions, nodeStatus } from '../tiles/data.js';
 import { areaNodes } from '../tiles/map.js';
 import { onDataChanged } from '../tiles/sources.js';
 import { mapView } from './map.js';
@@ -38,7 +38,7 @@ export function uptimeText(ctx, secs) {
 
 // The owner's nodes and the area around them, for a map: { mine, others, links }.
 async function mapData(svc, devices, statusOf) {
-  const regions = [...new Set(devices.map((d) => d.region).filter(Boolean))].sort();
+  const regions = nodeRegions(devices);   // every IATA the owner's nodes are in (W-33g)
   let rows = [];
   for (const r of regions) { try { rows = rows.concat(await areaNodes(r)); } catch { /* Beacon down: the owner's own positions only */ } }
   const model = mapModel(devices, rows);
