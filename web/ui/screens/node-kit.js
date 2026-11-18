@@ -189,5 +189,6 @@ export const byName = (lang) => (a, b) => nameOf(a).localeCompare(nameOf(b), lan
 export function volts(t, mv) {
   if (batteryKnown(mv)) return voltsText(mv);
   const words = t('battery.na');
-  return h('abbr', { class: 'na', title: words }, h('span', { 'aria-hidden': 'true' }, NO_READING), h('span', { class: 'visually-hidden' }, words));
+  // A span, not an <abbr>: no dotted underline (W-33b); the tooltip and the spoken words stay.
+  return h('span', { class: 'na', title: words }, h('span', { 'aria-hidden': 'true' }, NO_READING), h('span', { class: 'visually-hidden' }, words));
 }
