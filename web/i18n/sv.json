@@ -338,7 +338,6 @@
   "update.done": "Kör nu {version}.",
   "update.refused": "Noden nekade uppdateringen ({code}).",
   "node.statsLink": "Batteri, sändtid och brusgolv från Beacon",
-  "help.asNamed": "Som namnet säger.",
   "help.code": "Kod",
   "help.codes": "Vad en nods svar betyder",
   "help.codesBody": "Varje svar från en nod har en av de här koderna. Förklaringarna är på engelska, som i terminalverktyget.",
@@ -963,5 +962,15 @@
   "combo.unknown": "Okänd version: alla kommandon visas",
   "hint.allOk": "Allt OK",
   "hint.notKnown": "Inte hörd än: status okänd",
-  "std.foot.version": "mccontrol-web {version}"
+  "std.foot.version": "mccontrol-web {version}",
+  "help.code.empty": "Meddelandet kom fram till noden utan innehåll.",
+  "help.code.too-long": "Meddelandet är längre än en nod tar emot (512 byte).",
+  "help.code.no-signature": "Meddelandet har ingen signatur.",
+  "help.code.bad-sig-len": "Signaturen är inte 128 hextecken lång.",
+  "help.code.bad-sig-hex": "Signaturen är inte giltig hex.",
+  "help.code.bad-version": "Meddelandet har ett format som noden inte känner till. Dess firmware kan vara äldre än den här sidan.",
+  "help.code.bad-fields": "Ett fält saknas i meddelandet, eller så är utgångstiden inte ett tal.",
+  "help.code.bad-counter": "Räknaren är inte ett tal som noden kan läsa.",
+  "help.code.expiry-too-far": "Utgångstiden ligger mer än en timme före nodens klocka. Kontrollera nodens klocka och din.",
+  "help.code.command-chars": "Kommandot innehåller ett tecken som noden nekar: ett styrtecken, avgränsaren | eller trasig UTF-8."
 }

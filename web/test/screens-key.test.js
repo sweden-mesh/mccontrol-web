@@ -166,6 +166,11 @@ test('help: links between topics, and every result code with mesh-closed', () =>
   assert.equal(closed.name, 'mesh-closed');
   assert.match(closed.help, /Send over MQTT/);
   assert.equal(rows.find((r) => r.code === 1).help, '');
+  // W-35g: a code the shared table leaves without words has the page's own, in every language.
+  for (const lang of ['en', 'sv']) {
+    const strings = JSON.parse(readFileSync(new URL(`../i18n/${lang}.json`, import.meta.url), 'utf8'));
+    for (const r of rows.filter((x) => !x.help)) assert.ok(strings[`help.code.${r.name}`], `${lang}: help.code.${r.name}`);
+  }
   for (const name of Object.values(help.topics.index.body.match(/\[\[([a-z0-9_-]+)\]\]/g)).map((m) => m.slice(2, -2))) {
     assert.ok(help.topics[name], `the contents link to ${name}`);
   }
