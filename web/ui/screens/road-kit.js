@@ -1,10 +1,11 @@
 // The mesh road on the screens (W-16): the road choice (Auto / MQTT / Mesh), the companion
-// control (connect by Bluetooth or USB, its state, what this browser cannot do), and the words
+// control (connect by Bluetooth, USB or the network through mccontrol-bridge, its state, what this
+// browser cannot do), and the words
 // for which road a result took. Used by the send panel (node and send screens) and settings.
 import { h } from '../dom.js';
-import { put, useStyles } from './node-kit.js';
+import { field, put, useStyles } from './node-kit.js';
 import { connect, disconnect, onCompanion, state, support } from '../companion-session.js';
-import { companionKind, meshAfterMins } from './settings-store.js';
+import { bridgeAddress, companionKind, meshAfterMins } from './settings-store.js';
 
 let count = 0;
 
@@ -59,7 +60,34 @@ export function companionControl(ctx) {
   draw(state());
   const stop = onCompanion(draw);
   ctx.signal.addEventListener('abort', stop, { once: true });
-  return h('div', { class: 'companion' }, status, buttons, note);
+  return h('div', { class: 'companion' }, status, buttons, note, networkForm(ctx));
+}
+
+// "Network (bridge)" (W-31d): a companion reached through mccontrol-bridge on the owner's network.
+// The address is remembered on this device, a token never is. Connect runs in the click, so
+// Chrome can show its one-time "local network" prompt.
+export function networkForm(ctx) {
+  const id = `net-${count += 1}`;
+  const address = h('input', { type: 'text', id: `${id}-addr`, inputmode: 'url', autocomplete: 'off', spellcheck: 'false',
+    autocapitalize: 'off', placeholder: 'ws://192.168.1.20:8765', value: bridgeAddress(), class: 'mono' });
+  const token = h('input', { type: 'password', id: `${id}-token`, autocomplete: 'off', spellcheck: 'false' });
+  const tokenField = field(ctx.t('companion.net.tokenLabel'), token, ctx.t('companion.net.tokenHint'));
+  const go = h('button', { type: 'submit', class: 'tool' }, ctx.t('companion.net.connect'));
+  const showToken = () => { tokenField.hidden = !/^\s*wss:/i.test(address.value); };
+  address.addEventListener('input', showToken, { signal: ctx.signal });
+  showToken();
+  const form = h('form', { class: 'stack companion-net', novalidate: true },
+    h('h4', {}, ctx.t('companion.kind.network')),
+    field(ctx.t('companion.net.address'), address, ctx.t('companion.net.addressHint')),
+    tokenField, h('div', { class: 'row' }, go),
+    h('p', { class: 'hint-line' }, ctx.t('companion.net.prompt')),
+    h('p', { class: 'hint-line' }, ctx.t('companion.net.other'), ' ', h('a', { href: '#help/mesh' }, ctx.t('road.help'))));
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    connect('network', { address: address.value, token: token.value });
+    token.value = '';
+  }, { signal: ctx.signal });
+  return form;
 }
 
 // The companion's error: in the page's language when it has a known reason (errorKey).
@@ -68,6 +96,7 @@ export const companionError = (ctx, s) => (s.errorKey ? ctx.t(s.errorKey) : ctx.
 // Why this browser cannot reach a companion one way, or '' when it can (W-23a).
 function missingWhy(ctx, can, kind) {
   if (can[kind]) return '';
+  if (kind === 'network') return ctx.t('companion.net.none');
   if (can.ios) return ctx.t('companion.ios');
   if (can.secure === false) return ctx.t('companion.insecure');
   return ctx.t(kind === 'bluetooth' ? 'companion.noBluetooth' : 'companion.noUsb');
@@ -80,7 +109,8 @@ export function companionChooser(ctx) {
   useStyles();
   const can = support();
   const id = `cc-${count += 1}`;
-  const order = companionKind() === 'usb' ? ['usb', 'bluetooth'] : ['bluetooth', 'usb'];
+  const order = companionKind() === 'usb' ? ['usb', 'bluetooth', 'network'] : companionKind() === 'network'
+    ? ['network', 'bluetooth', 'usb'] : ['bluetooth', 'usb', 'network'];
   const cancel = h('button', { type: 'button', class: 'tool' }, ctx.t('node.cancel'));
   const s = state();
   let body;
@@ -95,7 +125,13 @@ export function companionChooser(ctx) {
         const why = missingWhy(ctx, can, kind);
         const b = h('button', { type: 'button', class: 'button', disabled: Boolean(why), 'aria-describedby': why ? `${id}-${kind}` : null },
           ctx.t(`companion.kind.${kind}`));
-        b.addEventListener('click', () => { dialog.close(); connect(kind); });
+        // the network needs an address: the last one, else Setup's form (and a token over wss://)
+        b.addEventListener('click', () => {
+          dialog.close();
+          if (kind !== 'network') connect(kind);
+          else if (bridgeAddress() && !/^wss:/i.test(bridgeAddress())) connect('network', { address: bridgeAddress() });
+          else if (ctx.navigate) ctx.navigate('#setup/connections'); else globalThis.location.hash = '#setup/connections';
+        });
         return h('li', {}, b, why ? h('p', { class: 'hint-line', id: `${id}-${kind}` }, why) : null);
       }))];
   }

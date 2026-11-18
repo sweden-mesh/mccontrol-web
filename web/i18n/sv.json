@@ -967,5 +967,22 @@
   "send.why.mcc3NoKey": "{name} kör lou-20 eller senare, som behöver hela den publika nyckeln; hitta dina noder igen eller lägg till den med nyckeln",
   "send.why.emptyArea": "ingen av dina noder har {area} som hemregion",
   "setup.tab.connections": "Kommandoserver och companion",
-  "settings.legacyBroker": "Din egen (lou-19 och äldre)"
+  "settings.legacyBroker": "Din egen (lou-19 och äldre)",
+  "companion.kind.network": "Nätverk (brygga)",
+  "companion.net.address": "Bryggans adress",
+  "companion.net.addressHint": "Där mccontrol-bridge lyssnar: ws://192.168.1.20:8765 med bryggans IP-adress, eller wss://namn:port när den har ett certifikat.",
+  "companion.net.token": "Bryggan nekade token. Ange den den startades med.",
+  "companion.net.tokenHint": "Bara när bryggan körs med certifikat och token. Sparas inte: frågas varje gång.",
+  "companion.net.connect": "Anslut över nätverket",
+  "companion.net.prompt": "Första gången frågar Chrome eller Edge om sidan får nå enheter i ditt lokala nätverk. Tillåt det; frågan kommer en gång. Om du nekade, tillåt det igen i webbplatsinställningarna (ikonen till vänster om adressen).",
+  "companion.net.other": "Firefox och Safari behöver wss:// med ett certifikat som webbläsaren litar på; bryggans README beskriver hur.",
+  "companion.net.none": "Den här webbläsaren har ingen WebSocket.",
+  "companion.net.badUrl": "Ange bryggan som ws://IP:port eller wss://namn:port.",
+  "companion.net.mixedContent": "Från den här sidan når ws:// bara en IP-adress i ditt eget nätverk. Använd bryggans IP-adress (inte dess namn), eller wss:// med ett certifikat.",
+  "companion.net.unreachable": "Bryggan öppnades inte. Antingen nekades webbläsarens tillstånd för lokalt nätverk (tillåt det i webbplatsinställningarna), bryggan körs inte på den adressen, eller så nekade den den här sidan (dess ursprung, eller adressen den nåddes på).",
+  "companion.net.busy": "En annan sida är redan ansluten till bryggan. Stäng den där och anslut igen.",
+  "companion.net.companion": "Bryggan når inte companion-radion. Är den på, och på adressen bryggan fick?",
+  "companion.net.tooBig": "Bryggan stängde anslutningen: en ram var större än den tar emot.",
+  "companion.net.text": "Bryggan stängde anslutningen: den tar bara binära ramar.",
+  "companion.net.tokenLabel": "Token"
 }

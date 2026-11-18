@@ -967,5 +967,22 @@
   "send.why.mcc3NoKey": "{name} runs lou-20 or later, which needs its whole public key; find your nodes again or add it by its key",
   "send.why.emptyArea": "none of your nodes names {area} as its region home",
   "setup.tab.connections": "Command server and companion",
-  "settings.legacyBroker": "Your own (lou-19 and older)"
+  "settings.legacyBroker": "Your own (lou-19 and older)",
+  "companion.kind.network": "Network (bridge)",
+  "companion.net.address": "Bridge address",
+  "companion.net.addressHint": "Where mccontrol-bridge listens: ws://192.168.1.20:8765 with the bridge's IP address, or wss://name:port when it has a certificate.",
+  "companion.net.token": "The bridge refused the token. Give the one it was started with.",
+  "companion.net.tokenHint": "Only when the bridge runs with a certificate and a token. Not kept: asked each time.",
+  "companion.net.connect": "Connect over the network",
+  "companion.net.prompt": "The first time, Chrome or Edge asks to let this site reach devices on your local network. Allow it; it asks once. If you blocked it, allow it again in the site settings (the icon left of the address).",
+  "companion.net.other": "Firefox and Safari need wss:// with a certificate the browser trusts; the bridge's README says how.",
+  "companion.net.none": "This browser has no WebSocket.",
+  "companion.net.badUrl": "Give the bridge as ws://IP:port or wss://name:port.",
+  "companion.net.mixedContent": "From this page ws:// reaches only an IP address on your own network. Use the bridge's IP address (not its name), or wss:// with a certificate.",
+  "companion.net.unreachable": "The bridge did not open. Either the browser's local-network permission was refused (allow it in the site settings), the bridge is not running at that address, or it refused this page (its origin, or the address it was reached by).",
+  "companion.net.busy": "Another page is already attached to the bridge. Close it there and connect again.",
+  "companion.net.companion": "The bridge cannot reach the companion radio. Is it on, and on the address the bridge was given?",
+  "companion.net.tooBig": "The bridge closed the connection: a frame was larger than it takes.",
+  "companion.net.text": "The bridge closed the connection: it takes binary frames only.",
+  "companion.net.tokenLabel": "Token"
 }

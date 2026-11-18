@@ -2,14 +2,17 @@
 // "Disconnect" or until the radio goes away, so a send does not ask the browser again. The jobs
 // read it through current(); the screens draw its state and listen for changes.
 //
-//   support()        { bluetooth, usb, ios }: what this browser can reach
-//   connect(kind)    'bluetooth' | 'usb'; must run in a click (the browser shows its chooser)
+//   support()        { bluetooth, usb, network, ios }: what this browser can reach
+//   connect(kind, { address, token })   'bluetooth' | 'usb' | 'network'; must run in a click (the
+//                    browser shows its chooser, or for 'network' its local-network prompt). 'network'
+//                    goes through mccontrol-bridge at `address` (W-31d); the token is not kept
 //   state()          { status: 'none' | 'connecting' | 'connected' | 'error', kind, name, error, phase }
 //                    phase 'reconnecting': a USB companion restarted and its port is being reopened (W-25b)
 import { openCompanion } from '../lib/mesh/companion.js';
 import { bluetoothAvailable, connectBluetooth } from '../lib/mesh/ble.js';
 import { connectSerial, serialAvailable } from '../lib/mesh/serial.js';
-import { setCompanionKind } from './screens/settings-store.js';
+import { connectNetwork, networkAvailable } from '../lib/mesh/tcp.js';
+import { setBridgeAddress, setCompanionKind } from './screens/settings-store.js';
 
 let radio = null;
 let current = { status: 'none', kind: '', name: '', error: '', errorKey: '', phase: '' };
@@ -24,7 +27,8 @@ export function support(nav = globalThis.navigator) {
   const ua = nav?.userAgent || '';
   // iPadOS reports itself as a Mac; touch points tell it apart
   const ios = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && (nav?.maxTouchPoints || 0) > 1);
-  return Object.freeze({ bluetooth: bluetoothAvailable(nav), usb: serialAvailable(nav), ios, secure: globalThis.isSecureContext !== false });
+  return Object.freeze({ bluetooth: bluetoothAvailable(nav), usb: serialAvailable(nav), network: networkAvailable(), ios,
+    secure: globalThis.isSecureContext !== false });
 }
 
 export const state = () => current;
@@ -35,14 +39,15 @@ export function onCompanion(fn) {
   return () => listeners.delete(fn);
 }
 
-export async function connect(kind) {
+export async function connect(kind, { address = '', token = '' } = {}) {
   if (current.status === 'connecting') return current;
   await disconnect();
   set({ status: 'connecting', kind, name: '', error: '', errorKey: '', phase: '' });
   let link = null;
   let name = '';
   try {
-    link = kind === 'bluetooth' ? await connectBluetooth() : await connectSerial();
+    link = kind === 'bluetooth' ? await connectBluetooth()
+      : kind === 'network' ? await connectNetwork(address, { token }) : await connectSerial();
     // A USB companion that restarts drops its port; serial.js reopens it (W-25b). Said here while
     // it does, before app start and after.
     link.onStatus?.((st) => {
@@ -52,10 +57,14 @@ export async function connect(kind) {
     });
     const opened = await openCompanion(link);
     radio = opened;
-    link.onClose(() => {
-      if (radio === opened) { radio = null; set({ status: 'none', name: '', error: '', phase: '' }); }
+    link.onClose((why) => {
+      if (radio !== opened) return;
+      radio = null;
+      // the bridge said why it closed (the companion went away): said, not a quiet "not connected"
+      if (why?.name === 'NetworkError') set({ status: 'error', name: '', error: why.message, errorKey: `companion.net.${why.code}`, phase: '' });
+      else set({ status: 'none', name: '', error: '', phase: '' });
     });
-    try { setCompanionKind(kind); } catch { /* remembered for this page only */ }
+    try { setCompanionKind(kind); if (kind === 'network') setBridgeAddress(address.trim()); } catch { /* remembered for this page only */ }
     name = opened.self.name || link.label || '';
     set({ status: 'connected', name, error: '', phase: '' });
   } catch (e) {
@@ -63,7 +72,8 @@ export async function connect(kind) {
     // the person closed the browser's chooser: not an error worth a sentence
     const cancelled = e?.name === 'NotFoundError' || e?.name === 'AbortError';
     // errorKey: a reason the page says in its own language (the message stays English for a log).
-    const errorKey = e?.code === 'otherFirmware' ? 'companion.otherFirmware' : '';
+    const errorKey = e?.code === 'otherFirmware' ? 'companion.otherFirmware'
+      : e?.name === 'NetworkError' ? `companion.net.${e.code}` : '';
     set({ status: cancelled ? 'none' : 'error', name: '', error: cancelled ? '' : (e?.message || String(e)), errorKey, phase: '' });
   }
   return current;

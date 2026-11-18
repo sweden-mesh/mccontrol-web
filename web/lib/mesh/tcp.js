@@ -67,7 +67,7 @@ export async function connectNetwork(address, { token = '', WebSocket: Socket = 
   }
   ws.binaryType = 'arraybuffer';
   let frameFn = () => {};
-  let closeFn = () => {};
+  const closers = [];          // every onClose listener (the companion's and the session's)
   let opened = false;
   let closed = false;
   let failure = null;          // why the bridge closed, from its close code
@@ -83,7 +83,7 @@ export async function connectNetwork(address, { token = '', WebSocket: Socket = 
       if (!opened) {
         reject(failure || new NetworkError('unreachable', `${url} closed before it opened: the browser's local-network permission was refused, the bridge is not running there, or it refused this page (its origin or address)`));
       } else {
-        closeFn(failure);
+        for (const fn of closers) { try { fn(failure); } catch { /* a listener's problem */ } }
       }
     };
     ws.onerror = () => { /* the close that follows says why */ };
@@ -101,7 +101,7 @@ export async function connectNetwork(address, { token = '', WebSocket: Socket = 
     label: host,
     get failure() { return failure; },
     onFrame(fn) { frameFn = fn; },
-    onClose(fn) { closeFn = fn; if (closed) fn(failure); },
+    onClose(fn) { closers.push(fn); if (closed) fn(failure); },
     async write(bytes) {
       if (closed || ws.readyState !== 1) throw failure || new NetworkError('unreachable', 'the bridge connection is closed');
       ws.send(bytes);
