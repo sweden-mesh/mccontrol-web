@@ -41,13 +41,13 @@ test('follows the key, publishes the snapshot, the area and what discovery added
   assert.equal(s.discovery.scheduled, false);
   assert.equal(s.refresh.scheduled, true);
   assert.equal(s.area, null);
-  assert.equal(statusItems().find((i) => i.name === 'area').state, 'warn');
+  assert.equal(statusItems().find((i) => i.name === 'area'), undefined, 'no area in the status line (W-33g)');
 
   await setArea('06');
   s = automationState();
   assert.equal(s.area.label, 'Jönköpings län · se-jkp');
   assert.deepEqual(s.area.iatas, ['JKG']);
-  assert.equal(statusItems().find((i) => i.name === 'area').word, 'Jönköpings län');
+  assert.equal(statusItems().find((i) => i.name === 'area'), undefined);
   assert.equal(jobs.calls.filter((c) => c[0] === 'discover').length, 0);   // locked: nothing signed
 
   status = { ...status, locked: false };

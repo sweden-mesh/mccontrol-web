@@ -142,9 +142,9 @@ test('HISTORY for one node or all, and the new results per node', () => {
   assert.deepEqual(newCounts(ev, markAllSeen(ev)), {});
 });
 
-test('the lakes and the coast: small, Sweden only, Vättern near Jönköping (W-23c)', () => {
+test('the lakes and the coast: small, Sweden only, Vättern near Jönköping (W-23c, W-30)', () => {
   const url = new URL('../ui/tiles/se-water.json', import.meta.url);
-  assert.ok(readFileSync(url).length < 64 * 1024, 'se-water.json stays under 64 KB');
+  assert.ok(readFileSync(url).length < 150 * 1024, 'se-water.json stays under 150 KB (W-30)');
   const geo = JSON.parse(readFileSync(url, 'utf8'));
   assert.deepEqual(geo.features.map((f) => f.properties.kind), ['lake', 'coast']);
   const near = fit(frame([{ lat: 57.78, lng: 14.16 }, { lat: 58.0, lng: 14.5 }]), 1.4);
@@ -243,4 +243,10 @@ test('RESULTS: the shared start of the names, cut at a separator, so a narrow co
   assert.equal(sharedPrefix(['SE-JKG-A', 'SE-JKG-']), '');            // a name would be left empty
   assert.equal(sharedPrefix(['SE-JKG-Ekbacken']), '');
   assert.equal(sharedPrefix([]), '');
+});
+
+test('the map asks Beacon for every IATA the nodes are in, not the chosen area (W-33g)', async () => {
+  const { nodeRegions } = await import('../ui/tiles/data.js');
+  assert.deepEqual(nodeRegions([{ region: 'JKG', fleet: { iatas: ['jkg', 'GOT'] } }, { region: 'ARN' }, { region: null }]), ['ARN', 'GOT', 'JKG']);
+  assert.deepEqual(nodeRegions([]), []);
 });

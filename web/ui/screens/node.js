@@ -19,7 +19,7 @@ export const REGION_SET = 'add-scope';
 export const route = 'node';
 export const title = 'nav.node';
 
-function factList(ctx, svc, device, events) {
+export function factList(ctx, svc, device, events) {
   const { facts, raw } = deriveFacts(device, events, svc.rules.parseFacts);
   const labels = svc.data.facts.labels.map(([k]) => k);
   const label = Object.fromEntries(svc.data.facts.labels);
@@ -36,7 +36,7 @@ function factList(ctx, svc, device, events) {
 }
 
 // W-19: the version, the mark, and the update with its stages.
-function firmwareBlock(ctx, svc, device, release, page, redraw) {
+export function firmwareBlock(ctx, svc, device, release, page, redraw) {
   const wrap = h('div', { class: 'stack' });
   if (!device.ver) {
     wrap.append(h('p', {}, ctx.t('update.unknown')));
@@ -87,7 +87,7 @@ function firmwareBlock(ctx, svc, device, release, page, redraw) {
   return wrap;
 }
 
-function editForm(ctx, svc, device, redraw) {
+export function editForm(ctx, svc, device, redraw) {
   const name = h('input', { type: 'text', value: device.name, autocomplete: 'off' });
   const region = h('input', { type: 'text', value: device.region, autocomplete: 'off', maxlength: '8', class: 'short' });
   const notes = h('textarea', { rows: '3' });

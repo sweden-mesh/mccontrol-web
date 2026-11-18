@@ -39,10 +39,10 @@
 .node-item { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; column-gap: 4px; }
 .tag-hit { display: inline-flex; align-items: center; justify-content: center; min-width: 24px; min-height: var(--row); cursor: pointer; }
 .tag-box { width: 1rem; height: 1rem; margin: 0; }
-/* glyph, name, region, firmware, heard: one line, no status text (W-28c; the reason is NODE's).
-   No battery column (W-26f). The glyph's word is read aloud, not shown. The name takes what is
-   left. The region drops under 24em, the firmware under 20em (em: the tile's text). */
-.node-row { grid-template-columns: 2ch minmax(4ch, 1fr) 3ch 6ch 6ch; column-gap: 6px; }
+/* glyph, name, firmware, heard: one line, no status text (W-28c; the reason is NODE's), no region
+   (W-33g: a node's region is in its details only). No battery column (W-26f). The glyph's word is
+   read aloud, not shown. The name takes what is left; the firmware drops under 20em. */
+.node-row { grid-template-columns: 2ch minmax(4ch, 1fr) 6ch 6ch; column-gap: 6px; }
 .node-row .mark { display: contents; }
 .node-row .mark .glyph { grid-column: 1; }
 .node-row .mark-word { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
@@ -56,10 +56,6 @@
 .node-item[data-state="alert"] { background: color-mix(in srgb, var(--danger) 22%, var(--bg)); }
 .node-item[data-state="warn"] { background: color-mix(in srgb, var(--caution) 12%, var(--bg)); }
 .node-item:is([data-state="alert"], [data-state="warn"]) .node-row[aria-current="true"] { background: transparent; }
-@container tile (width < 24em) {
-  .node-row { grid-template-columns: 2ch minmax(4ch, 1fr) 6ch 6ch; }
-  .node-reg { display: none; }
-}
 @container tile (width < 20em) {
   .node-row { grid-template-columns: 2ch minmax(4ch, 1fr) 6ch; }
   .node-ver { display: none; }
@@ -112,7 +108,7 @@
 .cmd { flex: 1; min-width: 6ch; width: auto; }
 /* The road (W-28d): three radios drawn as one segmented control in the .tool button's style. */
 .seg { display: inline-flex; flex: 0 0 auto; margin: 0; padding: 0; border: 1px solid var(--field-border); border-radius: var(--radius-xs); min-width: 0; }
-.seg-option { position: relative; display: inline-flex; align-items: center; min-height: calc(var(--row) - 2px); padding: 0 8px; cursor: pointer; color: var(--fg); white-space: nowrap; }
+.seg-option { position: relative; display: inline-flex; align-items: center; min-height: var(--row); padding: 0 8px; cursor: pointer; color: var(--fg); white-space: nowrap; }
 .seg-option + .seg-option { border-inline-start: 1px solid var(--field-border); }
 .seg-input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: inherit; }
 .seg-option:has(.seg-input:checked) { background: var(--fg); color: var(--bg); font-weight: 600; }
@@ -169,6 +165,15 @@
 .status-row > .row-name { flex: 0 0 14ch; }   /* 'kommandoserver', the longest name (W-28a) */
 .status-row .mark { flex: 1 1 8ch; min-width: 0; white-space: normal; align-items: baseline; }
 .status-row .mark-word { min-width: 0; overflow-wrap: anywhere; }
+/* A time in four lengths (W-33a, kit.js fitTimes): the longest that fits the tile's width. */
+.fit { position: relative; }
+.fit > .visually-hidden { left: 0; top: 0; }
+.fit > [class^="fit-"] { display: none; white-space: nowrap; }
+.fit > .fit-0 { display: inline; }
+.fit > .fit-3 { white-space: normal; }   /* the shortest may still wrap in the narrowest tile */
+@container tile (width < 30em) { .fit > .fit-0 { display: none; } .fit > .fit-1 { display: inline; } }
+@container tile (width < 26em) { .fit > .fit-1 { display: none; } .fit > .fit-2 { display: inline; } }
+@container tile (width < 23em) { .fit > .fit-2 { display: none; } .fit > .fit-3 { display: inline; } }
 .status-act { margin-inline-start: auto; white-space: nowrap; }
 .status-acts { display: inline-flex; flex-wrap: wrap; justify-content: flex-end; column-gap: 12px; margin-inline-start: auto; max-width: 100%; }
 .status-acts .status-act { margin-inline-start: 0; }

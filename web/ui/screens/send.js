@@ -8,6 +8,7 @@
 // region-wide send it offers the road (W-16): MQTT, the mesh through the owner's companion
 // radio, or auto; the companion is connected here when a road may take the mesh.
 import { h } from '../dom.js';
+import { attachCombo } from '../command-combo.js';
 import { preflight } from '../../lib/jobs/checks.js';
 import { CompanionError } from '../../lib/mesh/companion.js';
 import { companionControl, roadChoice, roadLine } from './road-kit.js';
@@ -20,32 +21,16 @@ import {
 export const route = 'send';
 export const title = 'send.title';
 
-let listCount = 0;
 
 // The datalist of the command table: each command, its choices and its examples.
-function commandList(svc) {
-  const id = `cmds-${listCount += 1}`;
-  const seen = new Set();
-  const options = [];
-  const add = (text) => { if (text && !seen.has(text) && !text.includes('<')) { seen.add(text); options.push(h('option', { value: text })); } };
-  for (const c of svc.data.commands.table) {
-    if (c.text === 'get' || c.text === 'set') { c.examples.forEach((e) => add(e.split(':')[0].trim())); continue; }
-    if (c.kind === 'none') add(c.text);
-    for (const choice of c.choices) add(`${c.text} ${choice}`.trim());
-    for (const ex of c.examples) add(`${c.text} ${ex}`);
-  }
-  return { id, el: h('datalist', { id }, options) };
-}
-
 export function whyText(ctx, block) {
   return ctx.t(`send.why.${block.code}`, block.vars);
 }
 
 // target: { devices: [device] } | { group: { id, members }, devices } | { region, devices }
 export function sendPanel(ctx, svc, target, { onDone = null, initial = '' } = {}) {
-  const list = commandList(svc);
   const input = h('input', {
-    type: 'text', list: list.id, autocomplete: 'off', autocapitalize: 'none', spellcheck: 'false',
+    type: 'text', autocomplete: 'off', autocapitalize: 'none', spellcheck: 'false',
     class: 'cmd-input', enterkeyhint: 'send', value: initial,
   });
   const check = h('div', { class: 'checks', 'aria-live': 'polite' });
@@ -53,13 +38,15 @@ export function sendPanel(ctx, svc, target, { onDone = null, initial = '' } = {}
   const stop = h('button', { type: 'button', class: 'tool', hidden: true }, ctx.t('send.stop'));
   const results = h('div', { class: 'results' });
   const one = !target.region && target.devices.length === 1 ? target.devices[0] : null;
+  // The suggestions: an own listbox, only what the targets' firmware has (W-33c, W-33d).
+  attachCombo(ctx, input, { svc, devices: () => target.devices });
   const meshOnly = target.devices.some((d) => svc.rules.deviceMeshOnly(d)) && !target.region;
   let road = meshOnly ? 'auto' : 'mqtt';
   const companionSlot = h('div', {});
   const choice = target.region ? null : roadChoice(ctx, { initial: road, meshOnly, onChange: (r) => { road = r; drawRoad(); drawChecks(); } });
   const form = h('form', { class: 'send-form', novalidate: true },
     field(ctx.t('send.command'), input, ctx.t('send.commandHint')),
-    list.el, choice?.el, companionSlot, check, h('div', { class: 'row' }, sendButton, stop), results);
+    choice?.el, companionSlot, check, h('div', { class: 'row' }, sendButton, stop), results);
 
   const verdict = () => preflight(svc.rules, { command: input.value, device: one, region: target.region || null,
     road: target.region ? 'mqtt' : road, meshAfterMins: meshAfterMins() });

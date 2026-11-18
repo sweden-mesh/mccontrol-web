@@ -1,0 +1,213 @@
+/* The standard layout, "list and detail" (W-29): html[data-layout="standard"], drawn by
+   ui/standard/. Its own colour setting (W-29b: dark, the default, or light; html[data-scheme])
+   and the colour-blind setting (W-29c: html[data-colorblind]) replace the retro board's four themes
+   while it shows; the retro theme setting is kept for the board. The tokens are the regional
+   sites' Dark and Light (tokens.css), with the status colours of each mode. IBM Plex Sans, the
+   app's own self-hosted face. */
+
+/* Tokens. Status: green / amber / red by default; colour-blind mode blue / yellow / orange that
+   also differ in lightness. The shapes (● ▲ ✕ ○) and words carry every state in both. */
+:root[data-layout="standard"] {
+  --font-body: var(--font-sans);
+  --font-head: var(--font-sans);
+  --radius: 8px; --radius-sm: 6px; --radius-xs: 4px;
+  --std-tap: 36px;
+  @media (width < 45em), (pointer: coarse) { --std-tap: var(--tap); }
+}
+:root[data-layout="standard"][data-scheme="dark"], :root[data-layout="standard"]:not([data-scheme]) {
+  color-scheme: dark;
+  --bg: #0b141b; --surface: #0f1f2a; --fg: #e6eef3; --strong: #ffffff; --muted: #9fb3c0;
+  --accent: #6fb3dc; --accent-2: #56b4e9;
+  --online: #3fb950; --warn: #d29922; --caution: #e3b341; --danger: #ff7b72; --info: #60a5fa;
+  --alert-bg: transparent; --alert-fg: #ff7b72;
+  --line: #1d3242; --field-border: #56707f;
+  --backdrop: rgb(0 0 0 / .6);
+  --shadow: 0 12px 30px rgb(0 0 0 / .5);
+}
+:root[data-layout="standard"][data-scheme="light"] {
+  color-scheme: light;
+  --bg: #ffffff; --surface: #f6f8fa; --fg: #1b1f24; --strong: #000000; --muted: #57606a;
+  --accent: #0b5fd3; --accent-2: #0b5fd3;
+  --online: #1a7f37; --warn: #9a6700; --caution: #7d5600; --danger: #cf222e; --info: #0b5fd3;
+  --alert-bg: transparent; --alert-fg: #cf222e;
+  --line: #d8dee4; --field-border: #8c959f;
+  --backdrop: rgb(27 31 36 / .35);
+  --shadow: 0 12px 30px rgb(27 31 36 / .15);
+}
+:root[data-layout="standard"][data-colorblind]:is([data-scheme="dark"], :not([data-scheme])) {
+  --online: #56b4e9; --warn: #f0e442; --caution: #f0e442; --danger: #e69f00; --alert-fg: #e69f00;
+}
+:root[data-layout="standard"][data-scheme="light"][data-colorblind] {
+  --online: #0072b2; --warn: #6b5d00; --caution: #6b5d00; --danger: #a14d00; --alert-fg: #a14d00;
+}
+
+/* The retro board's frame is not shown; the standard layout draws its own header and footer. */
+html[data-layout="standard"] :is(#statusline, #footer) { display: none; }
+html[data-layout="standard"] body { padding: 0; }
+
+.std { display: flex; flex-direction: column; min-height: 100dvh; font-size: .9375rem; }
+.std .tool { min-height: var(--std-tap); padding: 0 12px; font-size: .875rem; font-weight: 500; }
+.std .icon { width: 1.1em; height: 1.1em; display: block; }
+
+/* Header */
+.std-head {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 8px 16px;
+  background: var(--surface); border-bottom: 1px solid var(--line);
+}
+.std-brand { font-weight: 700; font-size: 1.0625rem; }
+.std-region { font-size: .875rem; }
+.std-head-tools { margin-inline-start: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.std-companion { max-width: 22rem; }
+.std-companion .std-comp-word { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.std-companion .std-comp-name { color: var(--muted); }
+.std-icon, .layout-switch { width: var(--std-tap); padding: 0; }
+/* The layout switch: the clearest button of the header, top right in both layouts. */
+.layout-switch { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.layout-switch:hover { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+
+/* Body: the list beside the detail; each scrolls on its own from 45em. */
+.std-body { flex: 1; display: grid; grid-template-columns: minmax(16rem, 20rem) minmax(0, 1fr); min-height: 0; }
+.std-aside { border-inline-end: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; background: var(--bg); }
+.std-main { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.std-back { display: none; }
+@media (width >= 45em) {
+  html[data-layout="standard"] body { height: 100dvh; }
+  html[data-layout="standard"] main { height: 100%; }
+  .std { height: 100%; min-height: 0; }
+  .std-aside, .std-main { overflow: auto; }
+}
+
+/* The list */
+.std-list { display: flex; flex-direction: column; min-height: 100%; }
+.std-list-tools { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+.std-search {
+  min-height: var(--std-tap); padding: 0 10px; border: 1px solid var(--field-border); border-radius: var(--radius-sm);
+  background: var(--bg); color: var(--fg); font: inherit;
+}
+.std-search::placeholder { color: var(--muted); opacity: 1; }
+.std-count { margin: 0; font-size: .8125rem; }
+.std-filter { align-self: flex-start; font-size: .8125rem; }
+.std-filter .seg-option { min-height: var(--std-tap); }
+.std-rows { list-style: none; margin: 0; padding: 0; }
+.std-rows li { border-bottom: 1px solid var(--line); }
+.std-rows li[data-state="alert"] { background: color-mix(in srgb, var(--danger) 14%, var(--bg)); }
+.std-rows li[data-state="warn"] { background: color-mix(in srgb, var(--warn) 10%, var(--bg)); }
+.std-row {
+  display: grid; grid-template-columns: 1.25em minmax(0, 1fr); column-gap: 8px; row-gap: 2px; align-items: baseline;
+  width: 100%; min-height: var(--tap); padding: 8px 14px; border: 0; background: none; color: inherit; font: inherit;
+  text-align: start; cursor: pointer;
+}
+.std-row:hover { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.std-row[aria-current="true"] { background: color-mix(in srgb, var(--accent) 18%, var(--bg)); box-shadow: inset 3px 0 0 var(--accent); }
+.std-row .mark { display: contents; }
+.std-row .mark .glyph { grid-row: 1; grid-column: 1; }
+.std-row .mark-word { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.std-row-name { grid-column: 2; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.std-row-sub { grid-column: 2; font-size: .8125rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.std-empty { padding: 12px 14px; }
+.std-list-foot { margin-top: auto; padding: 12px 14px; }
+.std-more { width: 100%; }
+
+/* The detail: top panel and tabs */
+.std-detail { display: flex; flex-direction: column; min-height: 0; }
+.std-top { padding: 16px 24px 0; border-bottom: 1px solid var(--line); background: var(--bg); }
+.std-top h1 { margin: 0; font-size: 1.25rem; overflow-wrap: anywhere; }
+.std-meta { margin: 4px 0 8px; font-size: .875rem; }
+.std-tabs { display: flex; gap: 2px; overflow-x: auto; scrollbar-width: thin; }
+.std-tab {
+  flex: 0 0 auto; min-height: var(--tap); padding: 0 14px; border: 0; border-bottom: 2px solid transparent; background: none;
+  color: var(--muted); font: 500 .9375rem var(--font-body); cursor: pointer;
+}
+.std-tab:hover { color: var(--fg); }
+.std-tab[aria-selected="true"] { color: var(--fg); border-bottom-color: var(--accent); }
+.std-tabpanel:focus { outline: none; }
+.std-pad { padding: 16px 24px; }
+/* A screen shown in a tab: its own title is the tab's name, already on screen. */
+.std-screen .scr > h1 { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.std-screen h2 { font-size: 1rem; margin: 1.25rem 0 .5rem; }
+.std-screen h2:first-child { margin-top: 0; }
+
+/* Overview's four panels: edge to edge, 1 px shared borders (the grid's gap over --line), no
+   space between them or against the list and the top panel (operator, W-29a). */
+.std-panels {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); gap: 1px;
+  background: var(--line); border-bottom: 1px solid var(--line);
+}
+.std-panels-one { grid-template-columns: 1fr; }
+.std-panel { background: var(--bg); padding: 14px 20px; min-width: 0; }
+.std-panel h2 { margin: 0 0 10px; font-size: .9375rem; font-weight: 600; }
+.std-p-send, .std-p-results { grid-column: 1 / -1; }
+.std-state { margin: 0 0 10px; }
+.std-state .mark { white-space: normal; align-items: baseline; }
+.std-dl { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 16px; margin: 0; }
+.std-dl dt { color: var(--muted); }
+.std-dl dd { margin: 0; overflow-wrap: anywhere; }
+.std-nb { color: var(--accent); }
+.std-tag { font-size: .8125rem; font-weight: 600; color: var(--warn); }
+.std-actions { margin: 12px 0 0; display: flex; gap: 8px; flex-wrap: wrap; }
+.std .std-small { min-height: 32px; font-size: .8125rem; }
+@media (width < 45em), (pointer: coarse) { .std .std-small { min-height: var(--tap); } }
+.std-p-send .cmd-line { border-top: 0; margin: 0; padding: 0; }
+/* The command line wraps by its panel's width, as in the NODE tile (tiles.css). */
+.std-p-send { container: tile / inline-size; }
+@container tile (width < 30rem) { .std-p-send .cmd { flex-basis: 100%; } }
+.std-table { width: 100%; border-collapse: collapse; font-size: .875rem; }
+.std-table th { text-align: start; font-weight: 500; color: var(--muted); font-size: .8125rem; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+.std-table td, .std-table tbody th { padding: 8px; border-bottom: 1px solid var(--line); vertical-align: baseline; overflow-wrap: anywhere; }
+.std-table tbody th { font-weight: 500; text-align: start; }
+.std-table .mark { white-space: normal; align-items: baseline; }
+.std-time { white-space: nowrap; }
+.std-table code { font-size: .8125rem; }
+
+/* The map */
+.std-map-wrap { display: flex; flex-direction: column; gap: 4px; }
+.std-map { height: 16rem; background: var(--surface); position: relative; overflow: hidden; }
+.std-panels-one .std-map { height: min(60dvh, 34rem); }
+.std-map-empty { padding: 12px; margin: 0; }
+.std-map-credit { margin: 0; font-size: .75rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: 0 8px; }
+.std-map-credit a { color: inherit; }
+.std-marker { width: 24px; height: 24px; padding: 3px; border: 0; background: none; cursor: pointer; }
+.std-marker svg { display: block; overflow: visible; }
+.std-marker :is(circle, path) { fill: var(--online); stroke: var(--bg); stroke-width: 2; }
+.std-marker[data-state="warn"] :is(circle, path) { fill: var(--warn); }
+.std-marker[data-state="alert"] path { fill: none; stroke: var(--danger); stroke-width: 3.5; }
+.std-marker[data-state="unknown"] circle { fill: var(--bg); stroke: var(--muted); }
+.std-marker.is-selected { outline: 2px solid var(--fg); outline-offset: 1px; border-radius: 50%; }
+
+/* Footer */
+.std-foot { border-top: 1px solid var(--line); background: var(--surface); padding: 6px 16px; font-size: .8125rem; }
+.std-foot-items { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 20px; }
+.std-foot-items li { max-width: none; }
+.std-foot-items .glyph, .std-row .glyph, .std .mark .glyph { color: var(--muted); }
+:is(.std-foot-items li, .std .mark)[data-state="ok"] .glyph { color: var(--online); }
+:is(.std-foot-items li, .std .mark)[data-state="warn"] .glyph { color: var(--warn); }
+:is(.std-foot-items li, .std .mark)[data-state="alert"] .glyph { color: var(--danger); }
+
+/* Neighbours dialog */
+.nb-wrap { overflow-x: auto; }
+.nb-table { min-width: 40rem; }
+.nb-name { font-weight: 600; }
+
+/* A phone: the list, then the detail in its place; "All nodes" goes back. */
+@media (width < 45em) {
+  .std-head { padding: 8px 12px; }
+  .std-head-tools { margin-inline-start: 0; width: 100%; }
+  .std-companion { flex: 1 1 100%; max-width: none; justify-content: flex-start; }
+  .std-body { grid-template-columns: minmax(0, 1fr); }
+  .std-aside { border-inline-end: 0; }
+  .std-body[data-view="list"] .std-main { display: none; }
+  .std-body[data-view="detail"] .std-aside { display: none; }
+  .std-back { display: inline-flex; align-self: flex-start; margin: 8px 12px; }
+  .std-top { padding: 12px 12px 0; }
+  .std-panel { padding: 12px; }
+  .std-pad { padding: 12px; }
+}
+@media (forced-colors: active) {
+  .std-row[aria-current="true"] { outline: 2px solid Highlight; box-shadow: none; }
+  .layout-switch { border: 1px solid ButtonText; }
+}
+
+/* The retro board's switch back (W-29): the same button at the end of its status line. */
+#statusline .layout-switch { min-height: 32px; width: 32px; padding: 0; margin-inline-start: 8px; flex: 0 0 auto; }
+#statusline .layout-switch .icon { width: 1.1em; height: 1.1em; display: block; }
+@media (width < 45em), (pointer: coarse) { #statusline .layout-switch { min-height: var(--tap); width: var(--tap); } }

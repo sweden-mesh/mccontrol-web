@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
-import { readPrefs, migratePrefs } from '../ui/prefs.js';
+import { readPrefs, migratePrefs, schemeFor } from '../ui/prefs.js';
 import { memory } from './prefs-fakes.js';
 
 const SOURCE = readFileSync(new URL('../ui/boot.js', import.meta.url), 'utf8');
@@ -41,7 +41,7 @@ function page(storage, language = 'en-GB') {
 }
 
 test('boot.js applies the same theme as prefs.js, and migrates the same way', () => {
-  const cases = [{}, { 'mccontrol.theme': 'light' }, { 'mccontrol.theme': 'dark', 'mccontrol.cvd': '1' },
+  const cases = [{}, { 'mccontrol.theme': 'light' }, { 'mccontrol.scheme': 'light', 'mccontrol.colorblind': 'on' }, { 'mccontrol.theme': 'dark', 'mccontrol.cvd': '1' },
     { 'mccontrol.phosphor': 'green', 'mccontrol.theme': 'light', 'mccontrol.motion': 'off' },
     { 'mccontrol.phosphor': 'amber' }, { 'mccontrol.theme': 'green' }, { 'mccontrol.theme': 'system' }];
   for (const init of cases) {
@@ -51,7 +51,9 @@ test('boot.js applies the same theme as prefs.js, and migrates the same way', ()
     const viaBoot = memory(init);
     const { root, meta } = page(viaBoot);
     assert.equal(root.getAttribute('data-theme'), expected, JSON.stringify(init));
-    assert.equal(meta.getAttribute('content'), expected === 'light' ? 'light' : 'dark');
+    // The standard layout (the default, W-29) is dark unless its own setting says light.
+    assert.equal(meta.getAttribute('content'), schemeFor(readPrefs(memory(init))));
+    assert.equal(root.getAttribute('data-layout'), 'standard');
     assert.deepEqual(Object.fromEntries(viaBoot.m), Object.fromEntries(viaPrefs.m), JSON.stringify(init));
   }
 });

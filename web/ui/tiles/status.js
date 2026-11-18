@@ -22,7 +22,7 @@ import { companionChooser } from '../screens/road-kit.js';
 import { testConnection } from '../../lib/protocol/transport.js';
 import { services } from '../screens/node-services.js';
 import { brokerProblem, brokerText } from '../screens/key-register.js';
-import { everyMinute, shortAge, shortUntil, stateMark } from './kit.js';
+import { everyMinute, fitTimes, stateMark } from './kit.js';
 import { brokerReport, dataChanged, onDataChanged, onSources, reportBroker, source } from './sources.js';
 
 export const id = 'status';
@@ -71,12 +71,11 @@ export function render(ctx) {
   const line = (name, state, word, action = null, detail = null) => h('li', { class: `row status-row${state === 'alert' ? ' alert' : ''}`, 'data-line': name, title: detail || null },
     h('span', { class: 'row-name' }, ctx.t(`tile.line.${name}`)), stateMark(ctx, state, word), action);
 
+  // The last and next run, shortened to fit the tile's width (W-33a, kit.js fitTimes).
   const clock = (st, fallbackWord) => {
-    const parts = [];
     if (st.state === 'running') return ctx.t('tile.running');
-    if (st.last) parts.push(Date.now() - st.last < 60000 ? ctx.t('node.justNow') : ctx.t('tile.ago', { age: shortAge(ctx, st.last) }));
-    if (st.next) parts.push(ctx.t('tile.next', { when: shortUntil(ctx, st.next) }));
-    return parts.join(', ') || fallbackWord;
+    if (!st.last && !st.next) return fallbackWord;
+    return fitTimes(ctx, st.last, st.next).el;
   };
 
   // The command server (W-28a): connecting…, connected, or unreachable and why; its host in the

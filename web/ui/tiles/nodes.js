@@ -1,5 +1,5 @@
 // NODES (W-20c): one row per node, what needs attention first. Each row, on ONE line: the status
-// glyph, the name, region, firmware and when it was last heard (no battery: NODE shows it, W-26f);
+// glyph, the name, firmware and when it was last heard (no region, W-33g) (no battery: NODE shows it, W-26f);
 // the row is tinted by severity. No status text at all (W-28c, which replaced W-23d's reason
 // column): the reason is NODE's, and on a phone the node opens full screen. The title says "4 · 1 needs attention". The "2 new"
 // results count is NODE's (W-26g; W-25d had put it here).
@@ -82,7 +82,6 @@ function fill(ctx, svc, body) {
       'aria-current': d.node === selected ? 'true' : null },
     stateMark(ctx, status.state),
     h('span', { class: 'node-name', title: name }, short),
-    h('span', { class: 'node-reg' }, d.region),
     h('span', { class: 'node-ver' }, d.ver ? shortVersion(svc.rules, d.ver) : '–'),
     h('span', { class: 'node-heard' }, heard ? age(ctx, heard, now) : '–'));
     button.addEventListener('click', () => { focusId = d.node; ctx.board.select(d.node); });

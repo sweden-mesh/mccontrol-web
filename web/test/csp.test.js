@@ -59,12 +59,13 @@ test('nothing reaches a third party by URL in our code', () => {
   }
 });
 
-test('the one Trusted Types policy is the one the CSP names (W-12)', () => {
+// mccontrol-sw: the offline copy's worker (W-12); mccontrol-map: MapLibre's worker (W-29d).
+test('the Trusted Types policies are the ones the CSP names (W-12, W-29d)', () => {
   const html = readFileSync(join(WEB, 'index.html'), 'utf8');
   const csp = html.match(/http-equiv="Content-Security-Policy" content="([^"]+)"/)[1];
   const allowed = csp.match(/trusted-types ([^;]+)/)[1].trim().split(/\s+/);
   const made = files(WEB, '.js').filter((f) => !relative(WEB, f).startsWith('test'))
     .flatMap((f) => [...readFileSync(f, 'utf8').matchAll(/createPolicy\(\s*'([^']+)'/g)].map((m) => m[1]));
-  assert.deepEqual(allowed, ['mccontrol-sw']);
-  assert.deepEqual([...new Set(made)], allowed);
+  assert.deepEqual(allowed, ['mccontrol-sw', 'mccontrol-map']);
+  assert.deepEqual([...new Set(made)].sort(), [...allowed].sort());
 });
