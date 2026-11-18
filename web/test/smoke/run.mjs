@@ -318,7 +318,8 @@ async function main() {
         await page.click('#modal .modal-close');
         await expect('the close button goes to the board', null, '');
         const keys = (await state(page)).keys;
-        if (keys.length !== 3) problems.push(`key bar: ${keys.join(' | ')}`);
+        // NODES binds '/' (search) on a desktop once it has the key's nodes to search.
+        if (keys.length !== (width < 720 ? 3 : 4)) problems.push(`key bar: ${keys.join(' | ')}`);
       } catch (err) { problems.push(err.message); } finally { await page.close(); }
       report(`frame ${width}px: keys, Back, Esc, close`, problems);
     }

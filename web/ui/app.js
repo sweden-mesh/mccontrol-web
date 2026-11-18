@@ -141,7 +141,9 @@ async function start() {
     if (gated()) {
       if (p.kind === 'board' || !GATE_OPEN.includes(p.name)) {
         if (p.kind === 'modal') gateReturn = location.hash;
-        history.replaceState(history.state, '', '#unlock');
+        // The board's own entry stays depth 0, so leaving the gate walks back to it, not off the page.
+        const state = p.kind === 'board' ? { ...(history.state || {}), mcDepth: history.state?.mcDepth ?? 0 } : history.state;
+        history.replaceState(state, '', '#unlock');
         route({ force });
         return;
       }
@@ -200,7 +202,9 @@ async function start() {
   applyGate();
   // Past the gate, back at the board: open what was asked for before it.
   onModalChange((current) => {
-    if (current || gated() || !gateReturn) return;
+    // Closing Help (or anything) behind the gate goes back to the gate, not to the board.
+    if (!current && gated()) { queueMicrotask(() => { if (!currentModal() && gated()) route(); }); return; }
+    if (current || !gateReturn) return;
     const back = gateReturn;
     gateReturn = null;
     location.hash = back;
