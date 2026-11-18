@@ -170,8 +170,11 @@
 .status-row .mark { flex: 1 1 8ch; min-width: 0; white-space: normal; align-items: baseline; }
 .status-row .mark-word { min-width: 0; overflow-wrap: anywhere; }
 /* A time in four lengths (W-33a, kit.js fitTimes): the longest that fits the tile's width. */
+.fit { position: relative; }
+.fit > .visually-hidden { left: 0; top: 0; }
 .fit > [class^="fit-"] { display: none; white-space: nowrap; }
 .fit > .fit-0 { display: inline; }
+.fit > .fit-3 { white-space: normal; }   /* the shortest may still wrap in the narrowest tile */
 @container tile (width < 30em) { .fit > .fit-0 { display: none; } .fit > .fit-1 { display: inline; } }
 @container tile (width < 26em) { .fit > .fit-1 { display: none; } .fit > .fit-2 { display: inline; } }
 @container tile (width < 23em) { .fit > .fit-2 { display: none; } .fit > .fit-3 { display: inline; } }
