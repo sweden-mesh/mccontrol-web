@@ -30,6 +30,7 @@ import { whyText } from '../screens/send.js';
 import { tagged as taggedIds, onBoardChange, clearTags } from '../board-state.js';
 import { age, s } from './kit.js';
 import { GLYPH } from '../statusline.js';
+import { attachCombo } from '../command-combo.js';
 import { hourly, known, newCounts, nodeStatus, sparkRuns } from './data.js';
 import { dataChanged, onDataChanged, reportBroker, startJob } from './sources.js';
 
@@ -78,20 +79,11 @@ function spark(ctx, label, values, { unit, digits = 0, scale = 1, latestKnown = 
     h('span', { class: 'fact-age muted' }, k.length ? h('span', { class: 'visually-hidden' }, words) : null, ctx.t('tile.h24')));
 }
 
-// The datalist of the command table, as the send screen builds it.
 let lists = 0;
-function commandList(svc) {
-  const id = `tile-cmds-${lists += 1}`;
-  const seen = new Set();
-  const opts = [];
-  const add = (text) => { if (text && !seen.has(text) && !text.includes('<')) { seen.add(text); opts.push(h('option', { value: text })); } };
-  for (const c of svc.data.commands.table) {
-    if (c.text === 'get' || c.text === 'set') { c.examples.forEach((e) => add(e.split(':')[0].trim())); continue; }
-    if (c.kind === 'none') add(c.text);
-    for (const choice of c.choices) add(`${c.text} ${choice}`.trim());
-    for (const ex of c.examples) add(`${c.text} ${ex}`);
-  }
-  return { id, el: h('datalist', { id }, opts) };
+
+// Why a node needs attention, in words: '' when nothing (no reasons, or none given) (W-33e).
+export function reasonsText(t, reasons) {
+  return (reasons || []).map((r) => t(`dash.att.${r.kind}`, r.vars)).join('; ');
 }
 
 export function nodeView(ctx, svc, nodeId, { heading = null } = {}) {
@@ -134,10 +126,11 @@ export function nodeView(ctx, svc, nodeId, { heading = null } = {}) {
       device.key && svc.rules.speaksV2(device.ver) ? ctx.t('tile.v2') : ctx.t('tile.v1')];
     // Why it needs attention, whole: NODES cuts it to fit its row (W-23d).
     const st = nodeStatus(device, { now: Date.now(), hours: notHeardHours(), thresholdMv: lowBatteryVolts() * 1000, rules: svc.rules });
-    const why = st.reasons.map((r) => ctx.t(`dash.att.${r.kind}`, r.vars)).join('; ');
+    const why = reasonsText(ctx.t, st.reasons);
+    // No reason, no line (W-33e: replaceChildren would have written a null as the text "null").
     head.replaceChildren(h('p', { class: 'row node-meta' },
       meta.map((m, i) => h('span', { class: 'meta-part' }, m, i < meta.length - 1 ? '\u00a0·' : ''))),
-    why ? h('p', { class: `row node-why-line${st.state === 'alert' ? ' alert' : ''}` }, h('span', { class: 'glyph', 'aria-hidden': 'true' }, GLYPH[st.state]), h('span', {}, why)) : null);
+    ...(why ? [h('p', { class: `row node-why-line${st.state === 'alert' ? ' alert' : ''}` }, h('span', { class: 'glyph', 'aria-hidden': 'true' }, GLYPH[st.state]), h('span', {}, why))] : []));
     // facts with their age, the configured labels first
     const { facts: f, raw } = deriveFacts(device, events, svc.rules.parseFacts);
     const order = svc.data.facts.labels.map(([k]) => k);
@@ -200,9 +193,8 @@ export function roadSwitch(ctx, nodeId) {
 // its value) tints the field and disables Send; a caution or a refusal to come marks its border;
 // the reason is the field's description and its tooltip (W-23h).
 export function commandLine(ctx, svc, nodeId) {
-  const list = commandList(svc);
   const checkId = `cl-check-${nodeId}`;
-  const input = h('input', { type: 'text', list: list.id, class: 'cmd', autocomplete: 'off', autocapitalize: 'none',
+  const input = h('input', { type: 'text', class: 'cmd', autocomplete: 'off', autocapitalize: 'none',
     spellcheck: 'false', enterkeyhint: 'send', 'aria-describedby': checkId, 'aria-invalid': 'false' });
   const prompt = h('label', { class: 'cmd-prompt' });
   const road = roadSwitch(ctx, nodeId);
@@ -210,7 +202,7 @@ export function commandLine(ctx, svc, nodeId) {
   const check = h('span', { class: 'visually-hidden', id: checkId });
   const companionSlot = h('div', { class: 'cmd-companion' });
   const form = h('form', { class: 'cmd-line', novalidate: true },
-    h('div', { class: 'cmd-row' }, prompt, input, road, send), list.el, check, companionSlot);
+    h('div', { class: 'cmd-row' }, prompt, input, road, send), check, companionSlot);
   const id = `cmd-${nodeId}`;
   input.id = id;
   prompt.setAttribute('for', id);
@@ -225,6 +217,9 @@ export function commandLine(ctx, svc, nodeId) {
     if (!tags.length) return device ? [device] : [];
     return tags.map((n) => all.find((d) => d.node === n)).filter(Boolean);
   };
+
+  // The suggestions: an own listbox, only what the targets' firmware has (W-33c, W-33d).
+  attachCombo(ctx, input, { svc, devices: () => targets() });
 
   // For several nodes each is checked on its own: one that cannot take the command is left out
   // (the send says so) and blocks the send only when none can.
