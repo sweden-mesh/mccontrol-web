@@ -12,6 +12,7 @@ import * as unlock from '../screens/unlock.js';
 import * as help from '../screens/help.js';
 import * as stats from '../screens/stats.js';
 import * as notfound from '../screens/notfound.js';
+import * as neighbours from '../standard/neighbours.js';
 import { setupModal } from './setup.js';
 import { nodeModal } from '../tiles/node.js';
 import { resultModal } from '../tiles/results.js';
@@ -30,9 +31,12 @@ export const MODALS = [
   { name: 'send', title: send.title, render: fromScreen(send) },
   { name: 'history', title: history.title, render: fromScreen(history), closedby: 'any' },
   resultModal,
-  { name: 'unlock', title: unlock.title, render: fromScreen(unlock) },
+  // W-32: "Unlock" in the title bar, Help as "?" at its right.
+  { name: 'unlock', title: unlock.title, render: fromScreen(unlock), barTitle: true, barHelp: true },
   { name: 'help', title: help.title, render: fromScreen(help), closedby: 'any' },
   { name: 'stats', title: stats.title, render: fromScreen(stats), closedby: 'any' },
+  // #neighbours/<id>: the standard layout's Neighbours dialog (W-29f), reading only.
+  { name: 'neighbours', title: neighbours.title, render: fromScreen(neighbours), closedby: 'any' },
   { name: 'notfound', title: notfound.title, render: fromScreen(notfound, 'notfound'), closedby: 'any' },
   setupModal,
   runModal,
