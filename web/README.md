@@ -218,8 +218,8 @@ the `.alert` class (inverse in Amber and Green).
   refresh and discovery, each with its action; sets the status line's `broker`.
 - **MAP** (`map.js`): the owner's nodes on the county outlines (`ui/tiles/se-lan.json`, the
   regional template's Natural Earth outlines, public domain), shape = status, Beacon's neighbour
-  links and the area's other repeaters (`/nodes?iatas=<region>&neighbors=true`), "As a list" as
-  the text alternative. Under the outlines, faintly, lakes and the coast (`ui/tiles/se-water.json`,
+  links and the area's other repeaters (`/nodes?iatas=<region>&neighbors=true`); NODES is
+  the text alternative (W-26e removed "As a list"). Under the outlines, faintly, lakes and the coast (`ui/tiles/se-water.json`,
   Natural Earth 1:10m, made by `scripts/water-outline.py`, W-23c). No map tiles, no new origin.
   The frame is the owner's own nodes (`mapFrame` in `data.js`, W-25c), at least 2 km across rather
   than the region's 30 (W-26a: nodes 300 m apart showed as one dot); the region's nodes frame it

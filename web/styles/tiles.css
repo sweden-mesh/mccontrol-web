@@ -201,8 +201,6 @@
 .map-label { fill: var(--fg); font: 12px var(--font-body); paint-order: stroke; stroke: var(--bg); stroke-width: 3px; stroke-linejoin: round; }
 .map-node.is-selected .map-label { font-weight: 700; }
 .map-caption { font-size: .9em; }
-.map-alt summary { min-height: var(--row); display: flex; align-items: center; cursor: pointer; color: var(--accent); }
-.map-list .row { flex-wrap: wrap; column-gap: 8px; }
 
 /* The node full screen (the phone's "node" modal): the command line in thumb reach. */
 .node-modal-body { container: tile / inline-size; }
