@@ -190,7 +190,14 @@ makes the status line, `<main>` and the footer inert. Only `#unlock` (make, impo
 `#help` (a link on the unlock screen) can be open; any other address is kept and opened once the
 key is unlocked. The gate's dialog has no close button and ignores Esc. Locking, by hand or by
 auto-lock, brings it back. So no tile, screen or action has a "the key is locked, unlock" branch of
-its own; a job that finds the key locked mid-way says only that.
+its own; a job that finds the key locked mid-way says only that. The unlock dialog (W-32) has
+"UNLOCK" and a "?" for Help in its title bar (`registerModal`'s `barTitle`, `barHelp`), the Unlock
+button beside the field (below it on a phone), then Show passphrase, then Forgot the passphrase.
+
+The command field's suggestions (W-33c, `ui/command-combo.js`) are an own listbox in the theme
+(combobox pattern), not a `<datalist>`, in NODE, the standard layout and the send form; they list
+only what the targets' known firmware admits (W-33d), everything with "version unknown" otherwise.
+STATUS's times step down to the tile's width (W-33a, `kit.js` `fitTimes`).
 
 ### The ctx
 
