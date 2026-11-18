@@ -289,6 +289,12 @@ async function main() {
             const aside = document.querySelector('.std-aside')?.getBoundingClientRect();
             if (top && ps[0] && Math.abs(ps[0].top - top.bottom) > 1.5) out.push(`a ${Math.round(ps[0].top - top.bottom)}px gap under the top panel`);
             if (innerWidth >= 720 && aside && ps[0] && Math.abs(ps[0].left - aside.right) > 1.5) out.push(`a ${Math.round(ps[0].left - aside.right)}px gap beside the list`);
+            // No empty cell (W-35a): each row's last panel reaches the right edge.
+            const box = document.querySelector('.std-panels')?.getBoundingClientRect();
+            for (const [i, p] of ps.entries()) {
+              const last = !ps.slice(i + 1).some((q) => Math.abs(q.top - p.top) < 1);
+              if (box && last && box.right - p.right > 1.5) out.push(`a ${Math.round(box.right - p.right)}px empty cell after panel ${i + 1}`);
+            }
             for (let i = 1; i < ps.length; i += 1) {
               const a = ps[i - 1]; const b = ps[i];
               const d = Math.abs(b.top - a.top) < 1 ? b.left - a.right : b.top - Math.max(...ps.slice(0, i).filter((p) => p.left <= b.left + 1 && p.right >= b.left - 1).map((p) => p.bottom));
