@@ -93,7 +93,8 @@
 .spark-empty { width: 96px; height: 1px; border-top: 1px dashed var(--line); }
 .spark-line { fill: none; stroke: var(--fg); stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
 .spark-dot { fill: var(--accent); }
-.node-links { gap: 16px; flex-wrap: wrap; }
+.node-links { gap: 8px; flex-wrap: wrap; padding-block: 4px; }
+.node-link { min-height: var(--row); padding-block: 0; font-size: inherit; }
 @container tile (width < 30rem) {
   .fact-list .fact { grid-template-columns: 11ch minmax(0, 1fr) auto; }
   .fact-list .spark-row { grid-template-columns: 11ch 8ch 72px; }

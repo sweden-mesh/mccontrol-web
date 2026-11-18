@@ -1,6 +1,6 @@
 // The selected node (W-20c, W-20j): its facts with their age, three 24-hour sparklines from
-// Beacon (battery, airtime sent per hour, noise floor), links to its details, statistics and
-// history, and at the bottom the command line: type, Enter signs and sends to this node, or to
+// Beacon (battery, airtime sent per hour, noise floor), buttons for its details, statistics and
+// history (W-28e), and at the bottom the command line: type, Enter signs and sends to this node, or to
 // the tagged nodes when some are tagged. The road switch (Auto / MQTT / Mesh) sits on the same
 // line (it starts on the node's last choice, else MQTT, or the mesh for a node without MQTT: W-26b,
 // W-26c). A command's answer is shown once, in HISTORY (W-23g): not here as a log, not under the
@@ -98,10 +98,16 @@ export function nodeView(ctx, svc, nodeId, { heading = null } = {}) {
   const head = h('div', { class: 'node-head' });
   const sparks = h('ul', { class: 'rows fact-list' });
   const facts = h('ul', { class: 'rows fact-list' });
+  // Real buttons in the page's button style, not underlined links (W-28e).
+  const go = (hash, label) => {
+    const b = h('button', { type: 'button', class: 'tool node-link' }, label);
+    b.addEventListener('click', () => ctx.navigate(hash), { signal: ctx.signal });
+    return b;
+  };
   const links = h('p', { class: 'row node-links' },
-    h('a', { href: `#nodeinfo/${nodeId}` }, ctx.t('tile.details')), ' ',
-    h('a', { href: `#stats/${nodeId}` }, ctx.t('tile.stats')), ' ',
-    h('a', { href: `#history/${nodeId}` }, ctx.t('tile.history')));
+    go(`#nodeinfo/${nodeId}`, ctx.t('tile.details')),
+    go(`#stats/${nodeId}`, ctx.t('tile.stats')),
+    go(`#history/${nodeId}`, ctx.t('tile.history')));
   const line = commandLine(ctx, svc, nodeId);
   const scroller = h('div', { class: 'node-scroll' }, head, sparks, h('hr', { class: 'rule' }), facts, h('hr', { class: 'rule' }), links);
   const el = h('div', { class: 'node-view' }, scroller, line.el);
