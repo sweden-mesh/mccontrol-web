@@ -40,7 +40,7 @@ const loadWater = () => {
   return water;
 };
 
-async function areaNodes(region, now = Date.now()) {
+export async function areaNodes(region, now = Date.now()) {
   const hit = areas.get(region);
   if (hit && now - hit.at < MAX_AGE) return hit.promise;
   const promise = (async () => {

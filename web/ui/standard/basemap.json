@@ -1,0 +1,10 @@
+{
+  "about": "The standard layout's basemap (W-29d): the regional template's (hugo.toml [params.map], OpenFreeMap). origin is the one connect-src entry it needs.",
+  "origin": "https://tiles.openfreemap.org",
+  "styles": { "dark": "https://tiles.openfreemap.org/styles/dark", "light": "https://tiles.openfreemap.org/styles/liberty" },
+  "credits": [
+    { "text": "OpenFreeMap", "href": "https://openfreemap.org/" },
+    { "text": "© OpenMapTiles", "href": "https://www.openmaptiles.org/" },
+    { "text": "osm", "href": "https://www.openstreetmap.org/copyright" }
+  ]
+}

@@ -48,3 +48,24 @@ if grep -rnE "^(import|export)[^'\"]* from '@" "$VENDOR"; then
     echo "a bare import is left" >&2
     exit 1
 fi
+
+# MapLibre GL JS (BSD-3-Clause) for the standard layout's map (W-29d): the same version and the
+# same three dist files as the regional template's static/lib/maplibre-gl/, byte for byte. Its
+# worker is loaded from beside it through ui/standard/map.js's Trusted Types policy.
+ML_VERSION=6.16.0
+ML_INTEGRITY=gApO66EMtoDZuio680RUBvskR7ahFd/NNhLN4tBAs+Y7FeT4gQV8zVFgYVMRmFxQznOEzecW19w6xOd9XjZjiA==
+tgz="$WORK/maplibre.tgz"
+curl -sSf -o "$tgz" "https://registry.npmjs.org/maplibre-gl/-/maplibre-gl-$ML_VERSION.tgz"
+got=$(openssl dgst -sha512 -binary "$tgz" | base64 | tr -d '\n')
+if [ "$got" != "$ML_INTEGRITY" ]; then
+    echo "maplibre-gl@$ML_VERSION: sha512 mismatch" >&2
+    exit 1
+fi
+mkdir "$WORK/maplibre"
+tar -xzf "$tgz" -C "$WORK/maplibre" --no-same-owner --no-same-permissions
+dst="$VENDOR/maplibre-gl"
+rm -rf "$dst"
+mkdir -p "$dst"
+cp "$WORK/maplibre/package/LICENSE.txt" "$WORK/maplibre/package/dist/maplibre-gl.mjs" \
+   "$WORK/maplibre/package/dist/maplibre-gl-worker.mjs" "$WORK/maplibre/package/dist/maplibre-gl.css" "$dst/"
+echo "maplibre-gl@$ML_VERSION sha512-$ML_INTEGRITY OK"
