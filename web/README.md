@@ -49,7 +49,7 @@ that says why.
 | `styles/` | `tokens.css` (fonts, the four themes' colour tokens), `app.css` (shell: status line, board, tiles, key bar, modal), `key-screens.css` (unlock, key, set-up, settings, help) | shell (W-6, W-20), screens |
 | `fonts/`, `icon*` | IBM Plex (OFL) and the icons, copied from the regional template | shell |
 | `_headers`, `manifest.webmanifest`, `sw.js`, `version.json` | the hosted copy: headers, install, offline copy | shell (W-10) |
-| `lib/protocol/` | envelope v1/v2, results r1/r2/r3, broker token, registration, the MQTT client | protocol (W-3, W-4, W-16) |
+| `lib/protocol/` | envelope v1/v2, results r1/r2/r3, broker token, registration, the MQTT client; `mcc3.js`, the sealed plane of lou-20 and later (`test/mcc3-vectors.json`) | protocol (W-3, W-4, W-16) |
 | `lib/key/` | the key: `handle.js` (seed -> signing handle), storage, unlock, auto-lock, backup, passphrase change | key and security (W-5) |
 | `lib/store/` | IndexedDB stores per key: devices, history, groups, sets, meta | screens (W-7, W-9) |
 | `lib/jobs/` | send, run a set, discover, refresh, update; checks before signing; the overview's sums; Beacon fleet reads (through `lib/stats`); the firmware release list (GitHub) | screens (W-8, W-15, W-18, W-19) |

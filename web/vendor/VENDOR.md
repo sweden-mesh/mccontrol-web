@@ -37,8 +37,9 @@ update this table. Prefer a version at least two weeks old.
   Ed25519 -> X25519 conversion for v2 (`ed25519.utils.toMontgomerySecret`, `toMontgomery`,
   `x25519.getSharedSecret`). Only `lib/key/` signs and derives with it; `lib/protocol/`
   uses it to verify r2 results against a node's public key.
-- `noble-hashes/hkdf.js`, `sha2.js`: HKDF-SHA256 for the v2 key, SHA-512 inside Ed25519.
-- `noble-ciphers/chacha.js`: ChaCha20-Poly1305 for v2 commands and r3 results.
+- `noble-hashes/hkdf.js`, `sha2.js`: HKDF-SHA256 for the v2 and mcc3 keys, SHA-512 inside Ed25519.
+- `noble-ciphers/chacha.js`: ChaCha20-Poly1305 for v2 commands, r3 results and mcc3 (commands,
+  results, alive, mesh responses); plain ChaCha20 from block 1 for mcc3's mesh request (no tag).
 
 Why not WebCrypto for these: it has no ChaCha20-Poly1305, cannot derive the X25519 key v2 needs
 from an Ed25519 seed, and Safari's Ed25519 signs with added randomness (valid, but not
