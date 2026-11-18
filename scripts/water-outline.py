@@ -2,7 +2,7 @@
 """Make web/ui/tiles/se-water.json: the lakes and the coastline the MAP tile draws faintly under
 the county outlines (W-23c). Natural Earth 1:10m (public domain), clipped to Sweden (a lake with a
 point inside a county of se-lan.json, a coast within about 10 km of one), simplified to about
-500 m (W-30; se-lan.json is 1 km), small lakes dropped, coordinates to 3 decimals. Natural Earth
+200 m (W-30, W-33f; se-lan.json 250 m), small lakes dropped, coordinates to 3 decimals. Natural Earth
 1:10m is the limit: unsimplified it is 8070 points (128 KB), so finer needs another source.
 
     curl -LO https://raw.githubusercontent.com/nvkelso/natural-earth-vector/v5.1.2/geojson/ne_10m_lakes.geojson
@@ -14,7 +14,7 @@ import json
 import sys
 
 BOX = (10.0, 55.0, 24.5, 69.2)      # west, south, east, north: Sweden and the coasts beside it
-TOLERANCE = 0.005                    # degrees, about 500 m (W-30: half of W-23c's 1 km, twice the detail)
+TOLERANCE = 0.002                    # degrees, about 200 m (W-30, W-33f: at least twice W-23c's vertices)
 MIN_LAKE = 0.004                     # square degrees: Vänern is about 1.3, Siljan 0.05
 
 

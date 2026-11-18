@@ -281,7 +281,8 @@ the `.alert` class (inverse in Amber and Green).
   chooser, `companionChooser` in `ui/screens/road-kit.js`, W-23a), status
   refresh and discovery, each with its action; sets the status line's `broker`.
 - **MAP** (`map.js`): the owner's nodes on the county outlines (`ui/tiles/se-lan.json`, the
-  regional template's Natural Earth outlines, public domain), shape = status, Beacon's neighbour
+  regional template's Natural Earth outlines, public domain, drawn at ~250 m instead of its 1 km by
+  `scripts/county-outline.py`, W-33f), shape = status, Beacon's neighbour
   links and the area's other repeaters (`/nodes?iatas=<region>&neighbors=true`); NODES is
   the text alternative (W-26e removed "As a list"). Under the outlines, faintly, lakes and the coast (`ui/tiles/se-water.json`,
   Natural Earth 1:10m, made by `scripts/water-outline.py`, W-23c). No map tiles, no new origin.
