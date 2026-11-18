@@ -111,7 +111,8 @@ test('result codes have names and help', () => {
   assert.equal(codeName(results, 14), 'not-allowed');
   assert.equal(codeName(results, 99), 'unknown-99');
   assert.match(codeHelp(results, 16), /signature/);
-  assert.equal(codeHelp(results, 1), '');
+  assert.match(codeHelp(results, 1), /nothing in it/);   // W-36: every code has its text
+  assert.equal(codeHelp(results, 99), '');
 });
 
 test('the broker token and the registration line are byte-identical', () => {

@@ -466,7 +466,7 @@ without `test/`, `package.json` and this file, the version stamped into `sw.js` 
 `.github/workflows/web-deploy.yml` runs the tests on every push and pull request, deploys that
 copy to the Cloudflare Pages project `mccontrol` on a push to `main` (only when the repository
 variable `DEPLOY_ENABLED` is `true`; secrets `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`),
-and for a tag `web-v*` attaches `mccontrol-<tag>.zip`, its `.sha256` and the `integrity.json`
+and for a tag `v*` (the repository's `v0.1.0-beta.N`) attaches `mccontrol-<tag>.zip`, its `.sha256` and the `integrity.json`
 to that tag's GitHub release.
 
 The offline copy (`sw.js`) installs a release only when every file matches `integrity.json`,

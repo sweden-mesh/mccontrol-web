@@ -23,11 +23,12 @@ export function helpRuns(body, topics, pattern = '\\[\\[([a-z0-9_-]+)\\]\\]') {
   return out;
 }
 
-// Every result code in order: [{ code, name, help }]; help is '' where the table has none, and
-// the page says what the code means in its own words, "help.code.<name>" (W-35g: no "As the
-// name says" rows; the shared table's texts are mccontrol-spec's, in English).
+// Every result code in order: [{ code, name, help, sv }]: mccontrol-spec's text for every code (W-36:
+// the texts the page once carried itself are the spec's now), in English, and its Swedish where
+// the spec has one (`help_sv`).
 export function resultRows(results) {
-  return Object.entries(results.codes).map(([code, name]) => ({ code: Number(code), name, help: results.help[code] || '' }))
+  return Object.entries(results.codes).map(([code, name]) => ({ code: Number(code), name, help: results.help[code] || '',
+    sv: results.help_sv?.[code] || '' }))
     .sort((a, b) => a.code - b.code);
 }
 
@@ -45,7 +46,7 @@ function codesTable(ctx, data) {
         h('tbody', {}, resultRows(data.results).map((r) => h('tr', { id: `code-${r.code}` },
           h('td', { class: 'num' }, String(r.code)),
           h('th', { scope: 'row' }, h('code', {}, r.name)),
-          h('td', { lang: r.help ? 'en' : null }, r.help || t(`help.code.${r.name}`))))))));
+          ctx.lang === 'sv' && r.sv ? h('td', { lang: 'sv' }, r.sv) : h('td', { lang: 'en' }, r.help)))))));
 }
 
 export function render(ctx) {

@@ -3,7 +3,7 @@
 // into sw.js and version.json, and integrity.json listing the SHA-256 of every file. The same
 // directory is deployed to Cloudflare Pages and zipped for a release (.github/workflows/web-deploy.yml).
 //
-//   node scripts/web-dist.mjs --out dist/web --version web-v0.1.0 --commit 0123abc
+//   node scripts/web-dist.mjs --out dist/web --version v0.1.0 --commit 0123abc
 //
 // The offline copy (web/sw.js) installs a release only when every file matches integrity.json, and
 // an owner can check a downloaded zip against it:
