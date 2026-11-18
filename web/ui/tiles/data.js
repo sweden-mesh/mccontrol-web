@@ -145,9 +145,12 @@ export function frame(points, { pad = 0.15, minKm = 30 } = {}) {
 
 // The map's frame (W-25c): the nodes the key controls, so the owner's own nodes fill the map; the
 // region's other nodes and the links run off its edge. Only when none of them has a position does
-// it fall back to the region's nodes.
+// it fall back to the region's nodes. The owner's frame is at least OWN_MIN_KM across, not the
+// region's 30 km (W-26a): the operator's four nodes stand within 300 m of each other, and 30 km
+// framed them as one dot in the middle of a region about 25 x 35 km across.
+export const OWN_MIN_KM = 2;
 export function mapFrame(model) {
-  return frame(model.mine.map((m) => m.node).filter(Boolean)) || frame(model.others);
+  return frame(model.mine.map((m) => m.node).filter(Boolean), { pad: 0.25, minKm: OWN_MIN_KM }) || frame(model.others);
 }
 
 // The frame widened (in latitude or longitude) to a box `aspect` (width / height) wide, so the map

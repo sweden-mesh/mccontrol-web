@@ -4,8 +4,8 @@
 // origin. The outlines are the regional template's se-lan.geojson (Natural Earth 10m admin-1,
 // public domain, simplified to ~1 km), copied as se-lan.json; positions and neighbours are Beacon's
 // /nodes?iatas=<region>&neighbors=true (the origin the CSP already names), read once per region and
-// kept 15 minutes. The map frames the owner's own nodes, not the region (W-25c); the region frames
-// it only when none of them has a position.
+// kept 15 minutes. The map frames the owner's own nodes, not the region (W-25c), at least 2 km
+// across (W-26a); the region frames it only when none of them has a position.
 //
 // A mark's shape is its status, the same as the NODES glyph (● ok, ▲ needs attention, ✕ refused,
 // ○ not known), so nothing rests on colour. A click or Enter on a mark selects the node; its name
@@ -76,9 +76,14 @@ function fill(ctx, svc, body) {
   const details = h('details', { class: 'map-alt' }, h('summary', {}, ctx.t('tile.mapList')), listBox);
   body.replaceChildren(figure, caption, details);
 
+  // A later draw wins (W-26a): one started before discovery added the nodes may finish after the
+  // one started after it (Beacon answers in any order), and must not paint over it.
+  let turn = 0;
   async function draw() {
+    const mine = turn += 1;
+    const stale = () => ctx.signal.aborted || mine !== turn;
     const devices = await svc.stores.devices.list();
-    if (ctx.signal.aborted) return;
+    if (stale()) return;
     if (!devices.length) {
       figure.replaceChildren();
       caption.textContent = ctx.t('tile.mapEmpty');
@@ -98,7 +103,7 @@ function fill(ctx, svc, body) {
       try { rows = rows.concat(await areaNodes(r)); } catch { failed = true; }
     }
     const [geo, wet] = await Promise.all([loadOutline(), loadWater()]);
-    if (ctx.signal.aborted) return;
+    if (stale()) return;
     const model = mapModel(devices, rows);
     const selected = ctx.board.selected();
     const placedMine = model.mine.filter((m) => m.node);

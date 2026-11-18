@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
-  byAttention, fit, frame, historyFor, hourly, mapFrame, newCounts, isSeen, mapModel, markAllSeen, markSeen, matches, nodeStatus,
+  byAttention, fit, frame, historyFor, OWN_MIN_KM, hourly, mapFrame, newCounts, isSeen, mapModel, markAllSeen, markSeen, matches, nodeStatus,
   outlinePaths, project, sharedPrefix, sparkRuns, waterPaths,
 } from '../ui/tiles/data.js';
 import {
@@ -114,8 +114,13 @@ test('the map frames the owner\'s nodes, the region only when none is placed', (
   const mineB = { lat: 57.75, lng: 14.20 };
   const far = { lat: 58.6, lng: 16.2 };
   const f = mapFrame({ mine: [{ node: mineA }, { node: mineB }, { node: null }], others: [far] });
-  assert.deepEqual(f, frame([mineA, mineB]));
+  assert.deepEqual(f, frame([mineA, mineB], { pad: 0.25, minKm: OWN_MIN_KM }));
   assert.ok(f.n < far.lat && f.e < far.lng, 'a far neighbour stays outside the frame');
+  // W-26a: four nodes within 300 m (the operator's, in JKG) fill the map, not a 30 km square.
+  const close = [[57.809705, 14.275188], [57.807383, 14.275305], [57.808244, 14.275993], [57.8081, 14.2741]].map(([lat, lng]) => ({ node: { lat, lng } }));
+  const g = mapFrame({ mine: close, others: [far, mineA] });
+  assert.ok((g.n - g.s) * 111 < 5 && (g.e - g.w) * 111 * g.k < 5, `framed ${((g.n - g.s) * 111).toFixed(1)} km tall`);
+  for (const { node } of close) assert.ok(node.lat > g.s && node.lat < g.n && node.lng > g.w && node.lng < g.e);
   assert.deepEqual(mapFrame({ mine: [{ node: null }], others: [far, mineA] }), frame([far, mineA]));
   assert.equal(mapFrame({ mine: [], others: [] }), null);
 });
