@@ -76,6 +76,7 @@ async function main() {
   };
   const shot = async (page, name) => {
     const path = join(o.out, `${name}.png`);
+    await page.mouse.move(1, 1); await wait(300);   // no row tooltip left under the pointer (W-35b)
     await page.screenshot({ path });
     made.push(path);
   };
@@ -91,10 +92,10 @@ async function main() {
       if (look === 'standard-dark') {
         await go(page, '', 1280, 800);
         await page.click('.std-row'); await wait(1200);
-        for (const tab of ['commands', 'history']) {
-          await page.click(`#std-tab-${tab}`); await wait(800);
-          await shot(page, `${look}-1280-${tab}`);
-        }
+        await page.click('.std-p-send input.cmd'); await wait(500);     // the suggestions open on focus (W-35c)
+        await shot(page, `${look}-1280-commands`);
+        await page.click(`#std-tab-history`); await wait(800);
+        await shot(page, `${look}-1280-history`);
         await go(page, `neighbours/${sample}`, 1280, 800); await shot(page, `${look}-neighbours`);
         await go(page, '', 390, 844); await shot(page, `${look}-phone`);
       }
