@@ -26,6 +26,8 @@ import { tmpdir } from 'node:os';
 import { extname, join, normalize, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { noBroker, seedKey, unlockFake } from './fake.mjs';
+
 const HERE = fileURLToPath(new URL('.', import.meta.url));
 const WIDTHS = [360, 1280];
 // The board alone is also drawn at the grid's other widths.
@@ -144,6 +146,8 @@ async function main() {
       });
     }, storage);
     if (before) await page.evaluateOnNewDocument(before);
+    // Unlocking starts registration and the command server check: never the live broker.
+    await page.evaluateOnNewDocument(noBroker);
     page.on('console', (m) => { if (m.type() === 'error') problems.push(`console: ${m.text()}`); });
     page.on('pageerror', (e) => problems.push(`page error: ${e.message}`));
     page.on('requestfailed', (r) => {
@@ -164,6 +168,9 @@ async function main() {
   };
   const settle = (page) => page.waitForFunction(() => document.documentElement.hasAttribute('data-started')
     || document.documentElement.hasAttribute('data-start-failed'), { timeout: 15000 }).then(() => new Promise((ok) => setTimeout(ok, 300)));
+  // Started and past the unlock gate (W-28b) with the fake key: the gate then opens what the
+  // address asked for.
+  const ready = async (page) => { await settle(page); await unlockFake(page); };
   const state = (page) => page.evaluate(() => ({
     hash: location.hash,
     started: document.documentElement.hasAttribute('data-started'),
@@ -177,6 +184,9 @@ async function main() {
     keys: [...document.querySelectorAll('.key-button')].map((b) => b.textContent),
     overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
     error: document.querySelector('.start-error h1')?.textContent || '',
+    gate: document.documentElement.hasAttribute('data-gate'),
+    mainShown: getComputedStyle(document.getElementById('main')).visibility !== 'hidden',
+    unlockStep: document.querySelector('#modal[open] #unlock-title')?.textContent || '',
   }));
   const shot = async (page, name, fullPage = false) => {
     await page.screenshot({ path: join(o.out, `${name.replace(/[^\w-]+/g, '_')}.png`), fullPage });
@@ -188,7 +198,46 @@ async function main() {
     const probe = await browser.newPage();
     await probe.goto(`${origin}/`, { waitUntil: 'networkidle0' });
     const names = await probe.evaluate(async () => (await import('./ui/modal.js')).modalNames());
+    // W-28b: the unlock gate, before the key exists and once it is stored locked.
+    {
+      const problems = [];
+      const s = await state(probe);
+      if (s.modal !== 'unlock' || !s.gate || s.mainShown) problems.push(`no key: modal ${s.modal}, gate ${s.gate}, page shown ${s.mainShown}`);
+      if (!(await probe.$('#modal[open] .choice-row button'))) problems.push('no key: no "make or import a key"');
+      report('the unlock gate: no key', problems);
+    }
+    await seedKey(probe);
     await probe.close();
+    {
+      const { page, problems } = await open({}, 1280);
+      try {
+        await page.goto(`${origin}/#setup/key`, { waitUntil: 'networkidle0', timeout: 20000 });
+        await settle(page);
+        let s = await state(page);
+        if (s.modal !== 'unlock' || !s.gate || s.mainShown || s.hash !== '#unlock') problems.push(`locked: modal ${s.modal}, hash ${s.hash}, gate ${s.gate}, page shown ${s.mainShown}`);
+        await page.keyboard.press('Escape');
+        await new Promise((ok) => setTimeout(ok, 300));
+        if ((await state(page)).modal !== 'unlock') problems.push('Esc left the gate');
+        await page.click('#modal .unlock-help a');
+        await new Promise((ok) => setTimeout(ok, 300));
+        if ((await state(page)).modal !== 'help') problems.push('Help is not reachable from the gate');
+        await page.keyboard.press('Escape');
+        await new Promise((ok) => setTimeout(ok, 300));
+        if ((await state(page)).modal !== 'unlock') problems.push('closing Help did not return to the gate');
+        await page.type('#modal input[autocomplete="current-password"]', 'smoke-test-only');
+        await page.keyboard.press('Enter');
+        await page.waitForFunction(() => !document.documentElement.hasAttribute('data-gate'), { timeout: 10000 });
+        await new Promise((ok) => setTimeout(ok, 700));
+        s = await state(page);
+        if (s.modal !== 'setup' || s.hash !== '#setup/key' || !s.mainShown) problems.push(`after unlocking: modal ${s.modal}, hash ${s.hash}, page shown ${s.mainShown}`);
+        await page.evaluate(async () => (await import('./ui/screens/key-session.js')).keyring().lock());
+        await new Promise((ok) => setTimeout(ok, 500));
+        s = await state(page);
+        if (s.modal !== 'unlock' || !s.gate) problems.push(`locking did not bring the gate back: modal ${s.modal}`);
+        await shot(page, 'gate-locked');
+      } catch (err) { problems.push(err.message); } finally { await page.close(); }
+      report('the unlock gate: locked, Help, unlock, lock again', problems);
+    }
     let hashes = ['', ...names.flatMap((n) => [n, ...(SAMPLE_ARGS[n] || []).map((a) => `${n}/${a}`)])];
     if (o.only) hashes = hashes.filter((x) => o.only.some((y) => x === y || x.startsWith(`${y}/`) || (y === 'board' && x === '')));
 
@@ -200,7 +249,7 @@ async function main() {
           const { page, problems } = await open(storage, width);
           try {
             await page.goto(`${origin}/#${hash}`, { waitUntil: 'networkidle0', timeout: 20000 });
-            await settle(page);
+            await ready(page);
             const s = await state(page);
             if (!s.started) problems.push(`did not start: ${s.error}`);
             if (s.theme !== look) problems.push(`theme ${s.theme}`);
@@ -208,10 +257,12 @@ async function main() {
             if (!s.boardH1) problems.push('no <h1> on the board');
             const expectTiles = width < 720 ? ['nodes', 'status', 'map', 'results'] : ['nodes', 'node', 'status', 'map', 'results'];
             if (s.tiles.sort().join() !== expectTiles.sort().join()) problems.push(`tiles shown: ${s.tiles.join(', ')}`);
-            if (hash === '') {
+            // Unlocked past the gate, '#unlock' goes on to the board and '#unlock/to/nodes' to nodes.
+            const lands = { unlock: '', 'unlock/to/nodes': 'nodes' }[hash] ?? hash;
+            if (lands === '') {
               if (s.modal) problems.push(`a modal is open on the board: ${s.modal}`);
             } else {
-              if (s.modal !== hash.split('/')[0]) problems.push(`modal ${s.modal} open for #${hash}`);
+              if (s.modal !== lands.split('/')[0]) problems.push(`modal ${s.modal} open for #${hash}`);
               if (!s.modalHeading) problems.push('no heading in the modal');
               if (!s.labelled) problems.push('the dialog is not labelled by its heading');
             }
@@ -232,7 +283,7 @@ async function main() {
         const { page, problems } = await open({}, width);
         try {
           await page.goto(`${origin}/${from}`, { waitUntil: 'networkidle0', timeout: 20000 });
-          await settle(page);
+          await ready(page);
           const s = await state(page);
           if (s.hash !== to) problems.push(`landed on "${s.hash}", not "${to}"`);
           const name = to.slice(1).split('/')[0] || null;
@@ -243,7 +294,7 @@ async function main() {
       const { page, problems } = await open({}, width);
       try {
         await page.goto(`${origin}/`, { waitUntil: 'networkidle0', timeout: 20000 });
-        await settle(page);
+        await ready(page);
         const expect = async (what, modal, hash) => {
           await new Promise((ok) => setTimeout(ok, 300));
           const s = await state(page);
@@ -262,11 +313,13 @@ async function main() {
         await expect('Esc closes to the board', null, '');
         await page.goBack().catch(() => {});
         await page.goto(`${origin}/#node/13B58595`, { waitUntil: 'networkidle0' });
+        await ready(page);
         await expect('a link to a node opens it', 'node', '#node/13B58595');
         await page.click('#modal .modal-close');
         await expect('the close button goes to the board', null, '');
         const keys = (await state(page)).keys;
-        if (keys.length !== 3) problems.push(`key bar: ${keys.join(' | ')}`);
+        // NODES binds '/' (search) on a desktop once it has the key's nodes to search.
+        if (keys.length !== (width < 720 ? 3 : 4)) problems.push(`key bar: ${keys.join(' | ')}`);
       } catch (err) { problems.push(err.message); } finally { await page.close(); }
       report(`frame ${width}px: keys, Back, Esc, close`, problems);
     }
@@ -282,7 +335,7 @@ async function main() {
       });
       try {
         await page.goto(`${origin}/`, { waitUntil: 'networkidle0', timeout: 20000 });
-        await settle(page);
+        await ready(page);
         const s = await state(page);
         if (!s.started || s.tiles.length !== 5) problems.push(`the board did not start: ${s.error}`);
         const toast = await page.evaluate(() => document.querySelector('.toast-error')?.textContent || '');

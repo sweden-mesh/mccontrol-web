@@ -7,7 +7,6 @@ import { h } from '../dom.js';
 import { automationState, checkMeshNode, findMeshNodes, onAutomation } from '../automation.js';
 import { onCompanion, state as companionState } from '../companion-session.js';
 import { companionChooser } from './road-kit.js';
-import { unlockHere } from './node-kit.js';
 import { CompanionError } from '../../lib/mesh/companion.js';
 
 let outline = null;
@@ -37,7 +36,7 @@ export function meshFindBlock(ctx) {
   function gate() {
     const s = automationState();
     if (!s.owner) return [t('mesh.find.needKey')];
-    if (!s.unlocked) return [t('send.locked'), ' ', h('a', { href: unlockHere(ctx) }, t('send.unlockLink'))];
+    if (!s.unlocked) return [t('send.locked')];
     if (companionState().status !== 'connected') {
       const b = h('button', { type: 'button', class: 'link-button' }, t('mesh.find.connect'));
       b.addEventListener('click', () => companionChooser(ctx));

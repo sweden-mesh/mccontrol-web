@@ -143,6 +143,16 @@ The board is the page and is never navigated away from (W-20c). Everything else 
 of it (W-20d). The hash names the open modal: `#node/4AC61A7F`, `#setup/key`, `#help/codes`; an empty
 hash is the board alone. Back closes a modal; closing one walks back to the board.
 
+### The unlock gate (W-28b)
+
+With no key, or a locked one, nothing behind the unlock modal is shown or usable: `ui/boot.js` puts
+`html[data-gate]` before the first paint, `ui/app.js` keeps it while the key is not unlocked and
+makes the status line, `<main>` and the footer inert. Only `#unlock` (make, import or unlock) and
+`#help` (a link on the unlock screen) can be open; any other address is kept and opened once the
+key is unlocked. The gate's dialog has no close button and ignores Esc. Locking, by hand or by
+auto-lock, brings it back. So no tile, screen or action has a "the key is locked, unlock" branch of
+its own; a job that finds the key locked mid-way says only that.
+
 ### The ctx
 
 `ui/app.js` builds one shared ctx; tiles and modals each get it with their own additions:
@@ -199,12 +209,13 @@ the `.alert` class (inverse in Amber and Green).
 ### What the tiles do (wave 2)
 
 - **NODES** (`ui/tiles/nodes.js`): one row per node, refused or forged first, then what needs
-  attention, not known, ok; each on one line, the reason in place of the status word (whole in its
-  tooltip and on the selected row), the row tinted by severity (W-23d); no battery column (W-26f). A click selects (on a phone:
+  attention, not known, ok; each on one line: name, region, firmware, last heard and the severity
+  mark and tint, no status text (W-28c: the reason is NODE's); no battery column (W-26f). A click selects (on a phone:
   the node full screen; the selection is remembered by the browser), the box tags. Keys in the list: ↑ ↓ Home End, Enter selects, Space tags; `/` searches.
 - **NODE** (`node.js`, `node-view.js`): facts with their age, 24-hour sparklines from Beacon
-  (battery, airtime sent, noise floor), links to details, statistics and history, and the command
-  area at the bottom: two fixed rows, the line with the road (auto, MQTT, mesh: the node's last
+  (battery, airtime sent, noise floor), buttons for details, statistics and history (W-28e), and the command
+  area at the bottom: two fixed rows, the line with the road (auto, MQTT, mesh, a segmented switch of
+  three radios in the button style, W-28d: the node's last
   choice, kept as the device's `road`, else the mesh while a companion is connected, else MQTT;
   `startRoad` in `lib/jobs/road.js`, W-26b, W-26c) and the companion's
   line when the road may take the mesh. A reply shows only in HISTORY (W-23g); what is wrong with a
@@ -218,7 +229,9 @@ the `.alert` class (inverse in Amber and Green).
   new ones first, kept new until opened or marked seen (meta `resultsSeen` per key); with no node
   selected every node's, the title saying "all nodes". How many are new shows in NODE
   ("2 new" first on its meta line, a link to the node's history; W-26g, NODES until then), not in the title. Running jobs as bars; the `result` modal shows one.
-- **STATUS** (`status.js`): broker (Test), key (Lock), registration, companion (the word opens the
+- **STATUS** (`status.js`): the command server (W-28a, `broker-source.js`: once the key is unlocked
+  the page signs in to each command server and closes again, no publish; "connecting…", then
+  "connected" or "unreachable (why)", the host in the tooltip; Test), key (Lock), registration, companion (the word opens the
   chooser, `companionChooser` in `ui/screens/road-kit.js`, W-23a), status
   refresh and discovery, each with its action; sets the status line's `broker`.
 - **MAP** (`map.js`): the owner's nodes on the county outlines (`ui/tiles/se-lan.json`, the
@@ -241,7 +254,7 @@ Styles: `styles/tiles.css`; each tile body is a size container, so columns drop 
 ### The status line
 
 `setStatusItem(name, { word, state, href, label })` in `ui/statusline.js`, for `broker`, `key`,
-`area`, `clock`. The shell sets `key` and `clock`, and a "not known yet" `broker` until its owner
+`area`, `clock`. The shell sets `key` and `clock`, and a "connecting…" `broker` until its owner
 (the STATUS tile) sets it; `area` appears once discovery sets it. Hidden on a phone: area, clock.
 
 ### Modals

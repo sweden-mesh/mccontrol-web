@@ -39,19 +39,16 @@
 .node-item { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; column-gap: 4px; }
 .tag-hit { display: inline-flex; align-items: center; justify-content: center; min-width: 24px; min-height: var(--row); cursor: pointer; }
 .tag-box { width: 1rem; height: 1rem; margin: 0; }
-/* glyph, name, reason (or the status word), region, firmware, heard: one line (W-23d). No battery
-   column (W-26f: NODE has it, a low one is a reason), so the name and the reason have its room.
-   The glyph's word is read aloud, not shown. The name takes up to 18 characters (whole in its
-   tooltip and in NODE), 14 under 28em, the reason what is left, at least 4. The region drops
-   under 24em, the firmware under 20em (em: the tile's text). */
-.node-row { grid-template-columns: 2ch fit-content(18ch) minmax(4ch, 1fr) 3ch 6ch 6ch; column-gap: 6px; }
+/* glyph, name, region, firmware, heard: one line, no status text (W-28c; the reason is NODE's).
+   No battery column (W-26f). The glyph's word is read aloud, not shown. The name takes what is
+   left. The region drops under 24em, the firmware under 20em (em: the tile's text). */
+.node-row { grid-template-columns: 2ch minmax(4ch, 1fr) 3ch 6ch 6ch; column-gap: 6px; }
 .node-row .mark { display: contents; }
 .node-row .mark .glyph { grid-column: 1; }
 .node-row .mark-word { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .node-row[aria-current="true"] { background: var(--surface); box-shadow: inset 3px 0 0 var(--accent); }
 .node-name { font-weight: 600; }
 .node-heard { text-align: end; }
-.node-why { font-size: .9em; }
 /* NODE's "2 new" results for the node (W-26g), first on its meta line. */
 .node-new { font-weight: 600; }
 /* The row tinted by severity: refused or forged stronger than "needs attention". Glyph and words
@@ -59,15 +56,12 @@
 .node-item[data-state="alert"] { background: color-mix(in srgb, var(--danger) 22%, var(--bg)); }
 .node-item[data-state="warn"] { background: color-mix(in srgb, var(--caution) 12%, var(--bg)); }
 .node-item:is([data-state="alert"], [data-state="warn"]) .node-row[aria-current="true"] { background: transparent; }
-@container tile (width < 28em) {
-  .node-row { grid-template-columns: 2ch fit-content(14ch) minmax(4ch, 1fr) 3ch 6ch 6ch; }
-}
 @container tile (width < 24em) {
-  .node-row { grid-template-columns: 2ch fit-content(12ch) minmax(4ch, 1fr) 6ch 6ch; }
+  .node-row { grid-template-columns: 2ch minmax(4ch, 1fr) 6ch 6ch; }
   .node-reg { display: none; }
 }
 @container tile (width < 20em) {
-  .node-row { grid-template-columns: 2ch fit-content(12ch) minmax(4ch, 1fr) 6ch; }
+  .node-row { grid-template-columns: 2ch minmax(4ch, 1fr) 6ch; }
   .node-ver { display: none; }
 }
 
@@ -99,7 +93,8 @@
 .spark-empty { width: 96px; height: 1px; border-top: 1px dashed var(--line); }
 .spark-line { fill: none; stroke: var(--fg); stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
 .spark-dot { fill: var(--accent); }
-.node-links { gap: 16px; flex-wrap: wrap; }
+.node-links { gap: 8px; flex-wrap: wrap; padding-block: 4px; }
+.node-link { min-height: var(--row); padding-block: 0; font-size: inherit; }
 @container tile (width < 30rem) {
   .fact-list .fact { grid-template-columns: 11ch minmax(0, 1fr) auto; }
   .fact-list .spark-row { grid-template-columns: 11ch 8ch 72px; }
@@ -110,12 +105,20 @@
 .cmd-line { border-top: 1px solid var(--field-border); padding-top: 6px; margin-top: 4px; background: var(--bg); }
 .cmd-row { display: flex; align-items: center; gap: 8px; }
 .cmd-prompt { white-space: nowrap; font-weight: 600; max-width: 40%; overflow: hidden; text-overflow: ellipsis; }
-.cmd, .road {
+.cmd {
   min-height: var(--row); padding: 0 8px; border: 1px solid var(--field-border); border-radius: var(--radius-xs);
   background: var(--bg); color: var(--fg); font: inherit;
 }
 .cmd { flex: 1; min-width: 6ch; width: auto; }
-.road { flex: 0 0 auto; width: auto; }
+/* The road (W-28d): three radios drawn as one segmented control in the .tool button's style. */
+.seg { display: inline-flex; flex: 0 0 auto; margin: 0; padding: 0; border: 1px solid var(--field-border); border-radius: var(--radius-xs); min-width: 0; }
+.seg-option { position: relative; display: inline-flex; align-items: center; min-height: calc(var(--row) - 2px); padding: 0 8px; cursor: pointer; color: var(--fg); white-space: nowrap; }
+.seg-option + .seg-option { border-inline-start: 1px solid var(--field-border); }
+.seg-input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: inherit; }
+.seg-option:has(.seg-input:checked) { background: var(--fg); color: var(--bg); font-weight: 600; }
+.seg-option:has(.seg-input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 1px; z-index: 1; }
+.seg-option:has(.seg-input:disabled) { opacity: .45; cursor: not-allowed; text-decoration: line-through; }
+.seg-option:hover:has(.seg-input:not(:checked, :disabled)) { color: var(--accent); }
 .cmd-send.button { min-height: var(--row); padding: 0 12px; font-size: inherit; }
 /* A narrow node view (the phone's sheet): the prompt on its own line, the field gets the width. */
 @container tile (width < 30rem) {
@@ -163,7 +166,7 @@
 /* STATUS: name, mark, action. The actions wrap below the state when the row has no room for
    them beside it (a narrow tile, a long word), never over it; a long state wraps inside its box. */
 .status-row { display: flex; flex-wrap: wrap; align-items: center; column-gap: 8px; }
-.status-row > .row-name { flex: 0 0 11ch; }   /* 'registrerad', the longest name */
+.status-row > .row-name { flex: 0 0 14ch; }   /* 'kommandoserver', the longest name (W-28a) */
 .status-row .mark { flex: 1 1 8ch; min-width: 0; white-space: normal; align-items: baseline; }
 .status-row .mark-word { min-width: 0; overflow-wrap: anywhere; }
 .status-act { margin-inline-start: auto; white-space: nowrap; }

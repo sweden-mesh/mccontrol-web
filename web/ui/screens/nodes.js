@@ -8,7 +8,7 @@ import { brokerText } from './key-register.js';
 import { batteryKnown, lastHeard, shortVersion } from '../../lib/jobs/overview.js';
 import { updateAvailable } from '../../lib/jobs/releases.js';
 import {
-  byName, explainEvent, field, nameOf, outcomeTag, progressLine, screen, volts, when, withServices, put, lockedNote, unlockHere } from './node-kit.js';
+  byName, explainEvent, field, nameOf, outcomeTag, progressLine, screen, volts, when, withServices, put, lockedNote } from './node-kit.js';
 
 export const route = 'nodes';
 export const title = 'nav.nodes';
@@ -172,8 +172,7 @@ export function render(ctx) {
           ctx.notify(ctx.t('nodes.refreshed', { versions: r.versioned, named: r.named, of: all.length }));
           await draw();
         } catch (err) {
-          ctx.notify(err.code === 'locked' ? ctx.t('send.locked') : err.message, { kind: 'error',
-            actions: err.code === 'locked' ? [{ label: ctx.t('send.unlockLink'), run: () => ctx.navigate(unlockHere(ctx)) }] : [] });
+          ctx.notify(err.code === 'locked' ? ctx.t('send.locked') : err.message, { kind: 'error' });
         }
         finally { versions.disabled = false; status.textContent = ''; }
       });

@@ -106,7 +106,7 @@ test('palette: the entries, and typing narrows them best first', () => {
   assert.equal(filterEntries(entries, 'REGION JKG')[0].label, 'Every node in region JKG', 'case is ignored');
 
   const none = buildEntries({ t, tabs: TABS, table: [], key: { status: 'none' }, modals: () => false });
-  assert.ok(none.some((e) => e.label === 'Make or import a key'));
+  assert.ok(!none.some((e) => /key/i.test(e.label) && e.hash === '#unlock'), 'no unlock entry: the gate is in front (W-28b)');
   assert.ok(!none.some((e) => e.label === 'Help'), 'only modals that exist');
   assert.ok(!none.some((e) => e.label.startsWith('Send a command')), 'no target, no "send to"');
 });

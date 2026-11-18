@@ -27,7 +27,7 @@ import { startAutoRegistration } from './screens/key-register.js';
 import { bindPaletteKeys } from './modals/palette.js';
 import { parseHash, targetHash } from './routes.js';
 import {
-  isModal, openModal, closeModal, currentModal, routeModal, useFrame, relabelFrame,
+  isModal, openModal, closeModal, currentModal, routeModal, useFrame, relabelFrame, onModalChange,
 } from './modal.js';
 import { drawBoard, drawStatusLine, drawKeyBar } from './board.js';
 import { setStatusItem, statusItems, onStatusChange } from './statusline.js';
@@ -38,6 +38,13 @@ import './tiles/index.js';
 import './modals/index.js';
 
 const $ = (id) => document.getElementById(id);
+
+// The unlock gate (W-28b): while there is no unlocked key, the page behind is hidden and inert and
+// only the unlock modal (make, import or unlock) and Help can be open. Auto-lock brings it back.
+// What was asked for before the gate is opened once the key is unlocked.
+export const GATE_OPEN = Object.freeze(['unlock', 'help']);
+export const gated = (status = keyState().status) => status !== 'unlocked';
+let gateReturn = null;
 let loadedStrings = null;   // the translator, once the strings have loaded (for the start error)
 
 function languageFor(prefs) {
@@ -131,12 +138,29 @@ async function start() {
       return;
     }
     if (p.kind === 'other') return;   // an in-page anchor such as #main
+    if (gated()) {
+      if (p.kind === 'board' || !GATE_OPEN.includes(p.name)) {
+        if (p.kind === 'modal') gateReturn = location.hash;
+        // The board's own entry stays depth 0, so leaving the gate walks back to it, not off the page.
+        const state = p.kind === 'board' ? { ...(history.state || {}), mcDepth: history.state?.mcDepth ?? 0 } : history.state;
+        history.replaceState(state, '', '#unlock');
+        route({ force });
+        return;
+      }
+    }
     if (p.kind === 'board') {
       routeModal('board');
       document.title = 'mccontrol';
       return;
     }
     routeModal({ name: p.name, args: p.args }, { force });
+    // The gate's dialog cannot be closed: no Esc, no click outside (the close button is hidden).
+    if (gated() && p.name === 'unlock') $('modal').setAttribute('closedby', 'none');
+  };
+  const applyGate = () => {
+    const on = gated();
+    document.documentElement.toggleAttribute('data-gate', on);
+    for (const id of ['statusline', 'main', 'footer']) $(id).inert = on;
   };
 
   const relabel = async () => {
@@ -152,7 +176,7 @@ async function start() {
     drawKey();
     drawClock();
     if (statusItems().find((i) => i.name === 'broker')?.shell !== false) {
-      setStatusItem('broker', { word: t('status.notYet'), state: 'unknown', shell: true });
+      setStatusItem('broker', { word: t('tile.connecting'), state: 'unknown', shell: true });
     }
     drawStatusLine($('status-items'), t);
     bindShellKeys();
@@ -174,11 +198,31 @@ async function start() {
   startAutomation({ t: () => t, notify }).catch((err) => console.warn('automatic discovery and refresh are off:', err));
 
   addEventListener('hashchange', () => route());
+  $('modal').addEventListener('cancel', (e) => { if (gated() && currentModal()?.name === 'unlock') e.preventDefault(); });
+  applyGate();
+  // Past the gate, back at the board: open what was asked for before it.
+  onModalChange((current) => {
+    // Closing Help (or anything) behind the gate goes back to the gate, not to the board.
+    if (!current && gated()) { queueMicrotask(() => { if (!currentModal() && gated()) route(); }); return; }
+    if (current || !gateReturn) return;
+    const back = gateReturn;
+    gateReturn = null;
+    location.hash = back;
+  });
   route();
   document.addEventListener('keydown', (e) => handleKey(e, { modalOpen: Boolean(currentModal()) }));
   onKeysChange(() => drawKeyBar($('keys'), t));
   onStatusChange(() => drawStatusLine($('status-items'), t));
   onKeyState(drawKey);
+  // Locking (auto-lock too) closes whatever is open behind the gate; unlocking leaves the way on
+  // to the unlock screen, which goes on by itself (to the board and so to gateReturn, or to a new
+  // key's tab).
+  onKeyState(() => {
+    const was = document.documentElement.hasAttribute('data-gate');
+    applyGate();
+    if (was === gated()) return;
+    if (gated() || currentModal()?.name !== 'unlock') route({ force: true });
+  });
   onPrefsChange((prefs) => { if (languageFor(prefs) !== lang) relabel(); });
 
   version = await readVersion();

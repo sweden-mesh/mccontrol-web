@@ -1,6 +1,6 @@
 // The selected node (W-20c, W-20j): its facts with their age, three 24-hour sparklines from
-// Beacon (battery, airtime sent per hour, noise floor), links to its details, statistics and
-// history, and at the bottom the command line: type, Enter signs and sends to this node, or to
+// Beacon (battery, airtime sent per hour, noise floor), buttons for its details, statistics and
+// history (W-28e), and at the bottom the command line: type, Enter signs and sends to this node, or to
 // the tagged nodes when some are tagged. The road switch (Auto / MQTT / Mesh) sits on the same
 // line (it starts on the node's last choice, else MQTT, or the mesh for a node without MQTT: W-26b,
 // W-26c). A command's answer is shown once, in HISTORY (W-23g): not here as a log, not under the
@@ -98,10 +98,16 @@ export function nodeView(ctx, svc, nodeId, { heading = null } = {}) {
   const head = h('div', { class: 'node-head' });
   const sparks = h('ul', { class: 'rows fact-list' });
   const facts = h('ul', { class: 'rows fact-list' });
+  // Real buttons in the page's button style, not underlined links (W-28e).
+  const go = (hash, label) => {
+    const b = h('button', { type: 'button', class: 'tool node-link' }, label);
+    b.addEventListener('click', () => ctx.navigate(hash), { signal: ctx.signal });
+    return b;
+  };
   const links = h('p', { class: 'row node-links' },
-    h('a', { href: `#nodeinfo/${nodeId}` }, ctx.t('tile.details')), ' ',
-    h('a', { href: `#stats/${nodeId}` }, ctx.t('tile.stats')), ' ',
-    h('a', { href: `#history/${nodeId}` }, ctx.t('tile.history')));
+    go(`#nodeinfo/${nodeId}`, ctx.t('tile.details')),
+    go(`#stats/${nodeId}`, ctx.t('tile.stats')),
+    go(`#history/${nodeId}`, ctx.t('tile.history')));
   const line = commandLine(ctx, svc, nodeId);
   const scroller = h('div', { class: 'node-scroll' }, head, sparks, h('hr', { class: 'rule' }), facts, h('hr', { class: 'rule' }), links);
   const el = h('div', { class: 'node-view' }, scroller, line.el);
@@ -170,6 +176,24 @@ export function nodeView(ctx, svc, nodeId, { heading = null } = {}) {
   return el;
 }
 
+// The road (W-28d): a segmented switch of three radios in the page's button style, not a native
+// select, so it matches the fields and buttons in every theme and has no browser popup.
+// `value` reads and sets the checked one; setDisabled(value, on); 'change' bubbles from the radios.
+export function roadSwitch(ctx, nodeId) {
+  const name = `road-${nodeId}-${lists += 1}`;
+  const radios = ['auto', 'mqtt', 'mesh'].map((r) => h('input', { type: 'radio', name, value: r, class: 'seg-input' }));
+  const el = h('fieldset', { class: 'seg road' },
+    h('legend', { class: 'visually-hidden' }, ctx.t('road.legend')),
+    radios.map((input) => h('label', { class: 'seg-option' }, input, h('span', {}, ctx.t(`tile.road.${input.value}`)))));
+  radios[0].checked = true;
+  Object.defineProperty(el, 'value', {
+    get: () => radios.find((r) => r.checked)?.value || 'auto',
+    set: (v) => { const r = radios.find((x) => x.value === v); if (r) r.checked = true; },
+  });
+  el.setDisabled = (v, on) => { const r = radios.find((x) => x.value === v); if (r) r.disabled = on; };
+  return el;
+}
+
 // The command line: "Gisebo ▶ [command] road [auto|mqtt|mesh] [Send]", and under it one row for
 // the companion when the road may take the mesh (empty otherwise, so the area keeps its height).
 // The checks are the field's state and description: a command that cannot go (or stops before
@@ -181,8 +205,7 @@ function commandLine(ctx, svc, nodeId) {
   const input = h('input', { type: 'text', list: list.id, class: 'cmd', autocomplete: 'off', autocapitalize: 'none',
     spellcheck: 'false', enterkeyhint: 'send', 'aria-describedby': checkId, 'aria-invalid': 'false' });
   const prompt = h('label', { class: 'cmd-prompt' });
-  const road = h('select', { class: 'road', 'aria-label': ctx.t('road.legend') },
-    ['auto', 'mqtt', 'mesh'].map((r) => h('option', { value: r }, ctx.t(`tile.road.${r}`))));
+  const road = roadSwitch(ctx, nodeId);
   const send = h('button', { type: 'submit', class: 'button cmd-send' }, ctx.t('tile.send'));
   const check = h('span', { class: 'visually-hidden', id: checkId });
   const companionSlot = h('div', { class: 'cmd-companion' });
@@ -220,7 +243,7 @@ function commandLine(ctx, svc, nodeId) {
     prompt.replaceChildren(many ? ctx.t('tile.toTagged', { n: to.length }) : (device ? nameOf(device) : nodeId), h('span', { 'aria-hidden': 'true' }, ' ▶'));
     send.textContent = many ? ctx.t('tile.sendTagged', { n: to.length }) : ctx.t('tile.send');
     const meshOnly = to.some((d) => svc.rules.deviceMeshOnly(d));
-    road.querySelector('option[value="mqtt"]').disabled = meshOnly;
+    road.setDisabled('mqtt', meshOnly);
     if (meshOnly && road.value === 'mqtt') road.value = 'auto';
   }
 
@@ -320,7 +343,7 @@ function commandLine(ctx, svc, nodeId) {
       const text = err.code === 'locked' ? ctx.t('send.locked')
         : err instanceof CompanionError ? ctx.t('send.why.companion', { detail: err.message })
           : err.code ? ctx.t(`send.why.${err.code}`, err.vars) : err.message;
-      ctx.notify(text, { kind: 'error', actions: err.code === 'locked' ? [{ label: ctx.t('send.unlockLink'), run: () => ctx.navigate('#unlock') }] : [] });
+      ctx.notify(text, { kind: 'error' });
     } finally {
       job.done();
       running = false;

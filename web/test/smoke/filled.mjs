@@ -14,7 +14,7 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { existsSync, readFileSync } from 'node:fs';
 import { serve, puppeteer } from './run.mjs';
-import { seedFake, fakeBeacon, noBroker, renameLong, companionLong, FAKE_NODES } from './fake.mjs';
+import { seedFake, fakeBeacon, noBroker, renameLong, companionLong, unlockFake, FAKE_NODES } from './fake.mjs';
 
 const HERE = fileURLToPath(new URL('.', import.meta.url));
 const LOOKS = ['amber', 'green', 'dark', 'light'];
@@ -251,6 +251,7 @@ async function main() {
     await page.goto(`${origin}/#${hash}`, { waitUntil: 'networkidle0', timeout: 20000 });
     await page.reload({ waitUntil: 'networkidle0' });
     await page.waitForFunction(() => document.documentElement.hasAttribute('data-started'), { timeout: 15000 });
+    await unlockFake(page);   // past the unlock gate (W-28b); noBroker keeps it off the air
     await new Promise((ok) => setTimeout(ok, 700));
   };
   const shot = (page, name, fullPage = false) => page.screenshot({ path: join(o.out, `${name}.png`), fullPage });

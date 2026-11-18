@@ -228,3 +228,9 @@ main:focus { outline: none; }
 .usb-debug summary { cursor: pointer; min-height: 24px; }
 .usb-debug .row { gap: 8px; margin: 4px 0; align-items: center; }
 .usb-debug-log { max-block-size: 50vh; overflow: auto; margin: 0; white-space: pre; font-family: var(--font-mono, monospace); }
+
+/* The unlock gate (W-28b): with no unlocked key nothing behind the unlock dialog is shown or
+   usable (app.js also makes it inert); a start error still shows. The gate's dialog has no close
+   button: only unlocking (or making or importing a key) gets past it. Help stays reachable. */
+html[data-gate]:not([data-start-failed]) :is(#statusline, #main, #footer) { visibility: hidden; }
+html[data-gate] #modal[data-modal="unlock"] .modal-close { visibility: hidden; }
