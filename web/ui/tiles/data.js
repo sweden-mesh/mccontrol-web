@@ -48,7 +48,7 @@ export function sharedPrefix(names) {
 export function matches(device, query) {
   const q = String(query || '').trim().toLowerCase();
   if (!q) return true;
-  return [device.name, device.node, device.region, device.ver, device.notes]
+  return [device.name, device.node, device.ver, device.notes]
     .some((v) => String(v || '').toLowerCase().includes(q));
 }
 

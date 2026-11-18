@@ -85,7 +85,8 @@ export async function startKeySession(options = {}) {
     state: () => shellState(status),
     subscribe: (fn) => { shellListeners.add(fn); return () => shellListeners.delete(fn); },
   });
-  provideKeyring({ handle: () => ring.handle(), hold: () => ring.hold(), touch: () => ring.touch() });
+  provideKeyring({ handle: () => ring.handle(), hold: () => ring.hold(), touch: () => ring.touch(),
+    loadSecrets: () => ring.loadSecrets(), saveSecrets: (m) => ring.saveSecrets(m) });
   if (globalThis.document) {
     let last = 0;
     const touch = () => {

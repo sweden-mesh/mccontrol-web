@@ -2,10 +2,18 @@
 // and update one node's firmware. A port of mccontrol/actions.py and the group semantics of
 // api/jobs.py (RM-4): a send to several nodes or a group is one signed per-node command each,
 // on its own topic; a member that cannot take the command is reported and the rest still go.
-// A region-wide send is one signed broadcast, with the broadcast rules.
+// There is no broadcast of any kind (IATA-2): an area (a county, from the nodes' own `region
+// home`) is each of the owner's nodes there, one sealed command each, in random order and spaced
+// (scheme.js); a command that transmits and the mesh road are refused for an area.
+//
+// The plane is the node's (scheme.js): mcc3 for lou-20 and later (sealed, `mcc/cmd/<KEY>` on the
+// shared command server, no IATA; plane.js), the old per-node IATA scheme for lou-19 and older,
+// which is how they still take `ota update`. The mesh road picks 0xC2 or 0xC1 the same way.
+// discoverAlive() finds the owner's nodes from their retained alive messages; the shared secret
+// with every node key seen is cached beside the key (ring.loadSecrets / saveSecrets).
 //
 //   const jobs = createJobs({ ring, stores, rules, brokers, results, configOf });   // results: lib/data/results.json
-//   await jobs.send({ command, nodes: ['4AC61A7F'] | group: 'canary' | region: 'JKG', road, onProgress, signal })
+//   await jobs.send({ command, nodes: ['4AC61A7F'] | group: 'canary' | area: 'se-jkp', road, onProgress, signal })
 //
 // `road` (W-16) is 'mqtt' (the default), 'mesh' or 'auto' (road.js): the mesh goes through the
 // companion `companion()` returns (lib/mesh/companion.js), one node at a time, and an outcome
@@ -16,6 +24,10 @@
 // JobError('locked') before anything is signed. Every answer, refusal and silence lands in the
 // history store as it comes; reads are kept on the device; `ver` and `get name` update it.
 import { configFor, discover as realDiscover, send as realSend, DISCOVERY_COMMAND } from '../protocol/transport.js';
+import { newer, scanAlive as realScanAlive, sendMcc3 as realSendMcc3 } from '../protocol/plane.js';
+import { deriveKeys } from '../protocol/mcc3.js';
+import { fromHex, toHex } from '../bytes.js';
+import { actSpacing, areaOf, oldRegion, scheme, shuffled } from './scheme.js';
 import { commandTopic } from '../protocol/topics.js';
 import { codeName } from '../protocol/results.js';
 import { blocker, fillSteps, JobError, meshBlocker } from './checks.js';
@@ -35,10 +47,24 @@ const sleepFor = (ms, signal) => new Promise((resolve) => {
 // The codes a CompanionError carries (lib/mesh/companion.js): said as a companion failure.
 const COMPANION_CODES = Object.freeze({ companion: 1, timeout: 1, closed: 1, full: 1, refused: 1 });
 
+const ALIVE_STATES = Object.freeze({ ours: 'online', empty: 'offline', foreign: 'not-yours' });
+
+// What a device keeps of its alive: the state, when it was read, and the opened fields.
+function aliveRecord(fields, state, at) {
+  const rec = { state, at: new Date(at).toISOString() };
+  if (fields) {
+    for (const k of ['boot', 'sequence', 'uptime', 'clock', 'last_counter', 'interval', 'flags', 'mesh', 'fingerprint',
+      'version', 'region', 'name']) rec[k] = fields[k];
+    rec.old_scheme = Boolean(fields.flags & 1);
+  }
+  return rec;
+}
+
 export const valueOf = (reply) => String(reply || '').replace(/^>\s*/, '').trim();
 
 export function createJobs({
   ring, stores, rules, brokers, results, transport = { send: realSend, discover: realDiscover }, connect,
+  plane = { send: realSendMcc3, scan: realScanAlive }, random = Math.random,
   waitSecs = null, sleep = sleepFor, configExtra = {}, configOf = (region) => configFor(brokers, region),
   companion = () => null, meshSend = realMeshSend, meshAfterMins = () => MESH_AFTER_MINS, mqttSeen = null,
   now = () => Date.now(),
@@ -60,6 +86,30 @@ export function createJobs({
     }
   }
 
+  // The mcc3 shared secrets, sealed beside the key; {} when the keyring keeps none.
+  async function loadSecrets() {
+    try { return (await ring.loadSecrets?.()) || {}; } catch { return {}; }
+  }
+  async function saveSecrets(map) {
+    try { await ring.saveSecrets?.(map); } catch { /* kept for this job only */ }
+  }
+
+  // K_cmd, K_mesh, K_alive for the node with `key`, from the cached S (a new one is stored).
+  async function keysFor(handle, key) {
+    const secrets = await loadSecrets();
+    if (!secrets[key]) {
+      secrets[key] = toHex(handle.sharedSecret(key), true);
+      await saveSecrets(secrets);
+    }
+    return deriveKeys(fromHex(secrets[key]), key);
+  }
+
+  const wholeKey = (device) => {
+    const key = String(device.key || '').toUpperCase();
+    if (!/^[0-9A-F]{64}$/.test(key)) throw new JobError('mcc3NoKey', { name: device.name || device.node }, 'mcc3 needs the whole key');
+    return key;
+  };
+
   const batchId = () => `b${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
   const label = (d) => d.name || d.node;
 
@@ -73,7 +123,7 @@ export function createJobs({
   // result and last heard, a kept read, and its version or name.
   async function land(device, command, topic, result, batch, note = '', road = 'mqtt') {
     const event = await stores.history.append({
-      batch, node: device.node, region: device.region, command, topic, note, road,
+      batch, node: device.node, region: null, command, topic, note, road,
       code: result ? result.code : null,
       codeName: result && result.code !== null ? codeName(results, result.code) : null,
       reply: result ? result.reply : null,
@@ -99,16 +149,37 @@ export function createJobs({
     return event;
   }
 
+  // One sealed mcc3 command to one lou-20 node on `mcc/cmd/<KEY>` through the shared command
+  // server; the counter is stored before it is sent.
+  async function sendSealed(handle, device, command, { batch, signal, onProgress, index = 0, count = 1, note }) {
+    const key = wholeKey(device);
+    const keys = await keysFor(handle, key);
+    const counter = await stores.devices.nextCounter(device.node);
+    const progress = (elapsed, total, answered) => {
+      onProgress?.({ phase: 'waiting', road: 'mqtt', node: device.node, name: label(device), index, count, elapsed, total, answered: answered.length });
+      return Boolean(signal?.aborted);
+    };
+    const { topic, result } = await plane.send({
+      config: config(''), handle, keys, nodeKeyHex: key, command, counter, waitSecs: wait(), progress, signal, connect,
+    });
+    const event = await land(device, command, topic, result, batch, note || 'mcc3');
+    return { device, result, event, v2: false, mcc3: true, road: 'mqtt' };
+  }
+
   // One signed command to one device over MQTT: { device, result, event, road } (result null = no answer).
-  async function sendMqtt(handle, device, command, { batch, keys, signal, onProgress, index = 0, count = 1, note }) {
-    const topic = commandTopic(device.region, device.node, device.key);
+  async function sendMqtt(handle, device, command, opts) {
+    if (scheme(rules, device) === 'mcc3') return sendSealed(handle, device, command, opts);
+    const { batch, keys, signal, onProgress, index = 0, count = 1, note } = opts;
+    const region = oldRegion(device);
+    if (!region) throw new JobError('noRegion', { name: label(device) }, 'no IATA code known for this node');
+    const topic = commandTopic(region, device.node, device.key);
     const v2Key = device.key && rules.speaksV2(device.ver) ? device.key : null;
     const progress = (elapsed, total, answered) => {
       onProgress?.({ phase: 'waiting', road: 'mqtt', node: device.node, name: label(device), index, count, elapsed, total, answered: answered.length });
       return Boolean(signal?.aborted);
     };
     const { answers } = await transport.send({
-      config: config(device.region), handle, topic, command, nodesToHear: [device.node], waitSecs: wait(),
+      config: config(region), handle, topic, command, nodesToHear: [device.node], waitSecs: wait(),
       keys, v2Key, progress, signal, connect,
     });
     const result = answers[device.node] || null;
@@ -125,8 +196,11 @@ export function createJobs({
     const radio = companion();
     if (!radio || radio.closed) throw new JobError('noCompanion', {}, 'no companion is connected');
     onProgress?.({ phase: 'sending', road: 'mesh', node: device.node, name: label(device), index, count });
+    const sealed = scheme(rules, device) === 'mcc3';
+    const keys = sealed ? await keysFor(handle, wholeKey(device)) : null;
+    const counter = sealed ? await stores.devices.nextCounter(device.node) : null;
     const out = await meshSend({
-      companion: radio, handle, keyHex: device.key, region: device.region, meshOnly: rules.deviceMeshOnly(device),
+      companion: radio, handle, keyHex: device.key, region: oldRegion(device), meshOnly: rules.deviceMeshOnly(device), keys, counter,
       name: label(device), command, ttl: brokers.ttl_secs ?? undefined, waitSecs: wait(), signal,
       progress: (elapsed, total) => {
         onProgress?.({ phase: 'waiting', road: 'mesh', node: device.node, name: label(device), index, count, elapsed, total, answered: 0 });
@@ -166,73 +240,87 @@ export function createJobs({
     }
   }
 
-  // The nodes a target names: { devices, region } where region is set only for a broadcast.
-  async function targets({ nodes = null, group = null, region = null }) {
-    const given = [nodes?.length ? 'nodes' : null, group ? 'group' : null, region ? 'region' : null].filter(Boolean);
-    if (given.length !== 1) throw new JobError('oneTarget', {}, 'exactly one target: nodes, a group or a region');
-    if (region) {
-      const r = String(region).trim().toUpperCase();
-      const inRegion = (await stores.devices.list()).filter((d) => d.region === r);
-      return { devices: inRegion, region: r, group: null };
+  // The nodes a target names: { devices, area, group } where area is set only for an area act.
+  async function targets({ nodes = null, group = null, area = null }) {
+    const given = [nodes?.length ? 'nodes' : null, group ? 'group' : null, area ? 'area' : null].filter(Boolean);
+    if (given.length !== 1) throw new JobError('oneTarget', {}, 'exactly one target: nodes, a group or an area');
+    if (area) {
+      const a = String(area).trim().toLowerCase();
+      const inArea = (await stores.devices.list()).filter((d) => areaOf(d) === a);
+      if (!inArea.length) throw new JobError('emptyArea', { area: a }, `no node of yours in ${a}`);
+      return { devices: inArea, area: a, group: null };
     }
     if (group) {
       const g = await stores.groups.get(group);
       if (!g) throw new JobError('noGroup', { group }, `no group named ${group}`);
       if (!g.members.length) throw new JobError('emptyGroup', { group: g.id }, `group ${g.id} has no nodes`);
-      return { devices: await Promise.all(g.members.map((m) => stores.devices.get(m))), region: null, group: g.id };
+      return { devices: await Promise.all(g.members.map((m) => stores.devices.get(m))), area: null, group: g.id };
     }
     const found = await Promise.all(nodes.map((n) => stores.devices.get(n)));
     const missing = nodes.filter((_, i) => !found[i]);
     if (missing.length) throw new JobError('noNode', { node: missing[0] }, `no node ${missing[0]}`);
-    return { devices: found, region: null, group: null };
+    return { devices: found, area: null, group: null };
   }
 
-  // The same check for every command before any is signed; a blocker for a region or for
+  // The same check for every command before any is signed; a blocker for an area or for
   // a lone node stops the job, while in a group or a multi-node send it marks that member.
   function vet(commands, target, road = 'mqtt') {
     for (const command of commands) {
-      if (road !== 'mqtt' && !target.region) continue;         // per node, by the road it takes
-      const deny = blocker(rules, { command, device: { region: 'X', ver: null, name: '' }, region: target.region, road });
+      if (road !== 'mqtt' && !target.area) continue;           // per node, by the road it takes
+      const deny = target.area ? blocker(rules, { command, area: target.area, road })
+        : blocker(rules, { command, device: { region: 'XX', key: 'F'.repeat(64), ver: null, name: '' }, road });
       if (deny && deny.code !== 'oldAscii') throw new JobError(deny.code, deny.vars, deny.vars.detail || deny.code);
     }
   }
 
-  // A region-wide broadcast of one command: { outcomes, answered, asked, event }.
-  async function broadcast(handle, region, devices, command, { batch, keys, signal, onProgress }) {
-    const topic = commandTopic(region);
-    const hear = devices.map((d) => d.node);
-    const progress = (elapsed, total, answered) => {
-      onProgress?.({ phase: 'waiting', region, index: 0, count: hear.length, elapsed, total, answered: answered.length });
-      return Boolean(signal?.aborted);
-    };
-    const { answers } = await transport.send({
-      config: config(region), handle, topic, command, nodesToHear: hear, waitSecs: wait(), keys, progress, signal, connect,
-    });
+  // One command to each node of an area, one sealed per-node command each (never a broadcast), in
+  // random order and spaced (scheme.js); a node that cannot take it is reported and the rest
+  // still go. A summary line lands in history. { outcomes, answered, asked, event }.
+  async function areaAct(handle, target, command, { batch, keys, signal, onProgress }) {
+    const order = shuffled(target.devices, random);
+    const [low, high] = actSpacing(rules, command);
     const outcomes = [];
-    for (const d of devices) {
-      const result = answers[d.node] || null;
-      outcomes.push({ node: d.node, name: label(d), sent: true, result, event: await land(d, command, topic, result, batch, 'broadcast') });
+    for (const [index, device] of order.entries()) {
+      if (index && !signal?.aborted) {
+        const secs = low + random() * (high - low);
+        onProgress?.({ phase: 'spacing', area: target.area, index, count: order.length, secs: Math.round(secs) });
+        await sleep(secs * 1000, signal);
+      }
+      if (signal?.aborted) {
+        outcomes.push({ node: device.node, name: label(device), sent: false, result: null, reason: { code: 'cancelled', vars: {} } });
+        continue;
+      }
+      const reason = blocker(rules, { command, device, road: 'mqtt' });
+      if (reason) { outcomes.push({ node: device.node, name: label(device), sent: false, result: null, reason }); continue; }
+      onProgress?.({ phase: 'sending', area: target.area, node: device.node, name: label(device), index, count: order.length });
+      try {
+        const one = await sendMqtt(handle, device, command, { batch, keys, signal, onProgress, index, count: order.length });
+        outcomes.push({ node: device.node, name: label(device), sent: true, result: one.result, event: one.event, road: 'mqtt' });
+      } catch (e) {
+        const why = e instanceof JobError ? { code: e.code, vars: e.vars } : { code: 'broker', vars: { detail: e.message } };
+        outcomes.push({ node: device.node, name: label(device), sent: false, result: null, reason: why });
+      }
     }
-    const answered = Object.keys(answers).length;
+    const answered = outcomes.filter((o) => o.result).length;
     const event = await stores.history.append({
-      batch, node: null, region, command, topic, code: null, reply: null, verified: null,
-      note: `${answered} of ${hear.length} answered`,
+      batch, node: null, region: target.area, command, topic: `area/${target.area}/act`, code: null, reply: null,
+      verified: null, note: `${answered} of ${order.length} answered`,
     });
-    return { outcomes, answered, asked: hear.length, event };
+    return { outcomes, answered, asked: order.length, event };
   }
 
   // Send one command. Resolves to { batch, command, target, outcomes: [{ node, name, sent,
   // result, reason?, event? }], answered, asked }. `reason` ({ code, vars }) is why a member
   // was not sent to; `result` null with sent true is silence.
-  async function send({ command, nodes, group, region, road = 'mqtt', onProgress, signal } = {}) {
+  async function send({ command, nodes, group, area, road = 'mqtt', onProgress, signal } = {}) {
     const text = String(command || '').split(/\s+/).filter(Boolean).join(' ');
-    const target = await targets({ nodes, group, region });
+    const target = await targets({ nodes, group, area });
     vet([text], target, road);
     const batch = batchId();
     return withKey(async (handle) => {
       const keys = await keysOf();
-      if (target.region) {
-        const out = await broadcast(handle, target.region, target.devices, text, { batch, keys, signal, onProgress });
+      if (target.area) {
+        const out = await areaAct(handle, target, text, { batch, keys, signal, onProgress });
         return { batch, command: text, target, outcomes: out.outcomes, answered: out.answered, asked: out.asked };
       }
       const outcomes = [];
@@ -265,29 +353,17 @@ export function createJobs({
     });
   }
 
-  // Run a set's steps in order to each target node (or broadcast each to a region), stopping
-  // at the first refusal or silence. { batch, steps, runs: [{ node | region, name, stoppedAt,
-  // outcomes: [per step] }] } -- stoppedAt null when every step was answered ok.
-  async function runSet({ steps, arg = '', nodes, group, region, onStep, onProgress, signal } = {}) {
+  // Run a set's steps in order to each target node (an area's nodes one after another, never a
+  // broadcast), stopping at the first refusal or silence. { batch, steps, runs: [{ node, name,
+  // stoppedAt, outcomes: [per step] }] } -- stoppedAt null when every step was answered ok.
+  async function runSet({ steps, arg = '', nodes, group, area, onStep, onProgress, signal } = {}) {
     const filled = fillSteps(steps, arg);
-    const target = await targets({ nodes, group, region });
+    const target = await targets({ nodes, group, area });
     vet(filled, target);
     const batch = batchId();
     return withKey(async (handle) => {
       const keys = await keysOf();
       const runs = [];
-      if (target.region) {
-        const run = { region: target.region, name: target.region, stoppedAt: null, outcomes: [] };
-        for (const [i, command] of filled.entries()) {
-          if (signal?.aborted) { run.stoppedAt = i; break; }
-          onStep?.({ step: i, steps: filled.length, command, name: target.region });
-          const out = await broadcast(handle, target.region, target.devices, command, { batch, keys, signal, onProgress });
-          run.outcomes.push(out);
-          if (out.answered < out.asked || out.outcomes.some((o) => !o.result?.ok)) { run.stoppedAt = i; break; }
-        }
-        runs.push(run);
-        return { batch, steps: filled, runs };
-      }
       for (const device of target.devices) {
         const run = { node: device.node, name: label(device), stoppedAt: null, outcomes: [], reason: null };
         runs.push(run);
@@ -359,14 +435,13 @@ export function createJobs({
   // mesh-only node that is not in the list. A mesh-only node signs and is signed for on
   // meshcore/mesh/{PUBKEY}/cmd, so no IATA is needed. Only on the owner's press, never by itself.
   // An answer (any code: a refusal is signed by the node too) proves the node holds this key: it
-  // is added as mesh-only in `region` (the area's IATA, for the list) and the answer lands in
-  // history like any send. Silence adds nothing. { answered, result, device | null, info }
-  async function checkMeshNode({ candidate, region, signal, onProgress } = {}) {
+  // is added as mesh-only (by its whole key, with no region) and the answer lands in history like
+  // any send. Silence adds nothing. { answered, result, device | null, info }
+  async function checkMeshNode({ candidate, signal, onProgress } = {}) {
     const key = String(candidate?.key || '').toUpperCase();
     const name = String(candidate?.name || '').trim();
     if (!/^[0-9A-F]{64}$/.test(key)) throw new JobError('meshNoKey', { name: name || candidate?.node || '?' });
-    const r = String(region || '').toUpperCase();
-    if (!r) throw new JobError('noRegion', { name: name || key.slice(0, 8) });
+    const r = '';
     return withKey(async (handle) => {
       const radio = companion();
       if (!radio || radio.closed) throw new JobError('noCompanion', {}, 'no companion is connected');
@@ -389,14 +464,61 @@ export function createJobs({
     });
   }
 
-  // Remember a discovered node. A taken name gets -2, -3 ...
+  // Remember a discovered node. A taken name gets -2, -3 ... A node found by its alive has a
+  // whole key and no region: mcc3 needs none.
   async function adopt(entry, name = '') {
     const all = await stores.devices.list();
     const base = String(name || entry.name || '').trim();
     let chosen = base;
     for (let n = 2; chosen && all.some((d) => d.name.toLowerCase() === chosen.toLowerCase()); n += 1) chosen = `${base}-${n}`;
     const key = entry.verified === false ? null : (entry.key || null);   // never a key from a forged answer
-    return stores.devices.add({ node: entry.node, key, region: entry.region, name: chosen, notes: '' });
+    const added = await stores.devices.add({ node: entry.node.slice(0, 8), key, region: entry.region || '', name: chosen, notes: '' });
+    return entry.alive ? stores.devices.update(added.node, { alive: entry.alive, ...(entry.alive.version ? { ver: entry.alive.version } : {}) }) : added;
+  }
+
+  // Your nodes, wherever they are, from the retained alive messages (IATA-2 §6): every
+  // `mcc/alive/<KEY>` is tried with your command key (the shared secret per node cached beside
+  // the key), and those that open are yours. A device you have whose alive is empty is offline;
+  // one whose alive no longer opens is no longer yours (rekeyed). Reads only; nothing is sent.
+  // Updates the devices it knows; resolves to [{ node, key, name, version, state, knownAs, alive }]
+  // (state: 'online' | 'offline' | 'not-yours'); adopting a new one is the caller's (adopt).
+  async function discoverAlive({ onProgress, signal, waitSecs = null } = {}) {
+    return withKey(async (handle) => {
+      const secrets = await loadSecrets();
+      const before = Object.keys(secrets).length;
+      const total = waitSecs ?? Math.min(10, wait());
+      const seen = await plane.scan({
+        config: config(''), handle, secrets, waitSecs: total, signal, connect,
+        progress: (elapsed, all, ours) => { onProgress?.({ phase: 'waiting', elapsed, total: all, answered: ours.length }); return Boolean(signal?.aborted); },
+      });
+      if (Object.keys(secrets).length !== before) await saveSecrets(secrets);
+      const devices = await stores.devices.list();
+      const byKey = new Map(devices.filter((d) => d.key).map((d) => [d.key.toUpperCase(), d]));
+      const entries = [];
+      for (const [key, { state, fields, at }] of Object.entries(seen)) {
+        let d = byKey.get(key) || null;
+        if (!d && state === 'ours') {        // a device kept by its id alone: its alive gives the key
+          const bare = devices.find((x) => x.node === key.slice(0, 8) && !x.key);
+          if (bare) d = await stores.devices.update(bare.node, { key });
+        }
+        if (state !== 'ours' && !d) continue;           // someone else's node: nothing to say
+        let rec = aliveRecord(fields, ALIVE_STATES[state], at);
+        if (d) {
+          const old = d.alive || null;
+          if (state === 'ours' && old?.state === 'online' && !newer(fields, old)) rec = old;   // a replay of an older one
+          else if (state !== 'ours') rec = { ...(old || {}), state: rec.state, at: rec.at };
+          const changes = { alive: rec };
+          if (state === 'ours' && rec.version) changes.ver = rec.version.slice(0, 60);
+          if (state === 'ours' && !d.name && rec.name) changes.name = rec.name.slice(0, 40);
+          try { d = await stores.devices.update(d.node, changes); } catch { d = await stores.devices.update(d.node, { alive: rec }); }
+        }
+        entries.push({
+          node: key.slice(0, 8), key, name: fields?.name || '', version: fields?.version || '', state: rec.state,
+          knownAs: d ? label(d) : null, alive: rec,
+        });
+      }
+      return entries.sort((a, b) => (a.name || a.node).toLowerCase().localeCompare((b.name || b.node).toLowerCase()));
+    });
   }
 
   // `get name` and `ver` to each node, one signed read each: an unnamed node takes its own
@@ -471,5 +593,5 @@ export function createJobs({
     });
   }
 
-  return Object.freeze({ send, runSet, discover, adopt, refresh, update, checkMeshNode, DISCOVERY_COMMAND });
+  return Object.freeze({ send, runSet, discover, discoverAlive, adopt, refresh, update, checkMeshNode, DISCOVERY_COMMAND });
 }

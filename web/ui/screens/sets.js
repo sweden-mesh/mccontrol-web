@@ -1,5 +1,5 @@
 // Setup's Command sets tab (W-15, W-20i): a named list of up to six commands sent in order to a node, a group or
-// (advanced) a region, stopping at the first refusal or silence. `{arg}` in a step is asked for
+// (advanced) each of your nodes in a county, one after another, stopping at the first refusal or silence. `{arg}` in a step is asked for
 // when the set runs. The shipped example stays until it is removed or replaced. Every step is
 // checked against the deny list when it is saved and again before the run is signed. The tab
 // opens with what a set is and when to use one, and every step says what it does.
@@ -8,6 +8,7 @@
 import { h } from '../dom.js';
 import { SET_STEPS } from '../../lib/store/index.js';
 import { blocker, fillSteps } from '../../lib/jobs/checks.js';
+import { areaName } from '../../lib/discovery/areas.js';
 import {
   byName, confirm, explain, field, nameOf, progressLine, withServices, put, lockedNote } from './node-kit.js';
 import { whyText } from './send.js';
@@ -62,18 +63,19 @@ export function runSetPanel(ctx, svc, target, sets, { initial = '', only = false
     e.preventDefault();
     let filled;
     try { filled = fillSteps(sets[select.value], arg.value); } catch (err) { put(out, h('p', { class: 'err' }, ctx.t(`send.why.${err.code}`))); arg.focus(); return; }
-    const one = !target.region && target.devices.length === 1 ? target.devices[0] : null;
+    const one = !target.area && target.devices.length === 1 ? target.devices[0] : null;
     for (const c of filled) {
-      const block = blocker(svc.rules, { command: c, device: one, region: target.region || null });
+      const block = blocker(svc.rules, { command: c, device: one, area: target.area || null });
       if (block) { put(out, h('p', { class: 'err', role: 'alert' }, whyText(ctx, block))); return; }
     }
+    const county = target.area ? areaName(svc.data.areas, target.area) : null;
     const cautions = filled.map((c) => [c, svc.rules.caution(c)]).filter(([, why]) => why);
-    if (cautions.length || target.region) {
+    if (cautions.length || target.area) {
       const ok = await confirm(ctx, {
-        title: target.region ? ctx.t('send.confirmRegionTitle', { region: target.region }) : ctx.t('sets.confirmTitle', { set: select.value }),
+        title: target.area ? ctx.t('send.confirmRegionTitle', { region: county }) : ctx.t('sets.confirmTitle', { set: select.value }),
         lines: [
           ...cautions.map(([c, why]) => h('p', {}, h('code', {}, c), ' ', why)),
-          target.region ? h('p', {}, ctx.t('send.confirmRegionBody', { region: target.region, n: target.devices.length })) : null,
+          target.area ? h('p', {}, ctx.t('send.confirmRegionBody', { region: county, n: target.devices.length })) : null,
         ].filter(Boolean),
         confirmLabel: ctx.t('sets.confirmButton', { n: filled.length }),
         danger: true,
@@ -86,8 +88,8 @@ export function runSetPanel(ctx, svc, target, sets, { initial = '', only = false
     try {
       const res = await svc.jobs.runSet({
         steps: sets[select.value], arg: arg.value,
-        nodes: target.region || target.group ? null : target.devices.map((d) => d.node),
-        group: target.group?.id || null, region: target.region || null, signal: ctx.signal,
+        nodes: target.area || target.group ? null : target.devices.map((d) => d.node),
+        group: target.group?.id || null, area: target.area || null, signal: ctx.signal,
         onStep: (s) => bar.set(s.step / s.steps, ctx.t('sets.stepOf', { name: s.name, i: s.step + 1, of: s.steps, command: s.command })),
       });
       put(out, h('ul', { class: 'res-list' }, res.runs.map((r) => runLine(ctx, svc, r, res.steps))));
@@ -102,12 +104,6 @@ export function runSetPanel(ctx, svc, target, sets, { initial = '', only = false
 function runLine(ctx, svc, run, steps) {
   const done = run.stoppedAt === null;
   const last = run.outcomes.at(-1);
-  if (run.region) {
-    return h('li', { class: `res ${done ? 'res-ok' : 'res-refused'}` },
-      h('span', { class: 'res-name' }, run.name),
-      h('span', { class: `tag ${done ? 'tag-ok' : 'tag-refused'}` }, done ? ctx.t('sets.allOk', { n: steps.length }) : ctx.t('sets.stopped', { i: run.stoppedAt + 1 })),
-      h('span', { class: 'res-text' }, last ? ctx.t('send.summary', { command: steps[done ? steps.length - 1 : run.stoppedAt], answered: last.answered, asked: last.asked }) : ''));
-  }
   const lastResult = last && 'result' in last ? last.result : null;
   const x = run.reason ? null : explain(ctx, svc, done ? lastResult : (last?.result ?? null));
   return h('li', { class: `res ${done ? 'res-ok' : 'res-refused'}` },

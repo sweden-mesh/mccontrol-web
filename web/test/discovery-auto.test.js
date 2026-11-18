@@ -1,19 +1,22 @@
-// lib/discovery (W-20a, W-20b): the area table, automatic discovery on unlock at most hourly per
-// region, adoption with undo, the broker's caps, and mesh-only candidates from a companion. With
-// a fake clock, fake jobs and an in-memory store: nothing reaches a broker.
+// lib/discovery (W-20a, IATA2-MC4): the county table, automatic discovery on unlock (the alive scan
+// every run, wherever the nodes are; the old discovery only in the IATA codes of the list's own
+// lou-19-or-older nodes, at most hourly per region), adoption with undo, the broker's caps, and
+// mesh-only candidates from a companion. There is no area to choose. With a fake clock, fake jobs
+// and an in-memory store: nothing reaches a broker.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { areaByScb, areaLabel, areaList, iatasOf } from '../lib/discovery/areas.js';
+import { areaByScb, areaByScope, areaLabel, areaList, iatasOf } from '../lib/discovery/areas.js';
 import { createDiscovery, META } from '../lib/discovery/index.js';
 import { areasTable, fakeClock, fakeJobs, HOUR, memStores, MIN, settle } from './auto-fakes.js';
 
-const setup = async (answers = {}, { area = '06', unlocked = true, ...opts } = {}) => {
+// `region`: an old (lou-19) node of the owner's already in the list there, so the old discovery looks there.
+const setup = async (answers = {}, { region = 'JKG', unlocked = true, ...opts } = {}) => {
   const clock = fakeClock();
   const stores = memStores(clock);
   const jobs = fakeJobs(stores, answers);
   const lock = { open: unlocked };
-  const d = createDiscovery({ stores, jobs, table: areasTable, clock, unlocked: () => lock.open, ...opts });
-  if (area) await stores.meta.set(META.area, area);
+  const d = createDiscovery({ stores, jobs, clock, unlocked: () => lock.open, ...opts });
+  if (region) await stores.devices.add({ node: 'AAAA0000', region, name: 'seed' });
   return { clock, stores, jobs, d, lock };
 };
 
@@ -29,14 +32,32 @@ test('areas: every county once, shown with its scope, sorted in Swedish', () => 
   assert.deepEqual(iatasOf(areasTable, '06'), ['JKG']);
   assert.deepEqual(iatasOf(areasTable, '03'), ['STO']);   // Uppsala shares Stockholm's code
   assert.deepEqual(iatasOf(areasTable, null), []);
+  assert.equal(areaByScope(areasTable, 'SE-JKP').county, 'Jönköpings län');
+  assert.equal(areaByScope(areasTable, 'nowhere'), null);
 });
 
-test('the first start runs at once in the area, adds every answering node with its own name', async () => {
+test('the alive scan runs every time, adds your nodes wherever they are with no region, offline ones are not added', async () => {
+  const K1 = `4FD099CC${'1'.repeat(56)}`;
+  const K2 = `5FD099CC${'2'.repeat(56)}`;
+  const { d, jobs, stores, clock } = await setup({ '*alive': [{ key: K1, name: 'Loutest', region: 'se-jkp' }, { key: K2, state: 'offline' }] }, { region: null });
+  await d.start();
+  await clock.advance(0);
+  assert.deepEqual(jobs.calls.map((c) => c[0]).filter((c) => c !== 'adopt'), ['alive'], 'no region: no broadcast at all');
+  const [x] = await stores.devices.list();
+  assert.deepEqual([x.node, x.key, x.name, x.region, x.alive.region], ['4FD099CC', K1, 'Loutest', '', 'se-jkp']);
+  assert.deepEqual(d.state().last.alive, { ours: 1, offline: 1, notYours: 0 });
+  assert.equal(d.state().nextRun, d.state().lastRun + HOUR);
+  const again = await d.run({ force: true });
+  assert.equal(again.known, 1);
+  assert.equal(again.added.length, 0);
+});
+
+test("the first start runs at once in an old node's region, adds every answering node with its own name", async () => {
   const { d, jobs, stores, clock } = await setup({ JKG: [{ node: '4AC61A7F', name: 'Gisebo' }, { node: '13B58595', name: 'Torpa' }] });
   await d.start();
   await clock.advance(0);
   assert.deepEqual(discovers(jobs), ['JKG']);
-  const names = (await stores.devices.list()).map((x) => [x.node, x.name, x.region]);
+  const names = (await stores.devices.list()).filter((x) => x.name !== 'seed').map((x) => [x.node, x.name, x.region]);
   assert.deepEqual(names.sort(), [['13B58595', 'Torpa', 'JKG'], ['4AC61A7F', 'Gisebo', 'JKG']]);
   const s = d.state();
   assert.equal(s.running, false);
@@ -74,19 +95,23 @@ test('nothing runs while the key is locked; a locked failure stops the run', asy
   assert.deepEqual(out.failed, [{ region: 'JKG', code: 'locked', detail: 'The key is locked.' }]);
 });
 
-test("the list's own regions are searched too; no area and no node is needsArea", async () => {
-  const { d, jobs, stores } = await setup({ GOT: [] });
+test("only the IATA codes of the list's own lou-19-or-older nodes are searched the old way", async () => {
+  const { rulesFrom } = await import('../lib/protocol/rules.js');
+  const { data } = await import('./protocol-helpers.js');
+  const rules = rulesFrom(Object.fromEntries(['cautions', 'commands', 'denylist', 'facts', 'firmware'].map((n) => [n, data(n)])));
+  const { d, jobs, stores } = await setup({ GOT: [] }, { rules });
   await stores.devices.add({ node: 'AB6B9285', region: 'GOT', name: 'Far' });
+  await stores.devices.add({ node: 'CD6B9285', key: `CD6B9285${'1'.repeat(56)}`, region: 'STO', name: 'New' });
+  await stores.devices.update('CD6B9285', { ver: 'v1.18.0-lou-20-arrc-observer-1' });
+  await stores.devices.add({ node: 'EF6B9285', key: `EF6B9285${'1'.repeat(56)}`, region: '', name: 'Fleet' });
+  await stores.devices.update('EF6B9285', { fleet: { iatas: ['VXO'] } });
   await d.run();
-  assert.deepEqual(discovers(jobs), ['JKG', 'GOT']);
-  const empty = await setup({}, { area: null });
+  assert.deepEqual(discovers(jobs), ['JKG', 'GOT', 'VXO'], 'not STO: its only node speaks mcc3');
+  const empty = await setup({}, { region: null });
   await empty.d.start();
-  assert.equal(empty.d.state().needsArea, true);
-  assert.equal(empty.d.state().nextRun, null);
-  await empty.d.setArea('14');
-  await empty.clock.advance(0);
-  assert.deepEqual(discovers(empty.jobs), ['GOT']);
-  await assert.rejects(empty.d.setArea('99'), /no area/);
+  assert.deepEqual(empty.d.state().regions, []);
+  assert.equal('needsArea' in empty.d.state(), false);
+  assert.equal(typeof empty.d.setArea, 'undefined');
 });
 
 test('forged answers and changed keys are reported, never added; known nodes are counted', async () => {
@@ -135,7 +160,7 @@ test('"Look now" ignores the cooldown but not the broker cap: two runs an hour p
 });
 
 test('at most eight regions an hour per key; the rest wait for the hour to pass', async () => {
-  const { d, jobs, stores, clock } = await setup({}, { area: null });
+  const { d, jobs, stores, clock } = await setup({}, { region: null });
   const regions = ['AAA', 'BBB', 'CCC', 'DDD', 'EEE', 'FFF', 'GGG', 'HHH', 'III', 'JJJ'];
   for (const [i, r] of regions.entries()) await stores.devices.add({ node: `0000000${i}`, region: r });
   await d.start();
@@ -149,8 +174,7 @@ test('at most eight regions an hour per key; the rest wait for the hour to pass'
 
 test('a broker failure in one region is reported and the others still run', async () => {
   const { d, stores } = await setup({ JKG: new Error('cannot reach wss://broker/ (1006)'), GOT: [{ node: 'AB6B9285', name: 'Far' }] });
-  await stores.meta.set(META.area, '14');
-  await stores.devices.add({ node: '00000001', region: 'JKG' });
+  await stores.devices.add({ node: '00000001', region: 'GOT' });
   const out = await d.run();
   assert.deepEqual(out.failed, [{ region: 'JKG', code: 'broker', detail: 'cannot reach wss://broker/ (1006)' }]);
   assert.deepEqual(out.added.map((a) => a.node), ['AB6B9285']);
@@ -168,7 +192,7 @@ test('a second run while one is in progress gets the same promise; listeners hea
   assert.equal(seen.at(-1), false);
 });
 
-test("mesh-only candidates: the companion's repeaters not in the list, added as mesh-only in the area", async () => {
+test("mesh-only candidates: the companion's repeaters not in the list, added as mesh-only by key, no region", async () => {
   const { d, stores } = await setup();
   await stores.devices.add({ node: '4AC61A7F', region: 'JKG', name: 'Gisebo' });
   const companion = { closed: false, contacts: async () => [
@@ -180,7 +204,7 @@ test("mesh-only candidates: the companion's repeaters not in the list, added as 
   assert.deepEqual(list.map((c) => c.node), ['F00DF00D']);
   const added = await d.addMeshNode(list[0]);
   assert.equal(added.meshOnly, true);
-  assert.equal(added.region, 'JKG');
+  assert.equal(added.region, '');
   assert.equal(added.key, `F00DF00D${'2'.repeat(56)}`);
   assert.deepEqual(await d.meshCandidates(null), []);
 });

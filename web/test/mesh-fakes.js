@@ -7,6 +7,7 @@ import { concat, fromHex, toHex, utf8 } from '../lib/bytes.js';
 import { CMD, ERR, PUSH, RESP } from '../lib/mesh/frames.js';
 import { meshResponse } from '../lib/protocol/mesh.js';
 import { signedMessage, signedPart } from '../lib/protocol/envelope.js';
+import { nodeKeys, openMeshRequest, sealMeshResponse } from '../lib/protocol/mcc3.js';
 
 const u32 = (n) => { const b = new Uint8Array(4); new DataView(b.buffer).setUint32(0, n, true); return b; };
 const later = (fn) => setTimeout(fn, 0);
@@ -20,10 +21,13 @@ const later = (fn) => setTimeout(fn, 0);
 //   full           the contact table is full (add refused, err 3)
 //   floodSent      the companion reports the request went as a flood
 //   clock          the node's clock (unset by default)
+//   mcc3           { node: the node's handle } -- a lou-20 node: it also opens 0xC2 requests sealed
+//                  to it for `ownerKey`, and answers sealed
 export function fakeCompanion({
   ownerKey, region = 'JKG', contacts = {}, answer = () => ({ code: 0, reply: 'OK' }), oldCompanion = false,
-  full = false, floodSent = false, clock = 1715770351, selfName = 'LouHome',
+  full = false, floodSent = false, clock = 1715770351, selfName = 'LouHome', mcc3 = null,
 } = {}) {
+  const opened = [];
   const written = [];
   const book = new Map(Object.entries(contacts).map(([k, hops]) => [k.toUpperCase(), hops]));
   let frameFn = () => {};
@@ -38,7 +42,14 @@ export function fakeCompanion({
       u32(0), u32(0), u32(0), u32(0));
   };
 
-  function node(key, body) {
+  function node(key, body, tag) {
+    if (mcc3 && body[0] === 0xc2) {
+      let req;
+      try { req = openMeshRequest(mcc3.node, ownerKey, concat(tag, body)); } catch { return null; }
+      opened.push(req);
+      const a = answer(req.command, req.counter);
+      return a ? sealMeshResponse(nodeKeys(mcc3.node, ownerKey), 0, req.counter, a.code, clock, a.reply || '').subarray(4) : null;
+    }
     if (body[0] !== 0xc1 || body.length < 74) return null;
     const v = new DataView(body.buffer, body.byteOffset, body.byteLength);
     const counter = v.getUint32(1, true);
@@ -83,12 +94,12 @@ export function fakeCompanion({
         const tag = u32((tagSeq += 1));
         emit(concat(Uint8Array.of(RESP.SENT, floodSent || book.get(key) < 0 ? 1 : 0), tag, u32(1500)));
         emit(Uint8Array.of(0x80, ...new Uint8Array(32)));     // an advert push
-        const data = node(key, frame.subarray(33));
+        const data = node(key, frame.subarray(33), tag);
         if (data) emit(concat(Uint8Array.of(PUSH.BINARY_RESPONSE, 0), tag, data));
       } else {
         emit(Uint8Array.of(RESP.ERR, ERR.UNSUPPORTED_CMD));
       }
     },
   };
-  return { link, book, written };
+  return { link, book, written, opened };
 }

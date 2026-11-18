@@ -19,12 +19,15 @@
 //   await ring.enableFingerprint(pass) / disableFingerprint()
 //   await ring.requestPersistence()
 //   ring.subscribe(fn)           fn() after every lock, unlock or record change
+//   await ring.loadSecrets()     { node KEY: S hex }: the mcc3 shared secret with every node an alive
+//                                scan has seen (IATA-2), kept sealed beside the key in its record
+//   await ring.saveSecrets(map)  store that map again, sealed (sealLocal) under the unlocked key
 //   await ring.reconcile()       another tab changed the stored key: re-read it, and lock a handle
 //                                that is no longer the stored key
 import { keyFromSeed } from './handle.js';
 import { ITERATIONS, MIN_PASSPHRASE, openSealed, randomBytes, readKeyFile, sealSeed } from './backup.js';
 import { createPrfWrap, openPrfWrap } from './prf.js';
-import { toHex } from '../bytes.js';
+import { fromHex, fromUtf8, toHex, utf8 } from '../bytes.js';
 
 export { MIN_PASSPHRASE } from './backup.js';
 export const AUTO_LOCK_CHOICES = Object.freeze([5, 15, 60, null]);
@@ -284,6 +287,22 @@ export function createKeyring({
       limitMs = minutes === null ? null : minutes * 60000;
       if (current) arm();
       notify();
+    },
+
+    // The shared secrets of an unlocked key ({} when locked, never stored, or another key's):
+    // opened with the key itself, so they have the key's own protection at rest.
+    async loadSecrets() {
+      const record = await active();
+      if (!current || !record?.secrets || record.id !== current.publicKeyHex) return {};
+      try { return JSON.parse(fromUtf8(current.openLocal(fromHex(record.secrets)))); } catch { return {}; }
+    },
+
+    // Written straight to the record: no listener needs to hear of it.
+    async saveSecrets(map) {
+      const record = await active();
+      if (!current || !record || record.id !== current.publicKeyHex) return;
+      record.secrets = toHex(current.sealLocal(utf8(JSON.stringify(map))));
+      await storage.put(record);
     },
 
     subscribe(fn) {

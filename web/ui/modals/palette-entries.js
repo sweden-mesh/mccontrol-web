@@ -25,13 +25,14 @@ export function targetFor({ selected: sel = null, tagged: tags = [] } = {}) {
   return sel ? `n:${sel}` : '-';
 }
 
-// "n:AB,CD" -> { kind: 'nodes', ids }, "g:x" -> { kind: 'group', id }, "r:JKG" -> { kind: 'region', region }
+// "n:AB,CD" -> { kind: 'nodes', ids }, "g:x" -> { kind: 'group', id }, "a:se-jkp" -> { kind: 'area', area } (a county, by
+// the scope the nodes name as their region home: one sealed command per node, never a broadcast)
 export function parseTarget(arg) {
   const [kind, ...rest] = String(arg || '').split(':');
   const value = rest.join(':');
   if (kind === 'n' && value) return { kind: 'nodes', ids: value.split(',').filter(Boolean).map((x) => x.toUpperCase()) };
   if (kind === 'g' && value) return { kind: 'group', id: value };
-  if (kind === 'r' && value) return { kind: 'region', region: value.toUpperCase() };
+  if (kind === 'a' && value) return { kind: 'area', area: value.toLowerCase() };
   return null;
 }
 
@@ -39,7 +40,7 @@ export const runHash = (what, target, name = '') =>
   `#run/${what}/${encodeURIComponent(target || '-')}${name ? `/${encodeURIComponent(name)}` : ''}`;
 
 // The entries: { id, kind, label, hint, hash } or { ..., action }.
-export function buildEntries({ t, tabs = {}, table = [], sets = {}, groups = [], regions = [], key = { status: 'none' }, target = '-', modals = () => true }) {
+export function buildEntries({ t, tabs = {}, table = [], sets = {}, groups = [], areas = [], key = { status: 'none' }, target = '-', modals = () => true }) {
   const out = [];
   const add = (e) => out.push({ id: `pal-${out.length}`, hint: '', ...e });
   for (const [name, tab] of Object.entries(tabs)) add({ kind: 'verb', label: t('palette.setupTab', { tab: t(tab.label) }), hash: `#setup/${name}` });
@@ -58,7 +59,7 @@ export function buildEntries({ t, tabs = {}, table = [], sets = {}, groups = [],
     add({ kind: 'group', label: t('palette.sendGroup', { group: g.id }), hint: t('groups.size', { n: g.members.length }), hash: runHash('cmd', `g:${g.id}`) });
     add({ kind: 'group', label: t('palette.editGroup', { group: g.id }), hash: `#setup/groups/${encodeURIComponent(g.id)}` });
   }
-  for (const r of regions) add({ kind: 'region', label: t('palette.region', { region: r.region }), hint: t('palette.regionHint', { n: r.count }), hash: runHash('cmd', `r:${r.region}`) });
+  for (const a of areas) add({ kind: 'area', label: t('palette.region', { region: a.label }), hint: t('palette.regionHint', { n: a.count }), hash: runHash('cmd', `a:${a.scope}`) });
   return out;
 }
 

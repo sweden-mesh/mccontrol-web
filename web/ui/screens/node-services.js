@@ -38,7 +38,8 @@ export async function services(owner) {
   const { data, rules, db, beacon } = await base;
   if (!perOwner.has(owner)) {
     const stores = openStores(db, owner, { defaultSets: data.brokers.default_sets || {} });
-    const jobs = createJobs({ ring: { handle: () => ring.handle(), hold: () => ring.hold(), touch: () => ring.touch() },
+    const jobs = createJobs({ ring: { handle: () => ring.handle(), hold: () => ring.hold(), touch: () => ring.touch(),
+      loadSecrets: () => ring.loadSecrets?.() ?? {}, saveSecrets: (m) => ring.saveSecrets?.(m) },
       stores, rules, brokers: data.brokers, results: data.results, configOf: (region) => brokerConfig(data.brokers, region),
       companion, meshAfterMins: () => meshAfterMins(),
       mqttSeen: async (d) => {

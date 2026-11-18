@@ -1,18 +1,20 @@
 // The command palette (W-20d, W-20j, proposal §2.4): ':' or Ctrl+K on the board. Every verb
 // (Setup's tabs, Help, History, lock and unlock), every command of the exported table (with what
-// it does), the command sets, the groups and "every node in a region". Type to narrow; arrows and
+// it does), the command sets, the groups and "each of your nodes in a county". Type to narrow; arrows and
 // Enter, or a click, choose.
 //
 // The palette never signs or sends. A command or a set opens the "run" modal
 // ("#run/cmd/<target>/<command>", "#run/set/<target>/<set>"), which is the send form of the old
 // screens: it checks the command against the deny list and the node's firmware before signing,
-// asks before a command that takes something away, and asks for every region-wide send with the
-// region and the number of nodes named. <target> is "n:ID,ID" (nodes), "g:<group>", "r:<region>"
-// or "-" (choose there); the palette takes the tagged nodes, else the selected one.
+// asks before a command that takes something away, and asks for every area act with the county
+// and the number of nodes named. <target> is "n:ID,ID" (nodes), "g:<group>", "a:<scope>" (a
+// county, one sealed command per node) or "-" (choose there); the palette takes the tagged nodes, else the selected one.
 //
 // A non-modal <dialog popover>: the board stays as it is, a click outside or Esc closes it.
 import { h } from '../dom.js';
 import { load } from '../../lib/data/load.js';
+import { areaName, nodeAreas } from '../../lib/discovery/areas.js';
+import { areaOf } from '../../lib/jobs/scheme.js';
 import { isModal, currentModal } from '../modal.js';
 import { bindKey } from '../keys.js';
 import { selected, tagged } from '../board-state.js';
@@ -37,19 +39,16 @@ async function gather() {
   const target = targetFor({ selected: selected(), tagged: tagged() });
   let table = [];
   try { table = (await load('commands')).table; } catch { /* no table: verbs only */ }
-  let sets = {}; let groups = []; let regions = [];
+  let sets = {}; let groups = []; let areas = [];
   if (key.publicKeyHex) {
     try {
       const svc = await services(key.publicKeyHex);
       sets = await svc.stores.sets.list();
       groups = (await svc.stores.groups.list()).filter((g) => g.members.length);
-      const devices = await svc.stores.devices.list();
-      const counts = new Map();
-      for (const d of devices) if (d.region) counts.set(d.region, (counts.get(d.region) || 0) + 1);
-      regions = [...counts].sort().map(([region, count]) => ({ region, count }));
+      areas = nodeAreas(svc.data.areas, await svc.stores.devices.list());
     } catch { /* the stores refused: commands and verbs only */ }
   }
-  return buildEntries({ t: strings, tabs: TABS, table, sets, groups, regions, key, target, modals: isModal });
+  return buildEntries({ t: strings, tabs: TABS, table, sets, groups, areas, key, target, modals: isModal });
 }
 
 function frame() {
@@ -157,12 +156,12 @@ export function bindPaletteKeys(t) {
 
 // --- the run modal: one command or one set, to a target --------------------------------------
 
-function targetOptions(ctx, devices, groups, regions) {
+function targetOptions(ctx, devices, groups, areas) {
   return [
     h('option', { value: '-' }, ctx.t('sets.pickTarget')),
     h('optgroup', { label: ctx.t('setup.run.nodes') }, devices.map((d) => h('option', { value: `n:${d.node}` }, nameOf(d)))),
     groups.length ? h('optgroup', { label: ctx.t('setup.tab.groups') }, groups.map((g) => h('option', { value: `g:${g.id}` }, `${g.id} (${g.members.length})`))) : null,
-    regions.length ? h('optgroup', { label: ctx.t('setup.run.regions') }, regions.map((r) => h('option', { value: `r:${r}` }, ctx.t('palette.region', { region: r })))) : null,
+    areas.length ? h('optgroup', { label: ctx.t('setup.run.regions') }, areas.map((a) => h('option', { value: `a:${a.scope}` }, ctx.t('palette.region', { region: a.label })))) : null,
   ];
 }
 
@@ -176,11 +175,11 @@ export function renderRun(ctx) {
     const devices = (await svc.stores.devices.list()).sort(byName(ctx.lang));
     const groups = (await svc.stores.groups.list()).filter((g) => g.members.length);
     const sets = await svc.stores.sets.list();
-    const regions = [...new Set(devices.map((d) => d.region).filter(Boolean))].sort();
+    const areas = nodeAreas(svc.data.areas, devices, ctx.lang);
     if (!devices.length) { put(body, h('p', {}, ctx.t('send.noNodes'))); return; }
     const named = parseTarget(ctx.args[1]);
     const several = named?.kind === 'nodes' && named.ids.length > 1;
-    const select = h('select', {}, targetOptions(ctx, devices, groups, regions),
+    const select = h('select', {}, targetOptions(ctx, devices, groups, areas),
       several ? h('option', { value: ctx.args[1] }, ctx.t('setup.run.tagged', { n: named.ids.length })) : null);
     select.value = named ? ctx.args[1] : '-';
     if (select.value !== (named ? ctx.args[1] : '-')) select.value = '-';
@@ -195,10 +194,10 @@ export function renderRun(ctx) {
         const g = groups.find((x) => x.id === p.id);
         if (g) target = { group: g, devices: devices.filter((d) => g.members.includes(d.node)) };
       }
-      if (p?.kind === 'region') target = { region: p.region, devices: devices.filter((d) => d.region === p.region) };
+      if (p?.kind === 'area') target = { area: p.area, devices: devices.filter((d) => areaOf(d) === p.area) };
       if (!target?.devices.length) { put(slot, h('p', { class: 'muted' }, ctx.t('send.pickTarget'))); return; }
       put(slot,
-        target.region ? h('p', { class: 'warn-text' }, ctx.t('setup.run.regionWarn', { region: target.region, n: target.devices.length })) : null,
+        target.area ? h('p', { class: 'warn-text' }, ctx.t('setup.run.regionWarn', { region: areaName(svc.data.areas, target.area), n: target.devices.length })) : null,
         what === 'set' ? runSetPanel(ctx, svc, target, sets, { initial: ctx.args[2] || '' }) : sendPanel(ctx, svc, target, { initial: command }));
       slot.querySelector('.cmd-input, select')?.focus();
     };

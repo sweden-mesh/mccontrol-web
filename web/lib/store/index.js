@@ -69,8 +69,10 @@ export function openStores(db, owner, { now = () => Date.now(), defaultSets = {}
       const id = String(node || '').toUpperCase().slice(0, 8);
       if (!NODE.test(id)) throw new Error('A node is named by the first 8 hex characters of its public key.');
       if (whole && !KEY.test(whole)) throw new Error('A public key is 64 hex characters.');
-      const r = validRegion(region);
-      if (!r) throw new Error('A node needs its region: the IATA code its observers use, e.g. JKG.');
+      // mcc3 (lou-20 and later) is keyed by the node alone: a whole key needs no region. A
+      // region (IATA) is only for the old scheme of lou-19 and older (IATA-2).
+      const r = String(region || '').trim() === '' && whole ? '' : validRegion(region);
+      if (r === null) throw new Error('A node needs its whole public key (64 hex), or for lou-19 and older its IATA code, e.g. JKG.');
       const all = await devices.list();
       const clean = String(name || '').trim();
       if (all.some((d) => d.id === id)) throw new Error('That node is already in the list.');
@@ -90,8 +92,8 @@ export function openStores(db, owner, { now = () => Date.now(), defaultSets = {}
       if (!existing) throw new Error('No such node.');
       const next = { ...existing, ...changes, id: existing.id, node: existing.node };
       if ('region' in changes) {
-        next.region = validRegion(changes.region);
-        if (!next.region) throw new Error('A region is its IATA code: 2 to 8 letters or digits.');
+        next.region = String(changes.region || '').trim() === '' && next.key ? '' : validRegion(changes.region);
+        if (next.region === null) throw new Error('A region is its IATA code: 2 to 8 letters or digits.');
       }
       if ('name' in changes) {
         next.name = String(changes.name || '').trim();
@@ -103,6 +105,17 @@ export function openStores(db, owner, { now = () => Date.now(), defaultSets = {}
       const record = stamp(next, existing);
       await db.put('devices', record);
       return record;
+    },
+
+    // The mcc3 counter for the node's next command, stored before it is sent:
+    // max(now in seconds, highest known + 1), the highest from what was sent and from its alive.
+    async nextCounter(node, nowSecs = Math.floor(now() / 1000)) {
+      const d = await devices.get(node);
+      if (!d) throw new Error('No such node.');
+      const known = Math.max(Number(d.counter) || 0, Number(d.alive?.last_counter) || 0);
+      const counter = Math.max(nowSecs, known + 1);
+      await devices.update(node, { counter });
+      return counter;
     },
 
     // A forgotten node leaves its groups too.

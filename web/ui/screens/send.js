@@ -1,11 +1,12 @@
-// Send (W-8): a command to one node, several, a group, or (an advanced action) every node in a
-// region. The field completes from the command table; the deny list, the broadcast rules and
-// the node's firmware are checked as you type, before anything is signed; a command that takes
-// something away asks first; a region-wide send always asks, naming the region and how many
-// nodes are expected to answer. Each result is said in words with the code's help text.
+// Send (W-8): a command to one node, several, a group, or (an advanced action) each of your nodes
+// in a county -- the county a node names as its own region home; one sealed command per node, in
+// random order and spaced, never a broadcast (IATA-2). The field completes from the command
+// table; the deny list, the area rules and the node's firmware are checked as you type, before
+// anything is signed; a command that takes something away asks first; an area act always asks,
+// naming the county and how many nodes. Each result is said in words with the code's help text.
 //
-// sendPanel(ctx, svc, target) is the same form inside the node and group screens. Outside a
-// region-wide send it offers the road (W-16): MQTT, the mesh through the owner's companion
+// sendPanel(ctx, svc, target) is the same form inside the node and group screens. Outside an
+// area act it offers the road (W-16): MQTT, the mesh through the owner's companion
 // radio, or auto; the companion is connected here when a road may take the mesh.
 import { h } from '../dom.js';
 import { attachCombo } from '../command-combo.js';
@@ -14,6 +15,8 @@ import { CompanionError } from '../../lib/mesh/companion.js';
 import { companionControl, roadChoice, roadLine } from './road-kit.js';
 import { meshAfterMins } from './settings-store.js';
 import { brokerText } from './key-register.js';
+import { areaName, nodeAreas } from '../../lib/discovery/areas.js';
+import { areaOf } from '../../lib/jobs/scheme.js';
 import {
   byName, confirm, explain, field, nameOf, outcomeTag, progressLine, screen, withServices, put, resultBody,
 } from './node-kit.js';
@@ -27,7 +30,7 @@ export function whyText(ctx, block) {
   return ctx.t(`send.why.${block.code}`, block.vars);
 }
 
-// target: { devices: [device] } | { group: { id, members }, devices } | { region, devices }
+// target: { devices: [device] } | { group: { id, members }, devices } | { area, devices } (area: a county's scope)
 export function sendPanel(ctx, svc, target, { onDone = null, initial = '' } = {}) {
   const input = h('input', {
     type: 'text', autocomplete: 'off', autocapitalize: 'none', spellcheck: 'false',
@@ -37,22 +40,23 @@ export function sendPanel(ctx, svc, target, { onDone = null, initial = '' } = {}
   const sendButton = h('button', { type: 'submit', class: 'button' }, ctx.t('send.button'));
   const stop = h('button', { type: 'button', class: 'tool', hidden: true }, ctx.t('send.stop'));
   const results = h('div', { class: 'results' });
-  const one = !target.region && target.devices.length === 1 ? target.devices[0] : null;
+  const one = !target.area && target.devices.length === 1 ? target.devices[0] : null;
   // The suggestions: an own listbox, only what the targets' firmware has (W-33c, W-33d).
   attachCombo(ctx, input, { svc, devices: () => target.devices });
-  const meshOnly = target.devices.some((d) => svc.rules.deviceMeshOnly(d)) && !target.region;
+  const meshOnly = target.devices.some((d) => svc.rules.deviceMeshOnly(d)) && !target.area;
   let road = meshOnly ? 'auto' : 'mqtt';
   const companionSlot = h('div', {});
-  const choice = target.region ? null : roadChoice(ctx, { initial: road, meshOnly, onChange: (r) => { road = r; drawRoad(); drawChecks(); } });
+  const choice = target.area ? null : roadChoice(ctx, { initial: road, meshOnly, onChange: (r) => { road = r; drawRoad(); drawChecks(); } });
   const form = h('form', { class: 'send-form', novalidate: true },
     field(ctx.t('send.command'), input, ctx.t('send.commandHint')),
     choice?.el, companionSlot, check, h('div', { class: 'row' }, sendButton, stop), results);
 
-  const verdict = () => preflight(svc.rules, { command: input.value, device: one, region: target.region || null,
-    road: target.region ? 'mqtt' : road, meshAfterMins: meshAfterMins() });
+  const county = target.area ? areaName(svc.data.areas, target.area) : null;
+  const verdict = () => preflight(svc.rules, { command: input.value, device: one, area: target.area || null,
+    road: target.area ? 'mqtt' : road, meshAfterMins: meshAfterMins() });
   let control = null;
   function drawRoad() {
-    const show = !target.region && (road !== 'mqtt' || meshOnly);
+    const show = !target.area && (road !== 'mqtt' || meshOnly);
     if (show && !control) control = companionControl(ctx);
     put(companionSlot, show ? control : null);
   }
@@ -68,7 +72,7 @@ export function sendPanel(ctx, svc, target, { onDone = null, initial = '' } = {}
         ? ctx.t('send.lacks', { feature: p.lacks, version: one.ver })
         : ctx.t('send.notAdmitted', { version: one.ver, needs: p.needs || '?' })));
     }
-    if (!p.block && !target.region && p.command) {
+    if (!p.block && !target.area && p.command) {
       const onMesh = p.road?.road === 'mesh';
       const many = road === 'mqtt' ? target.devices.filter((d) => d.ver && !svc.rules.admits(d.ver, p.command)) : [];
       if (!one && many.length) lines.push(h('p', { class: 'check check-caution' }, ctx.t('send.someRefuse', { n: many.length, names: many.map(nameOf).join(', ') })));
@@ -84,7 +88,7 @@ export function sendPanel(ctx, svc, target, { onDone = null, initial = '' } = {}
         if (!one && road !== 'mqtt') lines.push(h('p', { class: 'check muted' }, ctx.t('road.groupMesh')));
       }
     }
-    if (!p.block && target.region && p.command) lines.push(h('p', { class: 'check muted' }, ctx.t('send.broadcastNote', { region: target.region, n: target.devices.length })));
+    if (!p.block && target.area && p.command) lines.push(h('p', { class: 'check muted' }, ctx.t('send.broadcastNote', { region: county, n: target.devices.length })));
     put(check, ...lines);
   }
   input.addEventListener('input', drawChecks, { signal: ctx.signal });
@@ -99,18 +103,18 @@ export function sendPanel(ctx, svc, target, { onDone = null, initial = '' } = {}
     const p = verdict();
     if (!p.command) { input.focus(); return; }
     if (p.block) { drawChecks(); input.focus(); return; }
-    const who = target.region ? ctx.t('send.whoRegion', { region: target.region, n: target.devices.length })
+    const who = target.area ? ctx.t('send.whoRegion', { region: county, n: target.devices.length })
       : target.group ? ctx.t('send.whoGroup', { group: target.group.id, n: target.devices.length })
         : target.devices.map(nameOf).join(', ');
-    if (target.region || p.caution) {
+    if (target.area || p.caution) {
       const ok = await confirm(ctx, {
-        title: target.region ? ctx.t('send.confirmRegionTitle', { region: target.region }) : ctx.t('send.confirmTitle'),
+        title: target.area ? ctx.t('send.confirmRegionTitle', { region: county }) : ctx.t('send.confirmTitle'),
         lines: [
           h('p', {}, h('code', {}, p.command), ' → ', who),
           p.caution ? h('p', {}, p.caution) : null,
-          target.region ? h('p', {}, ctx.t('send.confirmRegionBody', { region: target.region, n: target.devices.length })) : null,
+          target.area ? h('p', {}, ctx.t('send.confirmRegionBody', { region: county, n: target.devices.length })) : null,
         ].filter(Boolean),
-        confirmLabel: target.region ? ctx.t('send.confirmRegionButton', { n: target.devices.length }) : ctx.t('send.confirmButton'),
+        confirmLabel: target.area ? ctx.t('send.confirmRegionButton', { n: target.devices.length }) : ctx.t('send.confirmButton'),
         danger: true,
       });
       if (!ok) return;
@@ -124,13 +128,13 @@ export function sendPanel(ctx, svc, target, { onDone = null, initial = '' } = {}
     try {
       const out = await svc.jobs.send({
         command: p.command,
-        nodes: target.region || target.group ? null : target.devices.map((d) => d.node),
+        nodes: target.area || target.group ? null : target.devices.map((d) => d.node),
         group: target.group?.id || null,
-        region: target.region || null,
-        road: target.region ? 'mqtt' : road,
+        area: target.area || null,
+        road: target.area ? 'mqtt' : road,
         signal: running.signal,
-        onProgress: (s) => bar.set(s.total ? s.elapsed / s.total : null, s.region
-          ? ctx.t('send.waitRegion', { n: s.answered, of: s.count, secs: Math.ceil(s.total - s.elapsed) })
+        onProgress: (s) => bar.set(s.total ? s.elapsed / s.total : null, s.phase === 'spacing'
+          ? ctx.t('send.waitSpacing', { secs: s.secs, i: s.index + 1, of: s.count })
           : ctx.t('send.waitNode', { name: s.name, i: s.index + 1, of: s.count })),
       });
       put(results, resultList(ctx, svc, out, target));
@@ -190,13 +194,12 @@ export function render(ctx) {
     const panelSlot = h('div', {});
     const picks = devices.map((d) => {
       const box = h('input', { type: 'checkbox', value: d.node, checked: pre.has(d.node) });
-      return { d, box, el: h('label', { class: 'pick' }, box, h('span', {}, nameOf(d)), h('span', { class: 'muted small' }, d.region)) };
+      return { d, box, el: h('label', { class: 'pick' }, box, h('span', {}, nameOf(d))) };
     });
     const groupSelect = h('select', {}, h('option', { value: '' }, ctx.t('send.pickGroup')),
       groups.filter((g) => g.members.length).map((g) => h('option', { value: g.id }, `${g.id} (${g.members.length})`)));
-    const regions = [...new Set(devices.map((d) => d.region))].sort();
     const regionSelect = h('select', {}, h('option', { value: '' }, ctx.t('send.pickRegion')),
-      regions.map((r) => h('option', { value: r }, ctx.t('send.regionOption', { region: r, n: devices.filter((d) => d.region === r).length }))));
+      nodeAreas(svc.data.areas, devices, ctx.lang).map((a) => h('option', { value: a.scope }, ctx.t('send.regionOption', { region: a.label, n: a.count }))));
     const mode = (name, checked) => h('input', { type: 'radio', name: 'send-target', value: name, checked });
     const modes = { nodes: mode('nodes', true), group: mode('group', false), region: mode('region', false) };
     const advanced = h('details', { class: 'advanced' },
@@ -217,7 +220,7 @@ export function render(ctx) {
         const g = groups.find((x) => x.id === groupSelect.value);
         target = { group: g, devices: devices.filter((d) => g.members.includes(d.node)) };
       } else if (modes.region.checked && regionSelect.value) {
-        target = { region: regionSelect.value, devices: devices.filter((d) => d.region === regionSelect.value) };
+        target = { area: regionSelect.value, devices: devices.filter((d) => areaOf(d) === regionSelect.value) };
       }
       put(panelSlot, target ? sendPanel(ctx, svc, target, { initial: keep })
         : h('p', { class: 'muted' }, ctx.t('send.pickTarget')));

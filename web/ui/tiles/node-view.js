@@ -26,6 +26,8 @@ import { confirm, nameOf, volts } from '../screens/node-kit.js';
 import { companionBrief } from '../screens/road-kit.js';
 import { companion as connectedCompanion, onCompanion } from '../companion-session.js';
 import { startRoad } from '../../lib/jobs/road.js';
+import { scheme } from '../../lib/jobs/scheme.js';
+import { nodeFacts } from '../screens/node.js';
 import { whyText } from '../screens/send.js';
 import { tagged as taggedIds, onBoardChange, clearTags } from '../board-state.js';
 import { age, s } from './kit.js';
@@ -121,9 +123,9 @@ export function nodeView(ctx, svc, nodeId, { heading = null } = {}) {
     // The node's results not yet seen in HISTORY (W-26g: moved here from NODES).
     const fresh = newCounts(events, seen)[device.node] || 0;
     // Each part keeps its dot at its end, so a wrapped line never starts with one.
-    const meta = [...(fresh ? [h('a', { class: 'node-new', href: `#history/${device.node}` }, ctx.t('tile.newCount', { n: fresh }))] : []), device.region, device.ver ? shortVersion(svc.rules, device.ver) : ctx.t('nodes.verUnknown'),
+    const meta = [...(fresh ? [h('a', { class: 'node-new', href: `#history/${device.node}` }, ctx.t('tile.newCount', { n: fresh }))] : []), ...nodeFacts(ctx, device), device.ver ? shortVersion(svc.rules, device.ver) : ctx.t('nodes.verUnknown'),
       [`${ctx.t('tile.heard')} `, heard ? age(ctx, heard) : ctx.t('nodes.heardUnknown')],
-      device.key && svc.rules.speaksV2(device.ver) ? ctx.t('tile.v2') : ctx.t('tile.v1')];
+      scheme(svc.rules, device) === 'mcc3' ? ctx.t('tile.mcc3') : device.key && svc.rules.speaksV2(device.ver) ? ctx.t('tile.v2') : ctx.t('tile.v1')];
     // Why it needs attention, whole: NODES cuts it to fit its row (W-23d).
     const st = nodeStatus(device, { now: Date.now(), hours: notHeardHours(), thresholdMv: lowBatteryVolts() * 1000, rules: svc.rules });
     const why = reasonsText(ctx.t, st.reasons);

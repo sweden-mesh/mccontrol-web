@@ -39,10 +39,11 @@ test('the list puts what needs attention first, then by name', () => {
   assert.deepEqual(sorted.map((r) => r.device.name), ['c', 'd', 'b', 'a', 'Ö']);
 });
 
-test('search matches name, id, region and firmware, ignoring case', () => {
+test('search matches name, id and firmware, ignoring case; never a region (IATA-2)', () => {
   const d = { node: '4AC61A7F', name: 'Gisebo', region: 'JKG', ver: 'v1.11.0-lou-18' };
-  for (const q of ['gis', '4ac6', 'jkg', 'LOU-18', '', '  ']) assert.ok(matches(d, q), q);
+  for (const q of ['gis', '4ac6', 'LOU-18', '', '  ']) assert.ok(matches(d, q), q);
   assert.ok(!matches(d, 'torpa'));
+  assert.ok(!matches(d, 'jkg'));
 });
 
 test('a result is kept until it is opened or all are marked seen', () => {
@@ -215,14 +216,13 @@ test('the automation as STATUS lines: refresh and discovery', async () => {
   assert.deepEqual(refreshLine({ owner: 'K', refresh: { running: null, beacon } }), { state: 'ok', last: 10, next: 20, detail: null });
   assert.equal(refreshLine({ owner: 'K', refresh: { running: 'beacon', beacon } }).state, 'running');
   assert.equal(refreshLine({ owner: 'K', refresh: { running: null, beacon: { ...beacon, error: 'down' } } }).detail, 'down');
-  const d = { running: false, needsArea: false, lastRun: null, nextRun: null, canUndo: false };
+  const d = { running: false, lastRun: null, nextRun: null, canUndo: false };
   assert.equal(discoveryLine({ owner: 'K', discovery: d }).state, 'unknown');
-  assert.equal(discoveryLine({ owner: 'K', discovery: { ...d, needsArea: true } }).state, 'warn');
   assert.equal(discoveryLine({ owner: 'K', discovery: { ...d, lastRun: 5, canUndo: true } }).canUndo, true);
   assert.equal(discoveryLine({ owner: 'K', discovery: { ...d, running: true } }).state, 'running');
   const bad = discoveryLine({ owner: 'K', discovery: { ...d, lastRun: 5, last: { failed: [{ region: 'JKG', detail: 'no broker' }] } } });
   assert.equal(bad.state, 'alert');
-  assert.equal(bad.detail, 'JKG: no broker');
+  assert.equal(bad.detail, 'no broker', 'a failure names no region');
 });
 
 test('registration as a STATUS line', async () => {

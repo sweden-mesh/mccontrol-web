@@ -16,7 +16,7 @@ export const title = 'nav.groups';
 function memberPicker(ctx, devices, chosen = []) {
   const boxes = devices.map((d) => {
     const box = h('input', { type: 'checkbox', value: d.node, checked: chosen.includes(d.node) });
-    return { box, el: h('label', { class: 'pick' }, box, h('span', {}, nameOf(d)), h('span', { class: 'muted small' }, d.region)) };
+    return { box, el: h('label', { class: 'pick' }, box, h('span', {}, nameOf(d))) };
   });
   return {
     el: h('fieldset', { class: 'targets' }, h('legend', {}, ctx.t('groups.members')), h('div', { class: 'pick-grid' }, boxes.map((b) => b.el))),

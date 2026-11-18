@@ -8,6 +8,7 @@ import { deriveFacts } from '../../lib/store/index.js';
 import { lastHeard, shortVersion } from '../../lib/jobs/overview.js';
 import { updateAvailable } from '../../lib/jobs/releases.js';
 import { blocker } from '../../lib/jobs/checks.js';
+import { scheme } from '../../lib/jobs/scheme.js';
 import {
   confirm, field, nameOf, progressLine, screen, volts, when, withServices, put, lockedNote } from './node-kit.js';
 import { runSetPanel } from './sets.js';
@@ -87,9 +88,21 @@ export function firmwareBlock(ctx, svc, device, release, page, redraw) {
   return wrap;
 }
 
+// What the node's details say of its plane: online, offline or no longer yours (its alive), and
+// its own region home -- the one place a region is shown (IATA-2).
+export function nodeFacts(ctx, device) {
+  const out = [];
+  if (device.alive?.state) out.push(ctx.t(`alive.${device.alive.state}`));
+  if (device.alive?.region && device.alive.state !== 'not-yours') out.push(ctx.t('node.regionHome', { region: device.alive.region }));
+  return out;
+}
+
 export function editForm(ctx, svc, device, redraw) {
   const name = h('input', { type: 'text', value: device.name, autocomplete: 'off' });
-  const region = h('input', { type: 'text', value: device.region, autocomplete: 'off', maxlength: '8', class: 'short' });
+  // The IATA code only the old scheme (lou-19 and older) addresses a node by: asked for nowhere
+  // else, and only while this node needs it (no alive, no lou-20, not mesh-only, IATA-2).
+  const old = scheme(svc.rules, device) === 'old' && !svc.rules.deviceMeshOnly(device);
+  const region = h('input', { type: 'text', value: device.region || '', autocomplete: 'off', maxlength: '8', class: 'short' });
   const notes = h('textarea', { rows: '3' });
   notes.value = device.notes || '';
   // W-16: whether the node is mesh only (no Wi-Fi, no MQTT); by default its version says
@@ -100,14 +113,14 @@ export function editForm(ctx, svc, device, redraw) {
   const forget = h('button', { type: 'button', class: 'tool tool-danger' }, ctx.t('node.forget'));
   const form = h('form', { class: 'stack' },
     field(ctx.t('nodes.name'), name, ctx.t('node.nameHint')),
-    field(ctx.t('nodes.region'), region, ctx.t('node.regionHint')),
+    old ? field(ctx.t('nodes.region'), region, ctx.t('node.regionHint')) : null,
     field(ctx.t('node.notes'), notes),
     field(ctx.t('node.meshOnlyLabel'), meshOnly, ctx.t('node.meshOnlyHint')),
     h('div', { class: 'row wrap' }, h('button', { type: 'submit', class: 'button' }, ctx.t('node.save')), forget), out);
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     try {
-      await svc.stores.devices.update(device.node, { name: name.value, region: region.value, notes: notes.value.trim(),
+      await svc.stores.devices.update(device.node, { name: name.value, ...(old ? { region: region.value } : {}), notes: notes.value.trim(),
         meshOnly: { yes: true, no: false }[meshOnly.value] ?? null });
       out.textContent = ctx.t('node.saved');
       redraw();
@@ -148,7 +161,7 @@ export function render(ctx) {
       const heard = lastHeard(device);
       put(body,
         h('p', { class: 'node-meta' },
-          h('code', {}, device.key || device.node), ' · ', device.region, ' · ',
+          h('code', {}, device.key || device.node), ' · ', ...nodeFacts(ctx, device).flatMap((f) => [f, ' · ']),
           heard ? [ctx.t('node.heard'), ' ', when(ctx, heard)] : ctx.t('nodes.heardUnknown'),
           ' · ', volts(ctx.t, device.fleet?.batteryMv)),
         device.key ? null : h('p', { class: 'check check-caution' }, ctx.t('node.noWholeKey')),

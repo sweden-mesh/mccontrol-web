@@ -75,7 +75,7 @@ test('checks by road: the allowance, mesh-only refusals, 59 bytes, the whole key
   assert.equal(blocker(rules, { command: 'ver', device: { ...dev, key: null }, road: 'mesh' }).code, 'meshNoKey');
   assert.equal(blocker(rules, { command: 'ver', device: { ...dev, ver: LOU18 }, road: 'mesh' }).code, 'meshOldFirmware');
   assert.equal(blocker(rules, { command: 'ver', device: { ...dev, ver: null }, road: 'mesh' }), null, 'an unknown version may try');
-  assert.equal(blocker(rules, { command: 'ver', region: 'JKG', road: 'mesh' }).code, 'meshBroadcast');
+  assert.equal(blocker(rules, { command: 'ver', area: 'se-jkp', road: 'mesh' }).code, 'meshBroadcast');
   const p = preflight(rules, { command: 'set wifi.pwd s3cret', device: dev, road: 'auto' });
   assert.equal(p.road.road, 'mesh');
   assert.equal(p.v2, false);
@@ -152,7 +152,8 @@ test('no companion connected, or a check fails: nothing signed, nothing sent', a
   await assert.rejects(old.jobs.send({ command: 'ver', nodes: [N], road: 'mesh' }), (e) => e.code === 'meshOldFirmware');
   await assert.rejects(old.jobs.send({ command: `set name ${'y'.repeat(60)}`, nodes: [N], road: 'mesh' }), (e) => e.code === 'denied');
   assert.equal(old.fake.written.filter((f) => f[0] === 57).length, 0);
-  await assert.rejects(old.jobs.send({ command: 'ver', region: 'JKG', road: 'mesh' }), (e) => e.code === 'meshBroadcast');
+  await old.stores.devices.update(N, { alive: { state: 'online', region: 'se-jkp' } });
+  await assert.rejects(old.jobs.send({ command: 'ver', area: 'se-jkp', road: 'mesh' }), (e) => e.code === 'meshBroadcast');
 });
 
 test('importing history keeps a road and refuses a made-up one', async () => {
