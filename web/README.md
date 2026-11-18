@@ -121,8 +121,8 @@ What it means for code:
   `outerHTML`, `insertAdjacentHTML` and `document.write` throw. Build with `ui/dom.js`'s
   `h(tag, attrs, ...children)`, which sets text as text; attach listeners with
   `addEventListener`.
-- **No third-party requests.** `connect-src` allows this origin, any `wss:` broker (a region
-  may run its own, RB-1), Beacon's API (`lib/stats/beacon.json`) and GitHub's API for the firmware
+- **No third-party requests.** `connect-src` allows this origin, any `wss:` command server (an
+  owner may use their own, RB-1), Beacon's API (`lib/stats/beacon.json`) and GitHub's API for the firmware
   release list (`lib/jobs/releases.json`). No fonts, images, analytics or scripts from
   elsewhere. A new origin is a CSP change and a security-review item, not a code change.
 - A `<meta>` CSP cannot carry `frame-ancestors`; `_headers` does.
@@ -345,7 +345,7 @@ palette's `:` (70, "Commands") and `ctrl+k`.
 Setup (`ui/modals/setup.js`) has seven tabs, each its own address: `#setup/key` (public key, copy,
 QR, broker registration, lock and auto-lock, backup, private key behind the passphrase,
 passphrase, fingerprint, replace), `#setup/node` (put the key on a node: USB, and the lines to type,
-each with a Copy button, W-20h), `#setup/area` (the county, a region's own broker, the companion
+each with a Copy button, W-20h), `#setup/area` (the county, your own command servers, the companion
 radio), `#setup/groups`, `#setup/sets` (what a set is, when to use one, the shipped example; every
 step says what it does, W-20i), `#setup/warnings` (battery, not heard, mesh road), `#setup/display`.
 `TABS` lists them; `ALIASES` maps the old names (`settings` -> `area`, `setup` -> `node`).

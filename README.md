@@ -9,7 +9,7 @@ A static page: plain HTML, CSS and ES modules, no build step, no server of its o
 The key is made or imported in the browser, stored encrypted under a passphrase, and never sent
 anywhere except inside a signature or a backup file you save yourself.
 
-What it is not: not the terminal tool, not a broker, not firmware. It never changes a repeater's
+What it is not: not the terminal tool, not a command server, not firmware. It never changes a repeater's
 key, identity or radio (the deny list keeps those to the serial cable).
 
 ![The standard layout: the node list and one node's overview](docs/screenshots/standard-dark-1600.png)
