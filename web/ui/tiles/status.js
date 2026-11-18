@@ -1,12 +1,12 @@
 // STATUS (W-20c, W-20e): the states that gate everything, one line each, and each line a button
-// where it can act: broker (Test), key (Unlock / Lock), registration (Register), companion
+// where it can act: the command server (Test; W-28a: broker-source.js), key (Unlock / Lock), registration (Register), companion
 // (the chooser), the Beacon status refresh (Refresh now) and discovery (Look now). It
 // also sets the header's `broker` item.
 //
 // Registration, refresh and discovery are other streams' work (automatic registration, W-20e's
 // 15-minute Beacon refresh, W-20a's discovery). They plug in through ui/tiles/sources.js
 // (provideSource); until one is provided its line here is a stand-in:
-//   broker        the last connection this page made (a send or Test: reportBroker)
+//   broker        provided by broker-source.js (W-28a); before that, the last send or Test
 //   registration  "not known": Register opens Setup's key tab, where it is done today
 //   refresh       the newest Beacon read stored on a device, the next due 15 minutes after it;
 //                 Refresh now reads Beacon (no transmission)
@@ -21,6 +21,7 @@ import { onCompanion, state as companionState } from '../companion-session.js';
 import { companionChooser } from '../screens/road-kit.js';
 import { testConnection } from '../../lib/protocol/transport.js';
 import { services } from '../screens/node-services.js';
+import { brokerProblem, brokerText } from '../screens/key-register.js';
 import { everyMinute, shortAge, shortUntil, stateMark } from './kit.js';
 import { brokerReport, dataChanged, onDataChanged, onSources, reportBroker, source } from './sources.js';
 
@@ -28,6 +29,14 @@ export const id = 'status';
 export const title = 'tile.status';
 
 export const REFRESH_EVERY = 15 * 60000;
+
+// The command server's word: never "not known yet" (W-28a).
+export function brokerWord(ctx, st) {
+  if (st.state === 'ok') return ctx.t('tile.connected');
+  if (st.state === 'alert') return ctx.t('tile.unreachable');
+  if (st.state === 'running') return ctx.t('tile.connecting');
+  return ctx.t('tile.notConnectedYet');
+}
 
 export function render(ctx) {
   const list = h('ul', { class: 'rows status-rows tile-fill' });
@@ -70,17 +79,22 @@ export function render(ctx) {
     return parts.join(', ') || fallbackWord;
   };
 
+  // The command server (W-28a): connecting…, connected, or unreachable and why; its host in the
+  // tooltip. broker-source.js signs in by itself once the key is unlocked.
   function brokerLine() {
     const src = source('broker');
     const st = src?.state() || (() => {
       const r = brokerReport();
-      return r ? { state: r.ok ? 'ok' : 'alert', last: r.at, detail: r.detail } : { state: 'unknown', last: null };
+      return r ? { state: r.ok ? 'ok' : 'alert', at: r.at, detail: r.detail } : { state: 'running', at: null };
     })();
-    const word = st.state === 'ok' ? ctx.t('tile.reached') : st.state === 'alert' ? ctx.t('tile.unreached') : ctx.t('status.notYet');
+    const word = brokerWord(ctx, st);
+    const hosts = st.hosts?.length ? st.hosts.join(', ') : null;
     setStatusItem('broker', { word, state: st.state === 'running' ? 'unknown' : st.state, href: '#tile-status-title', label: `${ctx.t('status.broker')}: ${word}` });
     const unlocked = ctx.key.state().status === 'unlocked';
-    return line('broker', st.state, st.last ? `${word} ${shortAge(ctx, st.last)}` : word,
-      unlocked ? act(ctx.t('tile.test'), testBroker) : null, st.detail);
+    const why = st.state === 'alert' && st.detail ? brokerProblem(ctx.t, st.detail.replace(/^[^:]+: /, ''))?.text || st.detail : null;
+    return line('broker', st.state, why ? `${word} (${why})` : word,
+      unlocked && st.state !== 'running' ? act(ctx.t('tile.test'), testBroker) : null,
+      [hosts, st.detail ? brokerText(ctx.t, st.detail) : null].filter(Boolean).join(' · ') || null);
   }
 
   async function testBroker() {

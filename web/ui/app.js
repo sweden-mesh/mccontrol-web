@@ -152,7 +152,7 @@ async function start() {
     drawKey();
     drawClock();
     if (statusItems().find((i) => i.name === 'broker')?.shell !== false) {
-      setStatusItem('broker', { word: t('status.notYet'), state: 'unknown', shell: true });
+      setStatusItem('broker', { word: t('tile.connecting'), state: 'unknown', shell: true });
     }
     drawStatusLine($('status-items'), t);
     bindShellKeys();
