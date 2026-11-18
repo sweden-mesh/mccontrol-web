@@ -13,7 +13,7 @@
 // same as on the retro board. No keyboard shortcut is needed for anything here.
 import { h } from '../dom.js';
 import { setPref } from '../prefs.js';
-import { selected, setSelected } from '../board-state.js';
+import { onBoardChange, selected, setSelected } from '../board-state.js';
 import { keyring, keyStatus } from '../screens/key-session.js';
 import { services } from '../screens/node-services.js';
 import { confirm } from '../screens/node-kit.js';
@@ -128,6 +128,7 @@ export function drawStandard(main, base) {
   if (!publicKeyHex) return signal;
   let tab = 'overview';
   let detailLeave = null;
+  let shown = selected();   // the node the detail shows
   services(publicKeyHex).then((svc) => {
     if (signal.aborted) return;
     const back = h('button', { type: 'button', class: 'tool std-back' }, ctx.t('std.back'));
@@ -147,7 +148,8 @@ export function drawStandard(main, base) {
       if (focus) queueMicrotask(() => view.querySelector?.('.std-tab[aria-selected="true"]')?.focus());
     };
     function pick(id) {
-      if (id !== selected()) tab = 'overview';
+      if (id !== shown) tab = 'overview';
+      shown = id;
       setSelected(id);
       list.select(id);
       drawDetail();
@@ -156,6 +158,10 @@ export function drawStandard(main, base) {
     const list = nodeList(ctx, svc, { selected: selected(), onPick: pick });
     aside.replaceChildren(list.el);
     drawDetail();
+    // A node chosen elsewhere (the Neighbours dialog's Select, W-35h): the same as a click in the
+    // list. Without this the choice was stored but neither the list nor the detail followed it.
+    const follow = onBoardChange(({ what, selected: id }) => { if (what === 'selected' && id && id !== shown) pick(id); });
+    signal.addEventListener('abort', follow, { once: true });
   }).catch((e) => { detail.replaceChildren(h('p', { class: 'tile-err' }, e.message)); });
   return signal;
 }
