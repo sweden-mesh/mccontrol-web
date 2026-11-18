@@ -7,7 +7,7 @@
 // job (operator 2026-11-17), said once on the make form.
 import { h } from '../dom.js';
 import { errorLine, passField, showPassphrases, useStyles } from './key-kit.js';
-import { keyring, keyStatus } from './key-session.js';
+import { keyring, keyStatus, onKeyStatus } from './key-session.js';
 
 export const route = 'unlock';
 export const title = 'nav.unlock';
@@ -61,7 +61,9 @@ export function render(ctx) {
   const target = unlockTarget(ctx.args);
   const heading = h('h1', { id: 'unlock-title' });
   const body = h('div', { class: 'key-flow' });
-  const section = h('section', { 'aria-labelledby': 'unlock-title', class: 'scr key-screen' }, heading, body);
+  // Help is reachable from the unlock gate (W-28b), which nothing else is.
+  const section = h('section', { 'aria-labelledby': 'unlock-title', class: 'scr key-screen' }, heading, body,
+    h('p', { class: 'muted unlock-help' }, h('a', { href: '#help' }, t('nav.help'))));
 
   const ring = keyring();
   if (!ring) {
@@ -74,12 +76,19 @@ export function render(ctx) {
   // back where it was asked for, and to the board when nothing asked (W-23f: the status line's
   // and STATUS's "Unlock" must not leave Setup open over the board).
   const finish = () => ctx.navigate(target.next || '#/key');
-  const unlocked = () => ctx.navigate(target.next || '');
+  // Once, however the key was unlocked (here, a fingerprint, or by any other means while the
+  // gate showed this step): the page goes on, to what was asked for before the gate (app.js).
+  let step = null;
+  let left = false;
+  const unlocked = () => { if (left) return; left = true; ctx.navigate(target.next || ''); };
+  const off = onKeyStatus((st) => { if (step === 'unlock' && st.exists && !st.locked) unlocked(); });
+  ctx.signal.addEventListener('abort', off, { once: true });
 
   // Show a step: its heading, its body, focus on the heading when it replaces another.
-  const go = (step, { focus = true } = {}) => {
-    const fill = { start: startStep, unlock: unlockStep, done: doneStep }[step];
-    heading.textContent = t(`unlock.h.${step === 'start' && target.replace ? 'replace' : step}`);
+  const go = (next, { focus = true } = {}) => {
+    step = next;
+    const fill = { start: startStep, unlock: unlockStep, done: doneStep }[next];
+    heading.textContent = t(`unlock.h.${next === 'start' && target.replace ? 'replace' : next}`);
     body.replaceChildren(...fill());
     if (focus) { heading.tabIndex = -1; heading.focus(); }
     if (!ctx.signal.aborted) document.title = `${heading.textContent} · mccontrol`;

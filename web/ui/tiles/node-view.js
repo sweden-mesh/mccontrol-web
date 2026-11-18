@@ -343,7 +343,7 @@ function commandLine(ctx, svc, nodeId) {
       const text = err.code === 'locked' ? ctx.t('send.locked')
         : err instanceof CompanionError ? ctx.t('send.why.companion', { detail: err.message })
           : err.code ? ctx.t(`send.why.${err.code}`, err.vars) : err.message;
-      ctx.notify(text, { kind: 'error', actions: err.code === 'locked' ? [{ label: ctx.t('send.unlockLink'), run: () => ctx.navigate('#unlock') }] : [] });
+      ctx.notify(text, { kind: 'error' });
     } finally {
       job.done();
       running = false;

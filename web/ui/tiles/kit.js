@@ -3,7 +3,6 @@
 import { h } from '../dom.js';
 import { GLYPH } from '../statusline.js';
 import { services } from '../screens/node-services.js';
-import { unlockHash } from '../screens/key-session.js';
 import { useStyles } from '../screens/node-kit.js';
 
 const SVG = ['http:', '', 'www.w3.org', '2000', 'svg'].join('/');     // a namespace name, not fetched
@@ -36,9 +35,9 @@ export function forKey(ctx, slot, fill) {
     if (id === shown) return;
     shown = id;
     const mine = turn += 1;
+    // No key or a locked one: the page's unlock gate is in front (W-28b), so nothing to say here.
     if (status === 'none' || !publicKeyHex) {
-      slot.replaceChildren(h('p', { class: 'row muted' }, ctx.t('tile.noKey'), ' ',
-        h('a', { href: unlockHash('') }, ctx.t('tile.makeKey'))));
+      slot.replaceChildren();
       return;
     }
     services(publicKeyHex)

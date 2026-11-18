@@ -6,7 +6,7 @@
 import { h } from '../dom.js';
 import { download } from './node-kit.js';
 import { copyButton, errorLine, groupedHex, passField, qrSvg, showPassphrases, useStyles } from './key-kit.js';
-import { currentHandle, keyring, keyStatus, onKeyStatus, unlockHash } from './key-session.js';
+import { currentHandle, keyring, keyStatus, onKeyStatus } from './key-session.js';
 import { passProblem, MIN } from './unlock.js';
 import { registerNow, registration, onRegistration, registrationText } from './key-register.js';
 import { AUTO_LOCK_CHOICES } from '../../lib/key/keyring.js';
@@ -122,7 +122,7 @@ export function render(ctx) {
     lock.addEventListener('click', () => { ring.lock(); ctx.announce(t('keyscreen.lockedNow')); });
     return block('lock-title', t('keyscreen.lock'),
       h('p', {}, t(s.locked ? 'keyscreen.isLocked' : 'keyscreen.isUnlocked')),
-      s.locked ? h('p', {}, h('a', { class: 'button', href: unlockHash('key') }, t('unlock.unlock'))) : h('div', { class: 'row' }, lock),
+      s.locked ? null : h('div', { class: 'row' }, lock),
       autoLockChoice(ctx, s));
   }
 
@@ -258,7 +258,7 @@ export function render(ctx) {
       again.setAttribute('aria-busy', String(r.state === 'running'));
     };
     again.addEventListener('click', async () => {
-      if (!currentHandle()) { out.replaceChildren(t('send.locked'), ' ', h('a', { href: unlockHash('key') }, t('send.unlockLink'))); return; }
+      if (!currentHandle()) { out.textContent = t('send.locked'); return; }
       out.textContent = '';
       const r = await registerNow().catch(() => null);
       if (r) out.textContent = t(r.state === 'ok' ? 'setup.reg.allOk' : 'setup.reg.notAll');

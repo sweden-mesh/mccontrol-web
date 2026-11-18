@@ -1,8 +1,10 @@
 // Fake data for the smoke test's filled board and the beta notes' screenshots: an invented key
-// (stored locked, so nothing signs and no automation runs), eight invented nodes with their
-// history, and Beacon's answers for them. Nothing here is a real key, node or person.
+// (stored locked; the smokes unlock it past the gate, W-28b, with noBroker in the page so nothing
+// reaches a broker), eight invented nodes with their history, and Beacon's answers for them.
+// Nothing here is a real key, node or person.
 //
 //   seedFake(page)             fill this origin's IndexedDB (call on a page of the app, then reload)
+//   seedKey(page), unlockFake(page)   the key alone; unlock it in the page
 //   fakeBeacon(path, now)      Beacon's answer for a path, or undefined when the path is not ours
 //   noBroker                   for evaluateOnNewDocument: a WebSocket that never connects
 import { createHash } from 'node:crypto';
@@ -67,6 +69,30 @@ export async function seedFake(page) {
     }
     await stores.groups.create('stan', nodes.slice(0, 3).map((n) => n.node));
   }, { seed: FAKE_SEED, pass: FAKE_PASSPHRASE, nodes: FAKE_NODES });
+}
+
+// The fake key alone, stored locked (run.mjs: every modal needs a key past the unlock gate, W-28b).
+export async function seedKey(page) {
+  await page.evaluate(async ({ seed, pass }) => {
+    const { sealSeed } = await import('./lib/key/backup.js');
+    const { indexedDbStorage } = await import('./lib/key/storage.js');
+    const bytes = Uint8Array.from(seed.match(/../g).map((b) => parseInt(b, 16)));
+    const sealed = await sealSeed(bytes, pass, { iterations: 1000 });
+    const created = new Date(Date.now() - 20 * 86400000).toISOString();
+    await indexedDbStorage(indexedDB).put({ id: sealed.public_key, created, source: 'created',
+      wraps: { passphrase: sealed }, backup: { at: created, form: 'file' }, settings: { autoLockMinutes: 15 }, persist: null });
+  }, { seed: FAKE_SEED, pass: FAKE_PASSPHRASE });
+}
+
+// Past the unlock gate (W-28b), as the owner would be: the page's own keyring, unlocked with the
+// fake passphrase. The gate then opens what the address asked for. With noBroker in the page,
+// what the unlock starts (registration, the command server check) reaches no broker.
+export async function unlockFake(page) {
+  await page.evaluate(async (pass) => {
+    const { keyring } = await import('./ui/screens/key-session.js');
+    await keyring().unlock(pass);
+  }, FAKE_PASSPHRASE);
+  await new Promise((ok) => setTimeout(ok, 500));
 }
 
 const wave = (i, h, base, amp) => Math.round(base + amp * Math.sin((h + i * 3) / 3.8));

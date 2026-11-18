@@ -143,6 +143,16 @@ The board is the page and is never navigated away from (W-20c). Everything else 
 of it (W-20d). The hash names the open modal: `#node/4AC61A7F`, `#setup/key`, `#help/codes`; an empty
 hash is the board alone. Back closes a modal; closing one walks back to the board.
 
+### The unlock gate (W-28b)
+
+With no key, or a locked one, nothing behind the unlock modal is shown or usable: `ui/boot.js` puts
+`html[data-gate]` before the first paint, `ui/app.js` keeps it while the key is not unlocked and
+makes the status line, `<main>` and the footer inert. Only `#unlock` (make, import or unlock) and
+`#help` (a link on the unlock screen) can be open; any other address is kept and opened once the
+key is unlocked. The gate's dialog has no close button and ignores Esc. Locking, by hand or by
+auto-lock, brings it back. So no tile, screen or action has a "the key is locked, unlock" branch of
+its own; a job that finds the key locked mid-way says only that.
+
 ### The ctx
 
 `ui/app.js` builds one shared ctx; tiles and modals each get it with their own additions:
@@ -203,8 +213,9 @@ the `.alert` class (inverse in Amber and Green).
   mark and tint, no status text (W-28c: the reason is NODE's); no battery column (W-26f). A click selects (on a phone:
   the node full screen; the selection is remembered by the browser), the box tags. Keys in the list: ↑ ↓ Home End, Enter selects, Space tags; `/` searches.
 - **NODE** (`node.js`, `node-view.js`): facts with their age, 24-hour sparklines from Beacon
-  (battery, airtime sent, noise floor), links to details, statistics and history, and the command
-  area at the bottom: two fixed rows, the line with the road (auto, MQTT, mesh: the node's last
+  (battery, airtime sent, noise floor), buttons for details, statistics and history (W-28e), and the command
+  area at the bottom: two fixed rows, the line with the road (auto, MQTT, mesh, a segmented switch of
+  three radios in the button style, W-28d: the node's last
   choice, kept as the device's `road`, else the mesh while a companion is connected, else MQTT;
   `startRoad` in `lib/jobs/road.js`, W-26b, W-26c) and the companion's
   line when the road may take the mesh. A reply shows only in HISTORY (W-23g); what is wrong with a

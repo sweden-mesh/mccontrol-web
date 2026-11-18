@@ -111,8 +111,8 @@ export function render(ctx) {
   function keyLine() {
     const { status } = ctx.key.state();
     const ks = keyStatus();
-    if (status === 'none') return line('key', 'unknown', ctx.t('key.none'), h('a', { href: '#unlock', class: 'status-act' }, ctx.t('tile.makeKey')));
-    if (status === 'locked') return line('key', 'warn', ctx.t('key.locked'), h('a', { href: '#unlock', class: 'status-act' }, ctx.t('key.unlock')));
+    // Locked or none: the unlock gate is in front of the page (W-28b).
+    if (status !== 'unlocked') return line('key', status === 'locked' ? 'warn' : 'unknown', ctx.t(`key.${status}`));
     const after = ks.autoLockMinutes ? ctx.t('tile.locksAfter', { n: ks.autoLockMinutes }) : ctx.t('tile.locksOnClose');
     return line('key', 'ok', ctx.t('tile.unlockedShort'), act(ctx.t('key.lock'), async () => { await keyring()?.lock(); }), after);
   }

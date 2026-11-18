@@ -49,7 +49,6 @@ export function buildEntries({ t, tabs = {}, table = [], sets = {}, groups = [],
   }
   if (modals('history')) add({ kind: 'verb', label: t('palette.history'), hash: '#history' });
   if (key.status === 'unlocked') add({ kind: 'verb', label: t('palette.lock'), action: 'lock' });
-  else add({ kind: 'verb', label: t(key.status === 'locked' ? 'palette.unlock' : 'palette.makeKey'), hash: '#unlock' });
   if (target !== '-') add({ kind: 'verb', label: t('palette.sendTo'), hint: t('palette.sendToHint'), hash: runHash('cmd', target) });
   for (const { line, command } of commandLines(table)) {
     add({ kind: 'command', label: line, hint: t(helpKey(command)), hash: runHash('cmd', target, line), mono: true });

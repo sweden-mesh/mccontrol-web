@@ -28,9 +28,10 @@ export function screen(id, title, ...children) {
 // Where an unlock prompt leads: the unlock screen, then back to this screen.
 export const unlockHere = (ctx) => unlockHash([ctx.route, ...ctx.args.map(encodeURIComponent)].join('/'));
 
-// "The key is locked." with a link that unlocks and comes back.
+// "The key is locked.": only when it locked during a job; the page's unlock gate (W-28b) is then
+// in front, so there is no link of its own.
 export function lockedNote(ctx) {
-  return [ctx.t('send.locked'), ' ', h('a', { href: unlockHere(ctx) }, ctx.t('send.unlockLink'))];
+  return [ctx.t('send.locked')];
 }
 
 // The key the screen works for, or a paragraph saying there is none. Locked is fine for

@@ -35,6 +35,9 @@
     } catch (e) { /* blocked: read again next time */ }
   }
   root.setAttribute('data-theme', theme);
+  // The unlock gate (W-28b) until ui/app.js knows the key is unlocked: the page behind is not shown
+  // before then, so it never flashes up under the unlock dialog.
+  root.setAttribute('data-gate', '');
   var meta = document.querySelector('meta[name="color-scheme"]');
   if (meta) meta.setAttribute('content', theme === 'light' ? 'light' : 'dark');
 
