@@ -169,6 +169,12 @@
 .status-row > .row-name { flex: 0 0 14ch; }   /* 'kommandoserver', the longest name (W-28a) */
 .status-row .mark { flex: 1 1 8ch; min-width: 0; white-space: normal; align-items: baseline; }
 .status-row .mark-word { min-width: 0; overflow-wrap: anywhere; }
+/* A time in four lengths (W-33a, kit.js fitTimes): the longest that fits the tile's width. */
+.fit > [class^="fit-"] { display: none; white-space: nowrap; }
+.fit > .fit-0 { display: inline; }
+@container tile (width < 30em) { .fit > .fit-0 { display: none; } .fit > .fit-1 { display: inline; } }
+@container tile (width < 26em) { .fit > .fit-1 { display: none; } .fit > .fit-2 { display: inline; } }
+@container tile (width < 23em) { .fit > .fit-2 { display: none; } .fit > .fit-3 { display: inline; } }
 .status-act { margin-inline-start: auto; white-space: nowrap; }
 .status-acts { display: inline-flex; flex-wrap: wrap; justify-content: flex-end; column-gap: 12px; margin-inline-start: auto; max-width: 100%; }
 .status-acts .status-act { margin-inline-start: 0; }

@@ -957,5 +957,9 @@
   "help.creditPlex": "IBM Plex Sans and Mono, SIL Open Font License 1.1.",
   "help.creditNe": "County outlines, lakes and coast of the retro board: Natural Earth, public domain.",
   "std.companion": "Companion:",
-  "std.battery": "Battery"
+  "std.battery": "Battery",
+  "tile.fitNext": "{ago}, next {next}",
+  "tile.fitNextOnly": "next {next}",
+  "combo.label": "Commands",
+  "combo.unknown": "Version unknown: every command is listed"
 }

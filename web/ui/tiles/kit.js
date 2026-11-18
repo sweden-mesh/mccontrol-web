@@ -68,6 +68,36 @@ export function shortUntil(ctx, at, now = Date.now()) {
   return ctx.t('tile.inMin', { n: Math.max(1, Math.round(secs / 60)) });
 }
 
+// A time as [n, unit] (unit: 'now' | 'min' | 'h' | 'd'), the parts of shortAge.
+export function ageParts(ms) {
+  const secs = Math.max(0, Math.round(ms / 1000));
+  if (secs < 60) return [0, 'now'];
+  if (secs < 3600) return [Math.floor(secs / 60), 'min'];
+  if (secs < 172800) return [Math.floor(secs / 3600), 'h'];
+  return [Math.floor(secs / 86400), 'd'];
+}
+
+// "13 min ago, next in 1 min" in four lengths, the longest first (W-33a): the tile shows the one
+// that fits its width (tiles.css, .fit-*), a screen reader and the tooltip get the whole one.
+export function fitTimes(ctx, last, next, now = Date.now()) {
+  const full = [last ? (now - last < 60000 ? ctx.t('node.justNow') : ctx.t('tile.ago', { age: shortAge(ctx, last, now) })) : null,
+    next ? ctx.t('tile.next', { when: shortUntil(ctx, next, now) }) : null].filter(Boolean).join(', ');
+  const compact = (ms, short) => {
+    const [n, unit] = ageParts(ms);
+    return unit === 'now' ? ctx.t('tile.ageNow') : `${n}${short ? unit[0] : unit}`;
+  };
+  const make = (short, paren) => {
+    const a = last ? compact(now - last, short) : null;
+    const b = next ? (next - now <= 30000 ? ctx.t('tile.ageNow') : compact(next - now, short)) : null;
+    if (a && b) return paren ? `${a} (${b})` : ctx.t('tile.fitNext', { ago: a, next: b });
+    return a || (b ? ctx.t('tile.fitNextOnly', { next: b }) : '');
+  };
+  const forms = [full, make(false, false), make(true, false), make(true, true)];
+  return { full, el: h('span', { class: 'fit', title: full },
+    h('span', { class: 'visually-hidden' }, full),
+    forms.map((f, i) => h('span', { class: `fit-${i}`, 'aria-hidden': 'true' }, f))) };
+}
+
 export function age(ctx, at, now = Date.now()) {
   const ms = typeof at === 'number' ? at : Date.parse(at);
   if (!Number.isFinite(ms)) return h('span', { class: 'muted' }, '–');

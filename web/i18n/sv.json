@@ -957,5 +957,9 @@
   "help.creditPlex": "IBM Plex Sans och Mono, SIL Open Font License 1.1.",
   "help.creditNe": "Retrotavlans länsgränser, sjöar och kust: Natural Earth, public domain.",
   "std.companion": "Kompanjon:",
-  "std.battery": "Batteri"
+  "std.battery": "Batteri",
+  "tile.fitNext": "{ago}, n\u00e4sta {next}",
+  "tile.fitNextOnly": "n\u00e4sta {next}",
+  "combo.label": "Kommandon",
+  "combo.unknown": "Okänd version: alla kommandon visas"
 }
