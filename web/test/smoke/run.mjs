@@ -150,8 +150,11 @@ async function main() {
     await page.setViewport({ width, height: 800 });
     await page.evaluateOnNewDocument((items) => {
       // The pages share one origin's storage: each look starts from its own settings only.
-      for (const k of ['theme', 'layout', 'scheme', 'colorblind']) localStorage.removeItem(`mccontrol.${k}`);
-      for (const [k, v] of Object.entries(items)) localStorage.setItem(k, v);
+      // (about:blank, where Back can lead, has no storage: nothing to set there.)
+      try {
+        for (const k of ['theme', 'layout', 'scheme', 'colorblind']) localStorage.removeItem(`mccontrol.${k}`);
+        for (const [k, v] of Object.entries(items)) localStorage.setItem(k, v);
+      } catch { /* not the app's page */ }
       addEventListener('securitypolicyviolation', (e) => {
         console.error(`CSP violation: ${e.violatedDirective} blocked ${e.blockedURI || 'inline'}`);
       });
