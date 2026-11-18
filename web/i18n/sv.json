@@ -950,7 +950,7 @@
   "display.cvd": "Färgblint läge: lägen i blått, gult och orange, aldrig rött och grönt",
   "display.retroTheme": "Retrotavlans tema",
   "help.about": "Om mccontrol",
-  "help.aboutBody": "mccontrol är öppen källkod (github.com/sweden-mesh/mccontrol). Den är byggd med:",
+  "help.aboutBody": "mccontrol är öppen källkod (github.com/sweden-mesh/mccontrol-web). Den är byggd med:",
   "help.creditFa": "Ikoner: Font Awesome Free 7.3.1 från Fonticons, Inc. (fontawesome.com), licens CC BY 4.0. Ikonerna terminal, table-columns och gear, som inbäddad SVG.",
   "help.creditMap": "Standardvyns karta: OpenFreeMap; data © OpenMapTiles och © OpenStreetMaps bidragsgivare (ODbL).",
   "help.creditMapLibre": "MapLibre GL JS 6.16.0, BSD 3-Clause.",

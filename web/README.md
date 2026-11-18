@@ -27,8 +27,8 @@ No build step and no dependencies to install. Plain HTML, CSS and ES modules.
 python3 -m http.server -d web 8000 --bind 127.0.0.1     # then open http://127.0.0.1:8000/
 node --test "web/test/**/*.test.js"                     # from the repository root (node 22)
 (cd web && npm test)                                    # the same, from here
-python -m mccontrol.webexport                           # rewrite lib/data/*.json and test/vectors.json
-python -m pytest tests/test_webexport.py                # fails when those are stale
+node scripts/spec-sync.mjs v0.1.0                       # copy a mccontrol-spec tag into lib/data/ and test/
+node scripts/spec-sync.mjs --check                      # do the copies equal spec.lock's tag on GitHub?
 ```
 
 Node 22 does not take a directory as `--test`'s argument; give it the glob.
@@ -410,8 +410,8 @@ Beacon ids, position, IATA codes); a node Beacon does not know has its fleet cle
 
 The area: `areaPicker(ctx, { id })` in `ui/area.js` (a county dropdown showing the scope, saved with a
 button because it starts a discovery), mounted in Setup's `area` tab (`#setup/area`); the status
-line no longer shows it, nor does MAP's title (W-33g). The table is `lib/data/areas.json`, exported from `mccontrol/areas.py`,
-which is the regional template's counties (`tests/test_areas.py` compares it with a template
+line no longer shows it, nor does MAP's title (W-33g). The table is `lib/data/areas.json`, from mccontrol-spec (exported by mccontrol-cli's `mccontrol/areas.py`,
+which is the regional template's counties; its `tests/test_areas.py` compares it with a template
 checkout). Mesh-only nodes: `meshCandidates()` lists the repeaters in the connected companion's
 contacts that are not in the list, `addMeshNode(c)` adds one as mesh-only in the area. Setup's area
 tab finds them (W-24, `ui/screens/mesh-find.js`): `findMeshNodes(geo)` adds Beacon's repeaters that

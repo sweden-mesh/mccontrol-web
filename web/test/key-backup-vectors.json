@@ -1,5 +1,5 @@
 {
- "_note": "Shared by tests/test_keyfile.py and web/test/key-backup.test.js; the seed and passphrase are test values, never a real key.",
+ "_note": "Shared by mccontrol-cli (tests/test_keyfile.py) and mccontrol-web (web/test/key-backup.test.js); the seed and passphrase are test values, never a real key.",
  "seed": "4b607a88e181f0dbf3777dad53953c9fcad4f38facd2b7cb5aeced74864373b8",
  "passphrase": "rätt lösenord",
  "iterations": 1000,

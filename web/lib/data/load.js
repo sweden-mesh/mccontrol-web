@@ -1,5 +1,5 @@
-// The behaviour exported from the Python package (python -m mccontrol.webexport), loaded once.
-// The JSON files beside this module are generated: never edit them by hand.
+// The behaviour shared with the Python CLI, loaded once. The JSON files beside this module are a
+// copy of mccontrol-spec at the tag spec.lock names (scripts/spec-sync.mjs): never edit them by hand.
 
 export const NAMES = ['brokers', 'cautions', 'commands', 'denylist', 'facts', 'firmware', 'help',
   'protocol', 'results', 'areas'];

@@ -950,7 +950,7 @@
   "display.cvd": "Colour-blind mode: states in blue, yellow and orange, never red and green",
   "display.retroTheme": "Theme of the retro board",
   "help.about": "About mccontrol",
-  "help.aboutBody": "mccontrol is open source (github.com/sweden-mesh/mccontrol). It is built with:",
+  "help.aboutBody": "mccontrol is open source (github.com/sweden-mesh/mccontrol-web). It is built with:",
   "help.creditFa": "Icons: Font Awesome Free 7.3.1 by Fonticons, Inc. (fontawesome.com), licensed CC BY 4.0. The terminal, table-columns and gear icons, as inline SVG.",
   "help.creditMap": "Map of the standard layout: OpenFreeMap; data © OpenMapTiles and © OpenStreetMap contributors (ODbL).",
   "help.creditMapLibre": "MapLibre GL JS 6.16.0, BSD 3-Clause.",

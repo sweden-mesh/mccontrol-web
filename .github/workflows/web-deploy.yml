@@ -14,7 +14,7 @@ on:
     tags: ['web-v*']
     paths-ignore: ['docs/**']
   pull_request:
-    paths: ['web/**', 'scripts/web-dist.mjs', 'mccontrol/webexport.py', '.github/workflows/web-deploy.yml']
+    paths: ['web/**', 'scripts/**', 'spec.lock', '.github/workflows/web-deploy.yml']
   workflow_dispatch:
 
 permissions:
@@ -32,15 +32,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - name: Node tests (protocol, key, shell, CSP, vectors)
+      - name: Node tests (protocol, key, shell, CSP, vectors, the spec's copies)
         run: node --test "web/test/**/*.test.js"
-      - name: The JSON exports and vectors match the Python package
-        run: |
-          pip install -e . pytest
-          python -m pytest -q tests/test_webexport.py
+      - name: The copies of mccontrol-spec are the tag spec.lock names
+        run: node scripts/spec-sync.mjs --check
 
   deploy:
     needs: test
