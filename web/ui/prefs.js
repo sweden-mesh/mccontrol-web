@@ -8,9 +8,16 @@
 // and a reduced-motion option. migratePrefs() maps them once (boot.js does the same before paint):
 // a terminal screen wins, then light or dark, else amber; the colour-blind and motion keys go.
 
+// Since W-29 the layout too: 'standard' (list and detail, the default, W-29h) or 'retro' (the
+// board), and the standard layout's own colours ('dark', the default, or 'light', W-29b: the
+// setting, not the OS) and colour-blind mode (W-29c). The retro board keeps its theme setting.
+// The first choice of each is the default and is stored as nothing.
 export const CHOICES = Object.freeze({
   theme: ['amber', 'green', 'dark', 'light'],
   lang: ['browser', 'sv', 'en'],
+  layout: ['standard', 'retro'],
+  scheme: ['dark', 'light'],
+  colorblind: ['off', 'on'],
 });
 
 // The keys of the settings that no longer exist, removed by the migration.
@@ -45,8 +52,8 @@ export function migratePrefs(storage = safeStorage()) {
 
 export function readPrefs(storage = safeStorage()) {
   const get = (name) => read(storage, name);
-  const lang = get('lang');
-  return { theme: themeFrom(get), lang: CHOICES.lang.includes(lang) && lang !== 'browser' ? lang : 'browser' };
+  const pick = (name) => (CHOICES[name].includes(get(name)) ? get(name) : CHOICES[name][0]);
+  return { theme: themeFrom(get), lang: pick('lang'), layout: pick('layout'), scheme: pick('scheme'), colorblind: pick('colorblind') };
 }
 
 export function writePref(name, value, storage = safeStorage()) {
@@ -60,6 +67,7 @@ export function writePref(name, value, storage = safeStorage()) {
 
 // The colour scheme the browser's own parts (scroll bars, form controls) should use.
 export function schemeFor(prefs) {
+  if (prefs.layout === 'standard') return prefs.scheme === 'light' ? 'light' : 'dark';
   return prefs.theme === 'light' ? 'light' : 'dark';
 }
 
@@ -67,6 +75,9 @@ export function applyPrefs(prefs, doc = document) {
   const root = doc.documentElement;
   doc.querySelector('meta[name="color-scheme"]')?.setAttribute('content', schemeFor(prefs));
   root.setAttribute('data-theme', prefs.theme);
+  root.setAttribute('data-layout', prefs.layout || 'standard');
+  root.setAttribute('data-scheme', prefs.scheme || 'dark');
+  root.toggleAttribute('data-colorblind', prefs.colorblind === 'on');
 }
 
 // Calls fn(prefs) after a change here or in another tab.

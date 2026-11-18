@@ -38,8 +38,16 @@
   // The unlock gate (W-28b) until ui/app.js knows the key is unlocked: the page behind is not shown
   // before then, so it never flashes up under the unlock dialog.
   root.setAttribute('data-gate', '');
+  // The layout (W-29): standard, the default, or the retro board; the standard layout's colours
+  // (dark, the default, or light) and colour-blind mode. ui/prefs.js applies the same.
+  var layout = get('layout') === 'retro' ? 'retro' : 'standard';
+  var scheme = get('scheme') === 'light' ? 'light' : 'dark';
+  root.setAttribute('data-layout', layout);
+  root.setAttribute('data-scheme', scheme);
+  if (get('colorblind') === 'on') root.setAttribute('data-colorblind', '');
   var meta = document.querySelector('meta[name="color-scheme"]');
-  if (meta) meta.setAttribute('content', theme === 'light' ? 'light' : 'dark');
+  var light = layout === 'standard' ? scheme === 'light' : theme === 'light';
+  if (meta) meta.setAttribute('content', light ? 'light' : 'dark');
 
   var fail = function (reason) {
     if (root.hasAttribute('data-started') || root.hasAttribute('data-start-failed')) return;

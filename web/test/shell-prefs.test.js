@@ -5,7 +5,7 @@ import { shortKey } from '../ui/key-state.js';
 import { memory } from './prefs-fakes.js';
 
 test('nothing stored: amber, the browser language', () => {
-  assert.deepEqual(readPrefs(memory()), { theme: 'amber', lang: 'browser' });
+  assert.deepEqual(readPrefs(memory()), { theme: 'amber', lang: 'browser', layout: 'standard', scheme: 'dark', colorblind: 'off' });
   assert.deepEqual(CHOICES.theme, ['amber', 'green', 'dark', 'light']);
 });
 
@@ -13,13 +13,28 @@ test('a choice is stored, the default removes it', () => {
   const s = memory();
   writePref('theme', 'light', s);
   writePref('lang', 'en', s);
-  assert.deepEqual(readPrefs(s), { theme: 'light', lang: 'en' });
+  assert.deepEqual(readPrefs(s), { theme: 'light', lang: 'en', layout: 'standard', scheme: 'dark', colorblind: 'off' });
   assert.deepEqual(Object.fromEntries(s.m), { 'mccontrol.theme': 'light', 'mccontrol.lang': 'en' });
   writePref('theme', 'amber', s);
   writePref('lang', 'browser', s);
   assert.equal(s.m.size, 0);
   assert.throws(() => writePref('theme', 'purple', s));
   assert.throws(() => writePref('cvd', 'on', s));
+});
+
+test('the layout (W-29): standard by default, its own dark or light, colour-blind; the retro theme kept', () => {
+  const s = memory();
+  writePref('theme', 'green', s);
+  writePref('layout', 'retro', s);
+  writePref('scheme', 'light', s);
+  writePref('colorblind', 'on', s);
+  const p = readPrefs(s);
+  assert.deepEqual([p.theme, p.layout, p.scheme, p.colorblind], ['green', 'retro', 'light', 'on']);
+  assert.equal(schemeFor(p), 'dark', 'the retro board shows its own theme');
+  assert.equal(schemeFor({ ...p, layout: 'standard' }), 'light');
+  writePref('layout', 'standard', s);
+  assert.equal(s.m.get('mccontrol.layout'), undefined, 'the default is stored as nothing');
+  assert.equal(readPrefs(memory({ 'mccontrol.layout': 'nonsense' })).layout, 'standard');
 });
 
 test('old settings move to the one theme: terminal screen first, then light or dark, else amber', () => {
