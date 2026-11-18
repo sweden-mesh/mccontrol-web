@@ -66,3 +66,30 @@ export async function startUpdates({ version, onWaiting }) {
   setInterval(() => reg.update().catch(() => {}), 6 * 60 * 60 * 1000);
   return reg;
 }
+
+// Install as an app (W-10). Chromium offers to install a page with a manifest; the offer is kept
+// here so Setup's Display tab can raise it with a button. Other browsers install from their own
+// menu (Safari: Share, then Add to Home Screen or Add to Dock), so the tab says how instead.
+let installOffer = null;
+let installed = false;
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); installOffer = e; });
+  window.addEventListener('appinstalled', () => { installOffer = null; installed = true; });
+}
+
+// 'installed' (running as the app), 'ready' (the browser's offer is kept) or 'manual'.
+export function installState() {
+  if (installed || globalThis.matchMedia?.('(display-mode: standalone)').matches || globalThis.navigator?.standalone === true) return 'installed';
+  return installOffer ? 'ready' : 'manual';
+}
+
+// Shows the browser's install dialog; 'accepted', 'dismissed', or 'manual' when there is no offer.
+export async function promptInstall() {
+  const offer = installOffer;
+  if (!offer) return 'manual';
+  installOffer = null;   // an offer can be shown once
+  await offer.prompt();
+  const { outcome } = await offer.userChoice;
+  if (outcome === 'accepted') installed = true;
+  return outcome;
+}

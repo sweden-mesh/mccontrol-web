@@ -10,9 +10,28 @@ import { renderConnections, renderWarnings } from '../screens/settings.js';
 import * as groups from '../screens/groups.js';
 import * as sets from '../screens/sets.js';
 import { tabScreen } from '../screens/key-kit.js';
+import { installState, promptInstall, readVersion } from '../update.js';
+
+// Install as an app, and which release this is (W-10).
+function installBlock(t) {
+  const about = h('p', { class: 'muted' }, t('install.version', { version: '…', commit: '…' }));
+  readVersion().then((v) => { about.textContent = t('install.version', { version: v.version, commit: String(v.commit || '-').slice(0, 7) }); });
+  const out = h('p', { role: 'status' });
+  const state = installState();
+  const button = state === 'ready' ? h('button', { type: 'button', class: 'button' }, t('install.button')) : null;
+  button?.addEventListener('click', async () => {
+    button.disabled = true;
+    const outcome = await promptInstall().catch(() => 'manual');
+    out.textContent = t(`install.${outcome}`);
+  });
+  return h('section', { 'aria-labelledby': 'install-title' },
+    h('h3', { id: 'install-title' }, t('install.title')), h('p', {}, t('install.body')),
+    state === 'installed' ? h('p', {}, t('install.installed')) : button || h('p', { class: 'muted' }, t('install.manual')),
+    out, about);
+}
 
 const display = (ctx) => tabScreen('display', ctx.t('setup.tab.display'),
-  h('p', { class: 'muted' }, ctx.t('settings.displayBody')), ctx.displaySettings());
+  h('p', { class: 'muted' }, ctx.t('settings.displayBody')), ctx.displaySettings(), installBlock(ctx.t));
 
 // tab -> { label (i18n key), route, render(ctx) }, in this order. `route` is the tab's old
 // screen route: the screens build "unlock, then come back here" links from it.

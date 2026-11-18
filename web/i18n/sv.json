@@ -560,7 +560,7 @@
   "node.regionSet": "Sätt/uppdatera region",
   "node.regionSetArg": "Region",
   "node.regionSetHint": "Regionens scope-namn, t.ex. se-jkp. Skickas som region put, region allowf, region save och sedan region för att läsa tillbaka den.",
-  "node.meshOnlyHint": "En nod med bara mesh tar emot kommandon enbart över meshen, signerade för regionen som heter mesh. Versionen avslöjar det (en rc-image utan -observer); ställ in det här när versionen inte är känd.",
+  "node.meshOnlyHint": "En nod med bara mesh tar emot kommandon enbart över meshen, förseglade till den från lou-20 (lou-19 och äldre: signerade för regionen som heter mesh). Versionen avslöjar det (en rc-image utan -observer); ställ in det här när versionen inte är känd.",
   "board.title": "Dina noder",
   "board.statusLine": "Status",
   "board.keys": "Tangenter",
@@ -710,7 +710,7 @@
   "setup.broker.noSocket": "Webbläsaren kan inte öppna en anslutning till en kommandoserver.",
   "setup.broker.noSocketNext": "Använd en aktuell Chrome, Edge, Firefox eller Safari.",
   "setup.broker.unreachable": "Kom inte fram till kommandoservern {host}.",
-  "setup.broker.unreachableNext": "Kontrollera att enheten är uppkopplad. Använder du en egen kommandoserver, kontrollera adressen under Inställningar, Område och kommandoservrar.",
+  "setup.broker.unreachableNext": "Kontrollera att enheten är uppkopplad. Använder du en egen kommandoserver, kontrollera adressen under Inställningar, Kommandoserver och companion.",
   "setup.broker.noAnswer": "Kommandoservern {host} svarade inte.",
   "setup.broker.noAnswerNext": "Den kan vara upptagen eller nere. Försök igen om en minut.",
   "setup.broker.refused": "Kommandoservern nekade inloggningen ({why}).",
@@ -974,5 +974,13 @@
   "companion.net.companion": "Bryggan når inte companion-radion. Är den på, och på adressen bryggan fick?",
   "companion.net.tooBig": "Bryggan stängde anslutningen: en ram var större än den tar emot.",
   "companion.net.text": "Bryggan stängde anslutningen: den tar bara binära ramar.",
-  "companion.net.tokenLabel": "Token"
+  "companion.net.tokenLabel": "Token",
+  "install.title": "Installera som app",
+  "install.body": "mccontrol öppnas då i ett eget fönster och fungerar utan nät för allt utom att skicka. Den byter till en ny version först när du trycker Byt nu.",
+  "install.button": "Installera",
+  "install.installed": "mccontrol körs som installerad app.",
+  "install.manual": "Den här webbläsaren installerar från sin egen meny: i Safari Dela och sedan Lägg till på hemskärmen (iPhone, iPad) eller Lägg till i Dock (Mac); i Chrome eller Edge installationsmärket i adressfältet.",
+  "install.accepted": "Installerad.",
+  "install.dismissed": "Inte installerad. Knappen kommer tillbaka nästa gång sidan öppnas.",
+  "install.version": "Version {version}, commit {commit}. Varje fil kontrolleras mot versionens integrity.json innan kopian för användning utan nät sparas."
 }

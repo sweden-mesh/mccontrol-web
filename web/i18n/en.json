@@ -560,7 +560,7 @@
   "node.regionSet": "Set/update region",
   "node.regionSetArg": "Region",
   "node.regionSetHint": "The region's scope name, e.g. se-jkp. Sent as region put, region allowf, region save, then region to read it back.",
-  "node.meshOnlyHint": "A mesh-only node takes commands over the mesh alone, signed for the region named mesh. Its version tells (an rc image without -observer); set it here when the version is not known.",
+  "node.meshOnlyHint": "A mesh-only node takes commands over the mesh alone, sealed to it from lou-20 (lou-19 and older: signed for the region named mesh). Its version tells (an rc image without -observer); set it here when the version is not known.",
   "board.title": "Your nodes",
   "board.statusLine": "Status",
   "board.keys": "Keys",
@@ -710,7 +710,7 @@
   "setup.broker.noSocket": "This browser cannot open a connection to a command server.",
   "setup.broker.noSocketNext": "Use a current Chrome, Edge, Firefox or Safari.",
   "setup.broker.unreachable": "Could not reach the command server {host}.",
-  "setup.broker.unreachableNext": "Check that this device is online. If you use your own command server, check its address under Setup, Area and command servers.",
+  "setup.broker.unreachableNext": "Check that this device is online. If you use your own command server, check its address under Setup, Command server and companion.",
   "setup.broker.noAnswer": "The command server {host} did not answer.",
   "setup.broker.noAnswerNext": "It may be busy or down. Try again in a minute.",
   "setup.broker.refused": "The command server refused the sign-in ({why}).",
@@ -974,5 +974,13 @@
   "companion.net.companion": "The bridge cannot reach the companion radio. Is it on, and on the address the bridge was given?",
   "companion.net.tooBig": "The bridge closed the connection: a frame was larger than it takes.",
   "companion.net.text": "The bridge closed the connection: it takes binary frames only.",
-  "companion.net.tokenLabel": "Token"
+  "companion.net.tokenLabel": "Token",
+  "install.title": "Install as an app",
+  "install.body": "mccontrol then opens in its own window and works without a network for everything but sending. It changes to a new release only when you press Switch now.",
+  "install.button": "Install",
+  "install.installed": "mccontrol is running as an installed app.",
+  "install.manual": "This browser installs from its own menu: in Safari, Share and then Add to Home Screen (iPhone, iPad) or Add to Dock (Mac); in Chrome or Edge, the install mark in the address bar.",
+  "install.accepted": "Installed.",
+  "install.dismissed": "Not installed. The button comes back the next time the page opens.",
+  "install.version": "Release {version}, commit {commit}. Every file is checked against the release's integrity.json before the offline copy keeps it."
 }
