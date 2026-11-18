@@ -200,7 +200,7 @@ the `.alert` class (inverse in Amber and Green).
 
 - **NODES** (`ui/tiles/nodes.js`): one row per node, refused or forged first, then what needs
   attention, not known, ok; each on one line, the reason in place of the status word (whole in its
-  tooltip and on the selected row), the row tinted by severity (W-23d). A click selects (on a phone:
+  tooltip and on the selected row), the row tinted by severity (W-23d); no battery column (W-26f). A click selects (on a phone:
   the node full screen; the selection is remembered by the browser), the box tags. Keys in the list: ↑ ↓ Home End, Enter selects, Space tags; `/` searches.
 - **NODE** (`node.js`, `node-view.js`): facts with their age, 24-hour sparklines from Beacon
   (battery, airtime sent, noise floor), links to details, statistics and history, and the command

@@ -1,6 +1,6 @@
 // NODES (W-20c): one row per node, what needs attention first. Each row, on ONE line (W-23d): the
-// status glyph, the name, the reason it needs attention (else the status word), region, firmware,
-// battery and when it was last heard; the row is tinted by severity. The reason is cut to fit,
+// status glyph, the name, the reason it needs attention (else the status word), region, firmware
+// and when it was last heard (no battery: NODE shows it, W-26f); the row is tinted by severity. The reason is cut to fit,
 // whole in its tooltip and to a screen reader, and whole in NODE (on a phone the node opens full
 // screen, the way in on a touch screen). The title says "4 · 1 needs attention". A node with new
 // results says "2 new" first in that column (W-25d: the counts moved here from HISTORY's title).
@@ -13,7 +13,7 @@ import { h } from '../dom.js';
 import { lowBatteryVolts, notHeardHours } from '../screens/settings-store.js';
 import { lastHeard, shortVersion } from '../../lib/jobs/overview.js';
 import { nameOf } from '../screens/node-kit.js';
-import { age, everyMinute, forKey, stateMark, volts } from './kit.js';
+import { age, everyMinute, forKey, stateMark } from './kit.js';
 import { byAttention, matches, newCounts, nodeStatus, sharedPrefix } from './data.js';
 import { onDataChanged } from './sources.js';
 
@@ -69,7 +69,7 @@ function fill(ctx, svc, body) {
     ].join(' · ');
   }
 
-  // A row: [tag box] [button: glyph word · name · region · firmware · battery · heard] [reason]
+  // A row: [tag box] [button: glyph word · name · reason · region · firmware · heard]
   function row(ctx, svc, { device: d, status }, { now, selected, tags, focusId: f, prefix = '', fresh = 0 }) {
     const name = nameOf(d);
     // The part that tells it apart: what every name shares at the start says nothing (data.js).
@@ -96,7 +96,6 @@ function fill(ctx, svc, body) {
     why,
     h('span', { class: 'node-reg' }, d.region),
     h('span', { class: 'node-ver' }, d.ver ? shortVersion(svc.rules, d.ver) : '–'),
-    h('span', { class: 'node-batt' }, volts(d.fleet?.batteryMv)),
     h('span', { class: 'node-heard' }, heard ? age(ctx, heard, now) : '–'));
     button.addEventListener('click', () => { focusId = d.node; ctx.board.select(d.node); });
     return h('li', { class: `node-item${tagged ? ' is-tagged' : ''}`, 'data-state': status.state },
