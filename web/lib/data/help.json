@@ -48,7 +48,7 @@
   },
   "keys": {
    "title": "Keys",
-   "body": "Each interface has keys of its own, and its help lists them under this\ntopic: \"mccontrol --ui <name>\", then its help. Plain \"mccontrol\" starts\nthe last one asked for, or Monolith when none has been or the one kept\nis gone. Every verb is also on the command line, one subcommand each;\nsee [[cli]].\n\nDiscovery is one key in every interface (F5 in MeshcoreCommander, 5 or\nF6 or \"discover\" in IBMi, \"d\" in Monolith) and asks for no region: it\nreads the alive messages of your lou-20 and later nodes, wherever they\nare. Only lou-19 and older nodes are found by region, through a route of\nits own: the Devices menu's \"Discover by region\", \"discover <region>\" on\nthe command line, or the palette's \"discover a region (lou-19 and\nolder)\". See [[discover]].\n\nBack to [[index]]."
+   "body": "Each interface has keys of its own, and its help lists them under this\ntopic: \"mccontrol --ui <name>\", then its help. Plain \"mccontrol\" starts\nthe last one asked for, or Monolith when none has been or the one kept\nis gone. Every verb is also on the command line, one subcommand each;\nsee [[cli]].\n\nDiscovery asks for no region: it reads the alive messages of your\nlou-20 and later nodes, wherever they are, and each interface's help\nnames the key that starts it. Only lou-19 and older nodes are found by\nregion, through a discovery of their own (\"discover <region>\" on the\ncommand line). See [[discover]].\n\nBack to [[index]]."
   },
   "mesh": {
    "title": "Repair a node over the mesh",
