@@ -9,7 +9,7 @@ import { lastHeard, shortVersion } from '../../lib/jobs/overview.js';
 import { updateAvailable } from '../../lib/jobs/releases.js';
 import { blocker } from '../../lib/jobs/checks.js';
 import {
-  confirm, field, nameOf, progressLine, screen, when, withServices, put, lockedNote } from './node-kit.js';
+  confirm, field, nameOf, progressLine, screen, volts, when, withServices, put, lockedNote } from './node-kit.js';
 import { runSetPanel } from './sets.js';
 
 // The steps of "Set/update region" (W-26i): the shipped add-scope set, as exported from Python, so
@@ -150,7 +150,7 @@ export function render(ctx) {
         h('p', { class: 'node-meta' },
           h('code', {}, device.key || device.node), ' · ', device.region, ' · ',
           heard ? [ctx.t('node.heard'), ' ', when(ctx, heard)] : ctx.t('nodes.heardUnknown'),
-          Number.isFinite(device.fleet?.batteryMv) ? [' · ', `${(device.fleet.batteryMv / 1000).toFixed(2)} V`] : null),
+          ' · ', volts(ctx.t, device.fleet?.batteryMv)),
         device.key ? null : h('p', { class: 'check check-caution' }, ctx.t('node.noWholeKey')),
         h('h2', {}, ctx.t('node.edit')),
         editForm(ctx, svc, device, draw),

@@ -5,10 +5,10 @@
 import { h } from '../dom.js';
 import { lowBatteryVolts, notHeardHours } from './settings-store.js';
 import { brokerText } from './key-register.js';
-import { lastHeard, shortVersion } from '../../lib/jobs/overview.js';
+import { batteryKnown, lastHeard, shortVersion } from '../../lib/jobs/overview.js';
 import { updateAvailable } from '../../lib/jobs/releases.js';
 import {
-  byName, explainEvent, field, nameOf, outcomeTag, progressLine, screen, when, withServices, put, lockedNote, unlockHere } from './node-kit.js';
+  byName, explainEvent, field, nameOf, outcomeTag, progressLine, screen, volts, when, withServices, put, lockedNote, unlockHere } from './node-kit.js';
 
 export const route = 'nodes';
 export const title = 'nav.nodes';
@@ -24,9 +24,9 @@ function heardCell(ctx, d, now) {
 
 function batteryCell(ctx, d) {
   const mv = d.fleet?.batteryMv;
-  if (!Number.isFinite(mv)) return h('span', { class: 'muted' }, '–');
+  if (!batteryKnown(mv)) return h('span', { class: 'muted' }, volts(ctx.t, mv));
   const low = mv < lowBatteryVolts() * 1000;
-  return h('span', { class: low ? 'warn-text' : '' }, `${(mv / 1000).toFixed(2)} V`, low ? ` ${ctx.t('nodes.low')}` : '');
+  return h('span', { class: low ? 'warn-text' : '' }, volts(ctx.t, mv), low ? ` ${ctx.t('nodes.low')}` : '');
 }
 
 function versionCell(ctx, svc, d, release) {

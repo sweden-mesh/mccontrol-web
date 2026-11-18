@@ -96,6 +96,7 @@
   "stats.field.firmware": "Firmware",
   "stats.source": "Källa: Beacon. Varje siffra är lika gammal som nodens senaste status.",
   "dash.att.notHeard": "inte hörd på MQTT på {hours} h",
+  "battery.na": "Ej tillgänglig",
   "dash.att.battery": "batteri {volts} V",
   "dash.att.refused": "nekade {command}: {code}",
   "dash.att.forged": "fel signatur på svaret på {command}: förfalskat eller ändrat",

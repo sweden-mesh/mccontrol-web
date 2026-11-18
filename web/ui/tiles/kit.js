@@ -101,4 +101,3 @@ export function everyMinute(signal, fn) {
   signal.addEventListener('abort', () => clearTimeout(timer), { once: true });
 }
 
-export const volts = (mv) => (Number.isFinite(mv) ? `${(mv / 1000).toFixed(2)} V` : '–');

@@ -17,12 +17,12 @@
 // here. Every outcome lands in the history store (jobs.js) and so in HISTORY.
 import { h } from '../dom.js';
 import { deriveFacts } from '../../lib/store/index.js';
-import { lastHeard, shortVersion } from '../../lib/jobs/overview.js';
+import { batteryKnown, lastHeard, shortVersion } from '../../lib/jobs/overview.js';
 import { blocker, preflight } from '../../lib/jobs/checks.js';
 import { beaconBase, beaconClient } from '../../lib/stats/beacon.js';
 import { CompanionError } from '../../lib/mesh/companion.js';
 import { lowBatteryVolts, meshAfterMins, notHeardHours } from '../screens/settings-store.js';
-import { confirm, nameOf } from '../screens/node-kit.js';
+import { confirm, nameOf, volts } from '../screens/node-kit.js';
 import { companionBrief } from '../screens/road-kit.js';
 import { companion as connectedCompanion, onCompanion } from '../companion-session.js';
 import { startRoad } from '../../lib/jobs/road.js';
@@ -59,7 +59,7 @@ export function readTelemetry(device, now = Date.now()) {
 }
 
 // A sparkline: the line (hidden from a screen reader) beside its words, which carry the values.
-function spark(ctx, label, values, { unit, digits = 0, scale = 1, latestKnown = true }) {
+function spark(ctx, label, values, { unit, digits = 0, scale = 1, latestKnown = true, none = '–' }) {
   const vals = values.map((v) => (Number.isFinite(v) ? v / scale : null));
   const k = known(vals);
   const fmt = (v) => `${v.toFixed(digits)}${unit}`;
@@ -73,7 +73,7 @@ function spark(ctx, label, values, { unit, digits = 0, scale = 1, latestKnown = 
       cx: runs.at(-1).split(' ').at(-1).split(',')[0], cy: runs.at(-1).split(' ').at(-1).split(',')[1] }) : null) : h('span', { class: 'spark spark-empty', 'aria-hidden': 'true' });
   return h('li', { class: 'row fact spark-row' },
     h('span', { class: 'fact-name' }, label),
-    h('span', { class: 'fact-value' }, k.length ? fmt(last) : '–'),
+    h('span', { class: 'fact-value' }, k.length ? fmt(last) : none),
     svg,
     h('span', { class: 'fact-age muted' }, k.length ? h('span', { class: 'visually-hidden' }, words) : null, ctx.t('tile.h24')));
 }
@@ -155,7 +155,8 @@ export function nodeView(ctx, svc, nodeId, { heading = null } = {}) {
       if (!tel) { sparks.replaceChildren(h('li', { class: 'row muted' }, ctx.t('tile.noBeacon'))); return; }
       const now = Date.now();
       sparks.replaceChildren(
-        spark(ctx, ctx.t('tile.battery'), hourly(tel.points, 'batteryMv', now), { unit: ' V', digits: 2, scale: 1000 }),
+        spark(ctx, ctx.t('tile.battery'), hourly(tel.points, 'batteryMv', now).map((mv) => (batteryKnown(mv) ? mv : null)),
+          { unit: ' V', digits: 2, scale: 1000, none: volts(ctx.t, null) }),
         spark(ctx, ctx.t('tile.airtime'), hourly(tel.points, 'airtimeTxSecs', now, { diff: true }), { unit: ' s', digits: 0 }),
         spark(ctx, ctx.t('tile.noise'), hourly(tel.points, 'noiseFloorDb', now), { unit: ' dBm', digits: 0 }),
         tel.sampledAt ? h('li', { class: 'row muted small-row' }, ctx.t('tile.beaconAge'), ' ', age(ctx, tel.sampledAt)) : null);
