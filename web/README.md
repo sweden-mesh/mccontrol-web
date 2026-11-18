@@ -107,9 +107,9 @@ for this origin only (`test/shell-deploy.test.js` keeps the two in step):
 
 ```
 default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self';
-connect-src 'self' wss: https://beacon.meshcoresverige.se https://beacon.meshcore-jkp.se https://api.github.com; manifest-src 'self';
+connect-src 'self' wss: https://beacon.meshcoresverige.se https://beacon.meshcore-jkp.se https://api.github.com https://tiles.openfreemap.org; manifest-src 'self';
 worker-src 'self';
-base-uri 'none'; form-action 'none'; object-src 'none'; require-trusted-types-for 'script'; trusted-types mccontrol-sw
+base-uri 'none'; form-action 'none'; object-src 'none'; require-trusted-types-for 'script'; trusted-types mccontrol-sw mccontrol-map
 ```
 
 What it means for code:
@@ -126,6 +126,10 @@ What it means for code:
   release list (`lib/jobs/releases.json`). No fonts, images, analytics or scripts from
   elsewhere. A new origin is a CSP change and a security-review item, not a code change.
 - A `<meta>` CSP cannot carry `frame-ancestors`; `_headers` does.
+- W-29d widened it for the standard layout's map, and only for that: `https://tiles.openfreemap.org`
+  in `connect-src` (the regional template's basemap: styles, vector tiles, fonts and sprites, all
+  fetched by MapLibre; `ui/standard/basemap.json`) and the Trusted Types policy `mccontrol-map`
+  (MapLibre's own worker, `vendor/maplibre-gl/maplibre-gl-worker.mjs`, and no other URL).
 - `navigator.serviceWorker.register` is a Trusted Types sink: `ui/update.js` has a policy that
   accepts `sw.js` and nothing else, created lazily on the first registration (W-20k). Any other
   script-URL sink needs its own narrow policy, created where it is used, never at module load.
@@ -136,6 +140,41 @@ What it means for code:
 The browser's first language among `sv` and `en`; Swedish when neither is there
 (`i18n/i18n.js`, `pickLanguage`). The display settings (Setup, "Visning") override it per device. Every key exists in both
 files (a test checks). Help topics and result texts from Python are English today.
+
+## Two layouts (W-29)
+
+`html[data-layout]`: `standard` ("list and detail", the default for a new user, W-29h, operator
+2026-11-18) or `retro` (the board below). One setting, `layout`, in Setup's display tab and on the
+unlock gate's first start; and a clear button top right in both: the standard layout's shows Font
+Awesome's `terminal` icon and goes to the retro board, the board's (in the status line) shows
+`table-columns` and comes back. The icons' SVG paths are inlined (`ui/standard/icons.js`): no Font
+Awesome CSS, script or font, no new origin. Font Awesome Free icons are CC BY 4.0, Copyright 2026
+Fonticons, Inc. (fontawesome.com); Help's "About" says so too.
+
+The standard layout (`ui/standard/`, `styles/standard.css`): a header (app name, area, companion,
+Setup, Help, Log out, the switch), the node list with a live search over name and key (case and
+diacritics ignored, a hex prefix matches the key; the count shown, Esc clears; W-29g), and the
+selected node: its name and what it is, then tabs. Overview is four panels edge to edge with 1 px
+shared borders and no space between them or against the list and the top panel (W-29a): Status
+(state and reason, firmware, battery, uptime, Neighbours, Statistics), Location (the map), Send a
+command (the NODE tile's command line) and Recent results. Commands, History, Firmware and Settings
+are the screens the board opens as modals (send form, history, `node.js`'s firmware block, facts and
+edit form). Footer: command server, key, registration, Beacon status. On a phone the list and the
+node take the screen in turn. It has its own colours, `scheme` dark (the default) or light (W-29b,
+the setting and not the OS), and `colorblind` (W-29c, `html[data-colorblind]`): blue / yellow /
+orange that also differ in lightness, besides the shapes ● ▲ ✕ ○ every state has anyway. The retro
+board keeps its own `theme`.
+
+- **Map** (`ui/standard/map.js`, W-29d): MapLibre 6.16.0 (vendored) on the regional template's
+  basemap, OpenFreeMap's `dark` or `liberty` style by the scheme. The template has no tile proxy
+  of its own, so this is the one origin added. Attribution under the map. Markers are our own
+  buttons with the status shapes; Overview shows the node and its neighbours, with no node
+  selected the map frames the owner's nodes.
+- **Neighbours** (`#neighbours/<id>`, `ui/standard/neighbours.js`, W-29f): each neighbour's name and
+  key prefix, SNR last and average over the stored `neighbors` replies, RSSI (reported by neither
+  source, so it says so), when heard, direct (in the node's reply) or Beacon only, distance, and
+  Select for the owner's own node. Reading only.
+- **Log out** (W-29e): asks, then locks the key; the unlock gate takes over.
 
 ## The board, the modals and the keys
 
@@ -424,7 +463,11 @@ another one has installed; it switches only when the owner presses it. A copy wi
 
 `node web/test/smoke/run.mjs` opens the board and every modal (with sample arguments: a node id
 from the fixture, help topics, the unlock variants, every Setup tab) in headless Chrome, at 360 and
-1280 px, in all four themes, and the board alone at 390, 1100 and 1600 px. It fails on any console
+1280 px, in all four themes, and the board alone at 390, 1100 and 1600 px; the standard layout
+(W-29) in dark, light and colour-blind both ways at 360, 390, 1280 and 1600 px, every modal in front
+of it once; the unlock gate with no key and with a locked one (W-28b); the layout switch both ways
+and Log out (W-29e). It seeds a fake key and unlocks it in each page, with a WebSocket that reaches
+no broker, and answers the basemap's requests with a one-layer style, so it needs no network. It fails on any console
 error, uncaught page error, CSP violation, sideways page scroll, a board without the tiles that
 width shows, or a modal that did not open labelled by its heading. Then it checks the frame: old
 routes land where `legacyHash` says, `,` and `?` open Setup and Help, Back, Esc and the close
@@ -433,7 +476,10 @@ board still starts and says the offline copy failed; with the strings or `ui/app
 load the page shows the start error. A screenshot of each lands in a new directory under the
 system's temp dir (`--out DIR` to choose).
 
-`node web/test/smoke/filled.mjs [--shots]` draws the board with fake data (`test/smoke/fake.mjs`: an
+`node web/test/smoke/filled.mjs [--shots]` also draws the standard layout with the fake data in its
+four looks at 360, 390, 1280 and 1600 px (the list, a node, each tab at 1280, the Neighbours dialog,
+the live search; nothing sideways, cut off or overlapping, the Overview panels edge to edge), and
+draws the board with fake data (`test/smoke/fake.mjs`: an
 invented key stored locked, eight invented nodes, their history and Beacon answers; no broker, the
 WebSocket is a stub) in all four themes at 360, 390 and 412 px, landscape 740 x 360 and 1280 px, and
 checks what only a filled board shows: rows and buttons at least 44 px on a phone, nothing sideways,

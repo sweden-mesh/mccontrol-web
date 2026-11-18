@@ -65,6 +65,12 @@ export async function seedFake(page) {
         await stores.history.append({ at: iso((n.heard ?? 3) + 6), node: n.node, region: 'JKG', command: 'ver',
           topic: `meshcore/JKG/${n.node}/cmd`, road: 'mqtt', code: 0, codeName: 'ok', reply: `${n.fw || 'v1.18.0.4-lou-18'} (2026-11-16)`, verified: true });
       }
+      // One `neighbors` answer for the Neighbours dialog (W-29f): the nodes near it, SNR x 4.
+      if (n.i === 4) {
+        const near = nodes.filter((m) => m !== n && m.heard !== null && Math.abs(m.lat - n.lat) + Math.abs(m.lng - n.lng) < 0.16);
+        await stores.history.append({ at: iso(1), node: n.node, region: 'JKG', command: 'neighbors', topic: `meshcore/JKG/${n.node}/cmd`, road: 'mqtt',
+          code: 0, codeName: 'ok', reply: near.map((m, k) => `${m.key.slice(0, 8)}:${120 + k * 300}:${-20 + k * 9}`).join('\n'), verified: true });
+      }
       await stores.devices.update(n.node, changes);
     }
     await stores.groups.create('stan', nodes.slice(0, 3).map((n) => n.node));
@@ -113,6 +119,13 @@ export function fakeBeacon(path, now = Date.now()) {
       nodeTypeName: 'repeater', name: `Annan-${i + 1}`, lat: 57.6 + ((i * 37) % 30) / 100, lng: 13.95 + ((i * 53) % 45) / 100,
       neighborIds: [], iatas: ['JKG'] }));
     return { items: [...FAKE_NODES.filter((n) => n.heard !== null).map(item), ...others] };
+  }
+  const nb = url.pathname.match(/^\/nodes\/fake-(\d+)\/neighbors$/);
+  if (nb) {
+    const n = FAKE_NODES[Number(nb[1])];
+    return FAKE_NODES.filter((m) => m !== n && m.heard !== null && Math.abs(m.lat - n.lat) + Math.abs(m.lng - n.lng) < 0.16)
+      .map((m) => ({ id: m.beaconId, name: m.name, publicKey: m.key.toLowerCase(), nodeType: 2, lat: m.lat, lng: m.lng, iata: 'JKG',
+        observationCount: 40 + m.i, lastSeen: at(m.heard) }));
   }
   const obs = url.pathname.match(/^\/observers\/fake-obs-(\d+)(\/telemetry)?$/);
   if (obs) {

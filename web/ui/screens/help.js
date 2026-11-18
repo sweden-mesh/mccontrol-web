@@ -74,7 +74,12 @@ export function render(ctx) {
         h('p', {}, t('help.intro')),
         h('section', { 'aria-labelledby': 'contents-title', lang: 'en' },
           h('h2', { id: 'contents-title' }, index.title), textBlock(index.body, data)),
-        codesTable(ctx, data));
+        codesTable(ctx, data),
+        // What the page is made with, and the credits its licences ask for.
+        h('section', { 'aria-labelledby': 'about-title' },
+          h('h2', { id: 'about-title' }, t('help.about')),
+          h('p', {}, t('help.aboutBody')),
+          h('ul', {}, ['help.creditFa', 'help.creditMap', 'help.creditMapLibre', 'help.creditPlex', 'help.creditNe'].map((k) => h('li', {}, t(k))))));
     }
     document.title = `${heading.textContent} · mccontrol`;
   }).catch((ex) => body.replaceChildren(h('p', { class: 'err' }, ex.message)));

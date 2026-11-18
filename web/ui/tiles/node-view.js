@@ -199,7 +199,7 @@ export function roadSwitch(ctx, nodeId) {
 // The checks are the field's state and description: a command that cannot go (or stops before
 // its value) tints the field and disables Send; a caution or a refusal to come marks its border;
 // the reason is the field's description and its tooltip (W-23h).
-function commandLine(ctx, svc, nodeId) {
+export function commandLine(ctx, svc, nodeId) {
   const list = commandList(svc);
   const checkId = `cl-check-${nodeId}`;
   const input = h('input', { type: 'text', list: list.id, class: 'cmd', autocomplete: 'off', autocapitalize: 'none',

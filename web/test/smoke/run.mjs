@@ -32,7 +32,16 @@ const HERE = fileURLToPath(new URL('.', import.meta.url));
 const WIDTHS = [360, 1280];
 // The board alone is also drawn at the grid's other widths.
 const BOARD_WIDTHS = [390, 1100, 1600];
-const LOOKS = { amber: {}, green: { 'mccontrol.theme': 'green' }, dark: { 'mccontrol.theme': 'dark' }, light: { 'mccontrol.theme': 'light' } };
+// The retro board in its four themes, and the standard layout (W-29, the default) dark, light and
+// colour-blind in both (W-29b, W-29c).
+const RETRO = { 'mccontrol.layout': 'retro' };
+const LOOKS = { amber: RETRO, green: { ...RETRO, 'mccontrol.theme': 'green' }, dark: { ...RETRO, 'mccontrol.theme': 'dark' }, light: { ...RETRO, 'mccontrol.theme': 'light' },
+  'std-dark': {}, 'std-light': { 'mccontrol.scheme': 'light' }, 'std-dark-cb': { 'mccontrol.colorblind': 'on' },
+  'std-light-cb': { 'mccontrol.scheme': 'light', 'mccontrol.colorblind': 'on' } };
+const STD_WIDTHS = [360, 390, 1280, 1600];
+// The basemap (W-29d) answered here, so the smoke needs no network: a style with one background.
+const BASEMAP = 'https://tiles.openfreemap.org/';
+const STUB_STYLE = JSON.stringify({ version: 8, sources: {}, layers: [{ id: 'bg', type: 'background', paint: { 'background-color': '#8aa' } }] });
 // Modals that take an argument are also opened with one: a node id from the fixture.
 const SAMPLE_ARGS = { node: ['13B58595'], nodeinfo: ['13B58595'], result: ['none'], stats: ['13B58595'], help: ['signing', 'codes'], unlock: ['replace', 'to/nodes'],
   setup: ['key', 'node', 'area', 'groups', 'sets', 'warnings', 'display', 'settings'], run: ['cmd/-', 'set/-'] };
@@ -130,7 +139,7 @@ async function main() {
   let shots = 0;
   const report = (where, problems) => {
     for (const p of problems) failures.push(`${where}: ${p}`);
-    console.log(`${problems.length ? 'FAIL' : 'ok  '} ${where}`);
+    console.log(`${problems.length ? 'FAIL' : 'ok  '} ${where}${problems.length ? `\n       ${problems.join('\n       ')}` : ''}`);
   };
 
   // A page with the look's storage, the CSP watch, Beacon from the fixture and the problems
@@ -140,6 +149,8 @@ async function main() {
     const page = await browser.newPage();
     await page.setViewport({ width, height: 800 });
     await page.evaluateOnNewDocument((items) => {
+      // The pages share one origin's storage: each look starts from its own settings only.
+      for (const k of ['theme', 'layout', 'scheme', 'colorblind']) localStorage.removeItem(`mccontrol.${k}`);
       for (const [k, v] of Object.entries(items)) localStorage.setItem(k, v);
       addEventListener('securitypolicyviolation', (e) => {
         console.error(`CSP violation: ${e.violatedDirective} blocked ${e.blockedURI || 'inline'}`);
@@ -158,6 +169,7 @@ async function main() {
       const url = r.url();
       const own = Object.keys(routes).find((suffix) => new URL(url).pathname.endsWith(suffix));
       if (own) { r.respond(routes[own]); return; }
+      if (url.startsWith(BASEMAP)) { r.respond({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: STUB_STYLE }); return; }
       if (o.live || !url.startsWith(beacon)) { r.continue(); return; }
       if (r.method() === 'OPTIONS') { r.respond({ status: 204, headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET', 'Access-Control-Allow-Headers': 'Accept' } }); return; }
       const body = answers[url.slice(beacon.length)];
@@ -176,6 +188,10 @@ async function main() {
     started: document.documentElement.hasAttribute('data-started'),
     failed: document.documentElement.hasAttribute('data-start-failed'),
     theme: document.documentElement.dataset.theme,
+    layout: document.documentElement.dataset.layout,
+    scheme: document.documentElement.dataset.scheme,
+    cb: document.documentElement.hasAttribute('data-colorblind'),
+    std: [...document.querySelectorAll('.std-aside, .std-main, .std-head, .std-foot')].filter((e) => e.checkVisibility()).map((e) => e.className.split(' ')[0]),
     modal: document.getElementById('modal')?.open ? document.getElementById('modal').dataset.modal : null,
     modalHeading: document.querySelector('#modal[open] :is(h1, h2)')?.textContent || '',
     labelled: Boolean(document.getElementById(document.getElementById('modal')?.getAttribute('aria-labelledby') || '-')),
@@ -218,7 +234,7 @@ async function main() {
         await page.keyboard.press('Escape');
         await new Promise((ok) => setTimeout(ok, 300));
         if ((await state(page)).modal !== 'unlock') problems.push('Esc left the gate');
-        await page.click('#modal .unlock-help a');
+        await page.click('#modal .modal-help');
         await new Promise((ok) => setTimeout(ok, 300));
         if ((await state(page)).modal !== 'help') problems.push('Help is not reachable from the gate');
         await page.keyboard.press('Escape');
@@ -242,9 +258,11 @@ async function main() {
     if (o.only) hashes = hashes.filter((x) => o.only.some((y) => x === y || x.startsWith(`${y}/`) || (y === 'board' && x === '')));
 
     for (const [look, storage] of Object.entries(LOOKS)) {
-      const widths = [...WIDTHS, ...(look === 'amber' ? BOARD_WIDTHS : [])];
+      const std = look.startsWith('std');
+      // The standard layout: every modal in front of it once (std-dark), the layout alone at four widths in each look.
+      const widths = std ? STD_WIDTHS : [...WIDTHS, ...(look === 'amber' ? BOARD_WIDTHS : [])];
       for (const width of widths) {
-        for (const hash of (WIDTHS.includes(width) ? hashes : [''])) {
+        for (const hash of ((std ? look === 'std-dark' && WIDTHS.includes(width) : WIDTHS.includes(width)) ? hashes : [''])) {
           const where = `${look} ${width}px #${hash}`;
           const { page, problems } = await open(storage, width);
           try {
@@ -252,11 +270,17 @@ async function main() {
             await ready(page);
             const s = await state(page);
             if (!s.started) problems.push(`did not start: ${s.error}`);
-            if (s.theme !== look) problems.push(`theme ${s.theme}`);
+            if (std) {
+              const scheme = look.includes('light') ? 'light' : 'dark';
+              if (s.layout !== 'standard' || s.scheme !== scheme || s.cb !== look.endsWith('-cb')) problems.push(`layout ${s.layout}, scheme ${s.scheme}, colour-blind ${s.cb}`);
+            } else if (s.theme !== look || s.layout !== 'retro') problems.push(`theme ${s.theme}, layout ${s.layout}`);
             if (s.overflow > 0) problems.push(`page scrolls sideways by ${s.overflow}px`);
             if (!s.boardH1) problems.push('no <h1> on the board');
-            const expectTiles = width < 720 ? ['nodes', 'status', 'map', 'results'] : ['nodes', 'node', 'status', 'map', 'results'];
+            const expectTiles = std ? [] : width < 720 ? ['nodes', 'status', 'map', 'results'] : ['nodes', 'node', 'status', 'map', 'results'];
             if (s.tiles.sort().join() !== expectTiles.sort().join()) problems.push(`tiles shown: ${s.tiles.join(', ')}`);
+            // The standard layout: header, list and footer; the detail beside the list from 45em.
+            const expectStd = !std ? [] : width < 720 ? ['std-aside', 'std-foot', 'std-head'] : ['std-aside', 'std-foot', 'std-head', 'std-main'];
+            if (s.std.sort().join() !== expectStd.join()) problems.push(`standard parts shown: ${s.std.join(', ')}`);
             // Unlocked past the gate, '#unlock' goes on to the board and '#unlock/to/nodes' to nodes.
             const lands = { unlock: '', 'unlock/to/nodes': 'nodes' }[hash] ?? hash;
             if (lands === '') {
@@ -280,7 +304,7 @@ async function main() {
     // The frame: old routes, Back, Esc, the keys.
     for (const width of WIDTHS) {
       for (const [from, to] of Object.entries(LEGACY)) {
-        const { page, problems } = await open({}, width);
+        const { page, problems } = await open(RETRO, width);
         try {
           await page.goto(`${origin}/${from}`, { waitUntil: 'networkidle0', timeout: 20000 });
           await ready(page);
@@ -291,7 +315,7 @@ async function main() {
         } catch (err) { problems.push(`load: ${err.message}`); } finally { await page.close(); }
         report(`old route ${width}px ${from}`, problems);
       }
-      const { page, problems } = await open({}, width);
+      const { page, problems } = await open(RETRO, width);
       try {
         await page.goto(`${origin}/`, { waitUntil: 'networkidle0', timeout: 20000 });
         await ready(page);
@@ -324,10 +348,35 @@ async function main() {
       report(`frame ${width}px: keys, Back, Esc, close`, problems);
     }
 
+    // The layout switch, top right in both (W-29): standard -> retro board -> standard, and the
+    // standard layout's Log out asks first, then locks (W-29e).
+    for (const width of [390, 1280]) {
+      const { page, problems } = await open({}, width);
+      try {
+        await page.goto(`${origin}/`, { waitUntil: 'networkidle0', timeout: 20000 });
+        await ready(page);
+        const pause = () => new Promise((ok) => setTimeout(ok, 500));
+        await page.click('.std-head .layout-switch'); await pause();
+        let s = await state(page);
+        if (s.layout !== 'retro' || !s.tiles.length) problems.push(`to the retro board: layout ${s.layout}, tiles ${s.tiles.join(',')}`);
+        await page.click('#statusline .layout-switch'); await pause();
+        s = await state(page);
+        if (s.layout !== 'standard' || !s.std.includes('std-aside')) problems.push(`back to standard: layout ${s.layout}, parts ${s.std.join(',')}`);
+        await page.evaluate(() => [...document.querySelectorAll('.std-head button')].find((b) => /Logga ut|Log out/.test(b.textContent)).click()); await pause();
+        if (!(await page.$('dialog.dlg[open]'))) problems.push('Log out did not ask first');
+        if ((await state(page)).gate) problems.push('Log out locked before it was confirmed');
+        await shot(page, `logout-confirm-${width}`);
+        await page.evaluate(() => document.querySelector('dialog.dlg[open] .button, dialog.dlg[open] .button-danger')?.click()); await pause();
+        s = await state(page);
+        if (!s.gate || s.modal !== 'unlock') problems.push(`after Log out: gate ${s.gate}, modal ${s.modal}`);
+      } catch (err) { problems.push(err.message); } finally { await page.close(); }
+      report(`the layout switch and Log out ${width}px`, problems);
+    }
+
     // W-20k: a browser that refuses the Trusted Types policy still starts. version.json is
     // stamped so the app tries to register the offline copy, which is what needs the policy.
     {
-      const { page, problems } = await open({}, 1280, {
+      const { page, problems } = await open(RETRO, 1280, {
         routes: { '/version.json': { status: 200, contentType: 'application/json', body: '{"version":"smoke"}' } },
         before: () => {
           if (globalThis.trustedTypes) trustedTypes.createPolicy = () => { throw new TypeError('Policy refused (smoke)'); };

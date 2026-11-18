@@ -30,6 +30,7 @@ import {
   isModal, openModal, closeModal, currentModal, routeModal, useFrame, relabelFrame, onModalChange,
 } from './modal.js';
 import { drawBoard, drawStatusLine, drawKeyBar } from './board.js';
+import { drawStandard, layoutSwitch } from './standard/index.js';
 import { setStatusItem, statusItems, onStatusChange } from './statusline.js';
 import { bindKey, handleKey, onKeysChange } from './keys.js';
 import { startAutomation } from './automation.js';
@@ -182,8 +183,22 @@ async function start() {
     bindShellKeys();
     drawKeyBar($('keys'), t);
     drawFooter();
-    drawBoard(main, base());
+    drawLayout();
     if (currentModal()) route({ force: true });
+  };
+
+  // The standard layout (W-29, the default) or the retro board; the switch is top right in both.
+  let layout = null;
+  let drawnScheme = currentPrefs().scheme;
+  const drawLayout = () => {
+    layout = currentPrefs().layout;
+    $('statusline').querySelector('.layout-switch')?.remove();
+    if (layout === 'retro') {
+      $('statusline').append(layoutSwitch(base(), 'standard'));
+      drawBoard(main, base());
+    } else {
+      drawStandard(main, base());
+    }
   };
 
   migratePrefs();
@@ -223,7 +238,12 @@ async function start() {
     if (was === gated()) return;
     if (gated() || currentModal()?.name !== 'unlock') route({ force: true });
   });
-  onPrefsChange((prefs) => { if (languageFor(prefs) !== lang) relabel(); });
+  onPrefsChange((prefs) => {
+    if (languageFor(prefs) !== lang) relabel();
+    // The map follows the standard layout's colours; the rest follows the tokens by itself.
+    else if (prefs.layout !== layout || (layout === 'standard' && prefs.scheme !== drawnScheme)) drawLayout();
+    drawnScheme = prefs.scheme;
+  });
 
   version = await readVersion();
   drawFooter();

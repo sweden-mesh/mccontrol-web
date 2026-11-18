@@ -18,6 +18,11 @@ import { seedFake, fakeBeacon, noBroker, renameLong, companionLong, unlockFake, 
 
 const HERE = fileURLToPath(new URL('.', import.meta.url));
 const LOOKS = ['amber', 'green', 'dark', 'light'];
+// The standard layout (W-29): dark and light, each also colour-blind, at these widths.
+const STD_LOOKS = { 'std-dark': {}, 'std-light': { scheme: 'light' }, 'std-dark-cb': { colorblind: 'on' }, 'std-light-cb': { scheme: 'light', colorblind: 'on' } };
+const STD_WIDTHS = [[360, 780], [390, 844], [1280, 800], [1600, 900]];
+const BASEMAP = 'https://tiles.openfreemap.org/';
+const STUB_STYLE = JSON.stringify({ version: 8, sources: {}, layers: [{ id: 'bg', type: 'background', paint: { 'background-color': '#8aa' } }] });
 const PHONES = [[360, 780], [390, 844], [412, 915]];
 // The long-values pass (beta.3: "failed" over "Connect by USB" in STATUS): every tile at these.
 const LONG_WIDTHS = [[1100, 800], [1280, 800], [1600, 900], [360, 780]];
@@ -42,7 +47,7 @@ const inspect = () => {
   const dialog = document.querySelector('#modal[open]');
   const scope = dialog || document;
   if (phone) {
-    for (const el of scope.querySelectorAll('.node-row, .result-row, .key-button, .modal-close, .tabs a, .status-row button, .status-row a')) {
+    for (const el of scope.querySelectorAll('.node-row, .result-row, .key-button, .modal-close, .tabs a, .status-row button, .status-row a, .std-row, .std-tab, .std-head button, .std .seg-option')) {
       const r = el.getBoundingClientRect();
       if (r.width && r.height && r.height < 43.5) out.push(`${el.className || el.tagName} "${el.textContent.trim().slice(0, 20)}" is ${Math.round(r.height)}px tall`);
     }
@@ -221,21 +226,22 @@ async function main() {
   };
 
   // One browser context per look: its own IndexedDB, seeded once.
-  const context = async (look) => {
+  const context = async (look, prefs = { layout: 'retro', theme: look }) => {
     const ctx = await browser.createBrowserContext();
     const page = await ctx.newPage();
     await page.evaluateOnNewDocument(noBroker);
-    await page.evaluateOnNewDocument((theme) => {
-      localStorage.setItem('mccontrol.theme', theme);
+    await page.evaluateOnNewDocument((items) => {
+      for (const [k, v] of Object.entries(items)) localStorage.setItem(`mccontrol.${k}`, v);
       localStorage.setItem('mccontrol.lang', 'sv');
-      addEventListener('securitypolicyviolation', (e) => console.error(`CSP violation: ${e.violatedDirective}`));
-    }, look);
+      addEventListener('securitypolicyviolation', (e) => console.error(`CSP violation: ${e.violatedDirective} ${e.blockedURI}`));
+    }, prefs);
     const problems = [];
     page.on('console', (m) => { if (m.type() === 'error') problems.push(`console: ${m.text()}`); });
     page.on('pageerror', (e) => problems.push(`page error: ${e.message}`));
     await page.setRequestInterception(true);
     page.on('request', (r) => {
       const url = r.url();
+      if (url.startsWith(BASEMAP)) { r.respond({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: STUB_STYLE }); return; }
       if (url.startsWith('https://api.github.com')) { r.respond({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: '[]' }); return; }
       if (!url.startsWith(beacon)) { r.continue(); return; }
       if (r.method() === 'OPTIONS') { r.respond({ status: 204, headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET', 'Access-Control-Allow-Headers': 'Accept' } }); return; }
@@ -258,6 +264,82 @@ async function main() {
   const sample = FAKE_NODES[4].node;
 
   try {
+    // The standard layout (W-29): the list, a node's tabs, the Neighbours dialog; every look at
+    // every width; nothing sideways, cut off or on top of another control, no CSP violation.
+    for (const [look, prefs] of Object.entries(STD_LOOKS)) {
+      const { ctx, page, problems } = await context(look, prefs);
+      for (const [w, hh] of STD_WIDTHS) {
+        problems.length = 0;
+        const where = `${look} ${w}x${hh}`;
+        try {
+          await go(page, '', w, hh);
+          const seen = await page.evaluate(inspect);
+          const rows = await page.evaluate(() => document.querySelectorAll('.std-row').length);
+          if (rows !== 8) seen.push(`${rows} rows in the list`);
+          await shot(page, `${look}-${w}x${hh}-list`, w < 720);
+          await page.click('.std-row'); await wait(1200);
+          seen.push(...(await page.evaluate(inspect)).map((p) => `node: ${p}`));
+          const panels = await page.evaluate(() => [...document.querySelectorAll('.std-panel')].filter((e) => e.checkVisibility()).length);
+          if (panels !== 4) seen.push(`${panels} overview panels`);
+          // Edge to edge (W-29a): the panels touch each other, the list and the top panel; 1 px apart at most.
+          const gaps = await page.evaluate(() => {
+            const out = [];
+            const top = document.querySelector('.std-top')?.getBoundingClientRect();
+            const ps = [...document.querySelectorAll('.std-panel')].map((e) => e.getBoundingClientRect());
+            const aside = document.querySelector('.std-aside')?.getBoundingClientRect();
+            if (top && ps[0] && Math.abs(ps[0].top - top.bottom) > 1.5) out.push(`a ${Math.round(ps[0].top - top.bottom)}px gap under the top panel`);
+            if (innerWidth >= 720 && aside && ps[0] && Math.abs(ps[0].left - aside.right) > 1.5) out.push(`a ${Math.round(ps[0].left - aside.right)}px gap beside the list`);
+            for (let i = 1; i < ps.length; i += 1) {
+              const a = ps[i - 1]; const b = ps[i];
+              const d = Math.abs(b.top - a.top) < 1 ? b.left - a.right : b.top - Math.max(...ps.slice(0, i).filter((p) => p.left <= b.left + 1 && p.right >= b.left - 1).map((p) => p.bottom));
+              if (d > 1.5) out.push(`a ${Math.round(d)}px gap between panels ${i} and ${i + 1}`);
+            }
+            return out;
+          });
+          seen.push(...gaps);
+          await shot(page, `${look}-${w}x${hh}-node`, w < 720);
+          if (w === 1280) {
+            for (const tab of ['commands', 'history', 'firmware', 'settings']) {
+              await page.click(`#std-tab-${tab}`); await wait(800);
+              seen.push(...(await page.evaluate(inspect)).map((p) => `${tab}: ${p}`));
+              await shot(page, `${look}-1280-tab-${tab}`);
+            }
+          }
+          if (look === 'std-dark' || look === 'std-light-cb') {
+            await go(page, `neighbours/${sample}`, w, hh);
+            const sheet = await page.evaluate(() => { const d = document.querySelector('#modal[open]');
+              return d ? { name: d.dataset.modal, rows: d.querySelectorAll('tbody tr').length, labelled: Boolean(document.getElementById(d.getAttribute('aria-labelledby') || '-')) } : null; });
+            if (sheet?.name !== 'neighbours' || !sheet.labelled) seen.push(`neighbours: ${JSON.stringify(sheet)}`);
+            else if (!sheet.rows) seen.push('neighbours: no rows');
+            seen.push(...(await page.evaluate(inspect)).map((p) => `neighbours: ${p}`));
+            await shot(page, `${look}-${w}x${hh}-neighbours`);
+          }
+          report(where, [...new Set([...problems, ...seen])]);
+        } catch (err) { report(where, [err.message]); }
+      }
+      // The live search (W-29g): a name without its diacritics, a key prefix, the count, Esc.
+      if (look === 'std-dark') {
+        problems.length = 0;
+        const seen = [];
+        try {
+          await go(page, '', 1280, 800);
+          const count = () => page.evaluate(() => ({ rows: document.querySelectorAll('.std-row').length, text: document.querySelector('.std-count').textContent }));
+          await page.type('.std-search', 'lovasen'); await wait();
+          let c = await count();
+          if (c.rows !== 1 || !/1/.test(c.text)) seen.push(`"lovasen": ${JSON.stringify(c)}`);
+          await page.$eval('.std-search', (i) => { i.value = ''; });
+          await page.type('.std-search', FAKE_NODES[3].key.slice(0, 6).toLowerCase()); await wait();
+          c = await count();
+          if (c.rows !== 1) seen.push(`a key prefix: ${JSON.stringify(c)}`);
+          await page.keyboard.press('Escape'); await wait();
+          c = await count();
+          if (c.rows !== 8) seen.push(`Esc: ${JSON.stringify(c)}`);
+        } catch (err) { seen.push(err.message); }
+        report('std-dark the live search', [...problems, ...seen]);
+      }
+      await ctx.close();
+    }
+
     for (const look of LOOKS) {
       const { ctx, page, problems } = await context(look);
       const views = [...PHONES.map(([w, hh]) => [w, hh, '']), ...PHONES.map(([w, hh]) => [w, hh, `node/${sample}`]),
