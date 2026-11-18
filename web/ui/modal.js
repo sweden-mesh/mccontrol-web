@@ -11,6 +11,8 @@
 //       render    fn(ctx) -> one element. Its first heading names the dialog (aria-labelledby).
 //       closedby  'any' (a click outside closes it too: help, a result) or 'closerequest'
 //                 (the default: Esc and Back only, for anything with a form)
+//       barTitle  true: the content's first heading moves into the title bar (W-32: Unlock)
+//       barHelp   true: a "?" button at the right of the title bar opens Help (W-32)
 //   openModal(name, ...args)    go to "#name/args": the modal opens, Back closes it
 //   closeModal()                close the open modal and go back to the board
 //   currentModal()              { name, args } or null
@@ -75,14 +77,15 @@ export function closeModal() {
 export function useFrame(dialog, { ctxFor, closeLabel }) {
   const closeButton = h('button', { type: 'button', class: 'tool modal-close' }, closeLabel);
   const body = h('div', { class: 'modal-body' });
-  dialog.replaceChildren(h('div', { class: 'modal-bar' }, closeButton), body);
+  const bar = h('div', { class: 'modal-bar' }, closeButton);
+  dialog.replaceChildren(bar, body);
   closeButton.addEventListener('click', () => dialog.close());
   // Esc, Back on a phone, a click outside (closedby="any") or the close button: the user closed it.
   dialog.addEventListener('close', () => {
     if (internalClose) { internalClose = false; return; }
     closeModal();
   });
-  frame = { dialog, body, closeButton, ctxFor };
+  frame = { dialog, body, bar, closeButton, ctxFor };
 }
 
 export function relabelFrame(closeLabel) {
@@ -133,6 +136,11 @@ export function routeModal(target, { force = false } = {}) {
   const content = def.render(ctx);
   frame.body.replaceChildren(content);
   const heading = frame.body.querySelector('h1, h2');
+  // The title bar: the heading (barTitle), a "?" for Help (barHelp), the close button (W-32).
+  const help = def.barHelp ? h('button', { type: 'button', class: 'tool modal-help', 'aria-label': ctx.t('nav.help'), title: ctx.t('nav.help') }, '?') : null;
+  help?.addEventListener('click', () => { location.hash = '#help'; });
+  heading?.classList.toggle('modal-bar-title', Boolean(def.barTitle));
+  frame.bar.replaceChildren(...[def.barTitle ? heading : null, help, frame.closeButton].filter(Boolean));
   if (heading) {
     heading.id ||= `modal-title-${name}`;
     frame.dialog.setAttribute('aria-labelledby', heading.id);

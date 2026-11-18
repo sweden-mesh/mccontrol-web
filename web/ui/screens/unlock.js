@@ -8,6 +8,7 @@
 import { h } from '../dom.js';
 import { errorLine, passField, showPassphrases, useStyles } from './key-kit.js';
 import { keyring, keyStatus, onKeyStatus } from './key-session.js';
+import { layoutChoice } from '../appearance.js';
 
 export const route = 'unlock';
 export const title = 'nav.unlock';
@@ -61,9 +62,8 @@ export function render(ctx) {
   const target = unlockTarget(ctx.args);
   const heading = h('h1', { id: 'unlock-title' });
   const body = h('div', { class: 'key-flow' });
-  // Help is reachable from the unlock gate (W-28b), which nothing else is.
-  const section = h('section', { 'aria-labelledby': 'unlock-title', class: 'scr key-screen' }, heading, body,
-    h('p', { class: 'muted unlock-help' }, h('a', { href: '#help' }, t('nav.help'))));
+  // Help is reachable from the unlock gate (W-28b) as the "?" in the title bar (W-32, modal.js).
+  const section = h('section', { 'aria-labelledby': 'unlock-title', class: 'scr key-screen' }, heading, body);
 
   const ring = keyring();
   if (!ring) {
@@ -80,7 +80,8 @@ export function render(ctx) {
   // gate showed this step): the page goes on, to what was asked for before the gate (app.js).
   let step = null;
   let left = false;
-  const unlocked = () => { if (left) return; left = true; ctx.navigate(target.next || ''); };
+  // After the page's own key listeners (the gate) have run, so the gate is already open.
+  const unlocked = () => { if (left) return; left = true; queueMicrotask(() => ctx.navigate(target.next || '')); };
   const off = onKeyStatus((st) => { if (step === 'unlock' && st.exists && !st.locked) unlocked(); });
   ctx.signal.addEventListener('abort', off, { once: true });
 
@@ -109,6 +110,8 @@ export function render(ctx) {
     return [
       target.replace ? h('p', { class: 'warn-text' }, t('unlock.replaceWarn')) : null,
       h('p', {}, t('unlock.intro')),
+      // The first start: the layout, standard unless chosen (W-29, W-29h); Setup has it too.
+      target.replace ? null : layoutChoice({ t }),
       h('div', { class: 'choice-row' }, makeBtn, importBtn),
       forms,
     ].filter(Boolean);
@@ -211,12 +214,16 @@ export function render(ctx) {
 
   function unlockStep() {
     const status = keyStatus();
-    const pass = passField(t, { label: t('unlock.pass'), autocomplete: 'current-password', name: 'passphrase' });
+    // W-32: the Unlock button to the right of the field (below it on a phone), then Show
+    // passphrase, then "Forgot the passphrase?".
+    const pass = passField(t, { label: t('unlock.pass'), autocomplete: 'current-password', name: 'passphrase', toggle: false });
     const err = errorLine();
     const submit = h('button', { type: 'submit', class: 'button' }, t('unlock.unlock'));
+    const line = h('div', { class: 'unlock-line row' }, pass.input, submit);
+    pass.el.append(line);
     const form = h('form', { class: 'stack', 'aria-label': t('unlock.unlock'), novalidate: true },
       h('p', {}, t('unlock.locked')),
-      pass.el, h('div', { class: 'row wrap' }, submit), err);
+      pass.el, showPassphrases(t, [pass]), err);
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       if (!pass.input.value) { err.textContent = t('unlock.problem.empty'); pass.input.focus(); return; }
@@ -224,7 +231,7 @@ export function render(ctx) {
       err.textContent = '';
       try {
         await ring.unlock(pass.input.value);
-        unlocked();
+        if (!keyStatus().locked) unlocked();   // else the onKeyStatus listener does, once the status arrives
       } catch {
         err.textContent = t('unlock.wrong');
         pass.input.select();
@@ -239,12 +246,12 @@ export function render(ctx) {
         err.textContent = '';
         try {
           await ring.unlockWithFingerprint();
-          unlocked();
+          if (!keyStatus().locked) unlocked();
         } catch {
           err.textContent = t('unlock.fingerprintFailed');
         } finally { busy(fp, false); }
       });
-      form.querySelector('.row').append(fp);
+      line.append(fp);
     }
     out.push(h('details', { class: 'block' },
       h('summary', {}, t('unlock.forgot')),
