@@ -211,8 +211,8 @@ the `.alert` class (inverse in Amber and Green).
   view full screen; beta.2's node screen (firmware update, name, region, forget) is `#nodeinfo/<id>`.
 - **HISTORY** (`results.js`, RESULTS until W-25d): the selected node's answers, refusals and silences,
   new ones first, kept new until opened or marked seen (meta `resultsSeen` per key); with no node
-  selected every node's, the title saying "all nodes". How many are new shows per node in NODES
-  ("2 new" ahead of the reason), not in the title. Running jobs as bars; the `result` modal shows one.
+  selected every node's, the title saying "all nodes". How many are new shows in NODE
+  ("2 new" first on its meta line, a link to the node's history; W-26g, NODES until then), not in the title. Running jobs as bars; the `result` modal shows one.
 - **STATUS** (`status.js`): broker (Test), key (Lock), registration, companion (the word opens the
   chooser, `companionChooser` in `ui/screens/road-kit.js`, W-23a), status
   refresh and discovery, each with its action; sets the status line's `broker`.

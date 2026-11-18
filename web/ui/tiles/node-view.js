@@ -27,7 +27,7 @@ import { whyText } from '../screens/send.js';
 import { tagged as taggedIds, onBoardChange, clearTags } from '../board-state.js';
 import { age, s } from './kit.js';
 import { GLYPH } from '../statusline.js';
-import { hourly, known, nodeStatus, sparkRuns } from './data.js';
+import { hourly, known, newCounts, nodeStatus, sparkRuns } from './data.js';
 import { dataChanged, onDataChanged, reportBroker, startJob } from './sources.js';
 
 const TELEMETRY_MAX_AGE = 15 * 60000;
@@ -114,10 +114,13 @@ export function nodeView(ctx, svc, nodeId, { heading = null } = {}) {
     }
     heading?.(device);
     line.use(device);
-    const events = await svc.stores.history.list({ node: device.node, limit: 60 });
+    const [events, seen] = await Promise.all([svc.stores.history.list({ node: device.node, limit: 60 }), svc.stores.meta.get('resultsSeen')]);
+    if (ctx.signal.aborted) return;
     const heard = lastHeard(device);
+    // The node's results not yet seen in HISTORY (W-26g: moved here from NODES).
+    const fresh = newCounts(events, seen)[device.node] || 0;
     // Each part keeps its dot at its end, so a wrapped line never starts with one.
-    const meta = [device.region, device.ver ? shortVersion(svc.rules, device.ver) : ctx.t('nodes.verUnknown'),
+    const meta = [...(fresh ? [h('a', { class: 'node-new', href: `#history/${device.node}` }, ctx.t('tile.newCount', { n: fresh }))] : []), device.region, device.ver ? shortVersion(svc.rules, device.ver) : ctx.t('nodes.verUnknown'),
       [`${ctx.t('tile.heard')} `, heard ? age(ctx, heard) : ctx.t('nodes.heardUnknown')],
       device.key && svc.rules.speaksV2(device.ver) ? ctx.t('tile.v2') : ctx.t('tile.v1')];
     // Why it needs attention, whole: NODES cuts it to fit its row (W-23d).

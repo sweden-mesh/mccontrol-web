@@ -52,7 +52,7 @@
 .node-name { font-weight: 600; }
 .node-heard { text-align: end; }
 .node-why { font-size: .9em; }
-/* "2 new" results for the node (W-25d), ahead of its reason. */
+/* NODE's "2 new" results for the node (W-26g), first on its meta line. */
 .node-new { font-weight: 600; }
 /* The row tinted by severity: refused or forged stronger than "needs attention". Glyph and words
    still carry it, so the tint is never the only sign. */

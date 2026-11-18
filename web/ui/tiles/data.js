@@ -5,7 +5,7 @@
 //   byAttention(rows, lang)       sort: refused/forged, then needs attention, unknown, ok; then name
 //   matches(device, query)        the NODES search
 //   isSeen(event, seen), markSeen(seen, ids), markAllSeen(events)   HISTORY: kept until seen
-//   historyFor(events, node), newCounts(events, seen)              HISTORY's view, NODES' new counts
+//   historyFor(events, node), newCounts(events, seen)              HISTORY's view, NODE's new count
 //   sparkPoints(values, w, h)     a sparkline's SVG points ('' when fewer than 2 known values)
 //   hourly(points, key, now)      24 hourly values of a telemetry field (null where unknown)
 //   frame(points, pad), fit(frame, aspect), project(frame, w), outlinePaths(geo, frame, proj)   the MAP
