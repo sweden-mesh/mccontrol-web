@@ -19,7 +19,7 @@ const NODE = V.node_key.slice(0, 8);
 const config = { ...configFor(data('brokers'), 'jkg'), wait_secs: 2 };
 
 // The node: checks the outer signature, answers v1 as r2 (signed) and v2 as r3 (sealed).
-function nodeBroker({ answer = true, refuse = null, extra = [] } = {}) {
+function nodeBroker({ answer = true, refuse = null, refuseV2 = null, extra = [] } = {}) {
   return createFakeBroker({
     chunk: 'merge',
     onPublish(broker, p) {
@@ -36,6 +36,11 @@ function nodeBroker({ answer = true, refuse = null, extra = [] } = {}) {
       const [tag, counter, expiry, body] = text.slice(0, split).split('|');
       const res = p.topic.replace(/cmd$/, 'res').replace(/\/all\//, `/${V.node_key}/`);
       for (const line of extra) broker.publish(line[0], line[1]);
+      if (tag === 'v2' && refuseV2 !== null) {        // refused: a node-signed r2, the command field empty (OTM-8)
+        const line = `r2|${counter}|${refuseV2}||`;
+        broker.publish(res, `${line}|${toHex(node.sign(signedMessage(res, line)), true)}`);
+        return;
+      }
       if (tag === 'v2') {
         const key = v2Key(node, owner.publicKeyHex, p.topic);
         const command = fromUtf8(openSealed(key, DIR_COMMAND, Number(counter), utf8(`v2|${counter}|${expiry}`), unb64url(body)))
@@ -97,6 +102,19 @@ test('send v2: sealed both ways, opened with the same key', async () => {
   assert.match(payload, /^v2\|/);
   assert.equal(answers[NODE].reply, '> sealed ver');
   assert.equal(answers[NODE].verified, true);
+});
+
+test('send v2 refused: the node-signed r2 with no command is verified and names the command sent (OTM-8)', async () => {
+  const broker = nodeBroker({ refuseV2: 9 });
+  const topic = commandTopic('JKG', NODE, V.node_key);
+  const { answers } = await send({
+    config, handle: owner, topic, command: 'get name', nodesToHear: [NODE], v2Key: V.node_key, keys: { [NODE]: V.node_key },
+    waitSecs: 2, connect: connectVia(broker),
+  });
+  assert.equal(answers[NODE].verified, true);
+  assert.equal(answers[NODE].code, 9);
+  assert.equal(answers[NODE].command, 'get name');
+  assert.equal(answers[NODE].ok, false);
 });
 
 test('send: silence is silence, another region and an old counter are not answers', async () => {

@@ -127,16 +127,17 @@ html[data-layout="standard"] body { padding: 0; }
 .std-screen h2 { font-size: 1rem; margin: 1.25rem 0 .5rem; }
 .std-screen h2:first-child { margin-top: 0; }
 
-/* Overview's four panels: edge to edge, 1 px shared borders (the grid's gap over --line), no
-   space between them or against the list and the top panel (operator, W-29a). */
+/* Overview's four panels: edge to edge, 1 px shared borders (the gap over --line), no space
+   between them or against the list and the top panel (operator, W-29a). Status and Location share
+   a row and grow to fill it at any width, one under the other below 22rem each (W-35a: a grid's
+   auto-fit kept empty columns beside them, since the full-width panels span every track). */
 .std-panels {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); gap: 1px;
+  display: flex; flex-wrap: wrap; gap: 1px;
   background: var(--line); border-bottom: 1px solid var(--line);
 }
-.std-panels-one { grid-template-columns: 1fr; }
-.std-panel { background: var(--bg); padding: 14px 20px; min-width: 0; }
+.std-panel { flex: 1 1 min(100%, 22rem); background: var(--bg); padding: 14px 20px; min-width: 0; }
 .std-panel h2 { margin: 0 0 10px; font-size: .9375rem; font-weight: 600; }
-.std-p-send, .std-p-results { grid-column: 1 / -1; }
+.std-p-send, .std-p-results { flex-basis: 100%; }
 .std-state { margin: 0 0 10px; }
 .std-state .mark { white-space: normal; align-items: baseline; }
 .std-dl { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 16px; margin: 0; }
@@ -175,7 +176,12 @@ html[data-layout="standard"] body { padding: 0; }
 .std-marker.is-selected { outline: 2px solid var(--fg); outline-offset: 1px; border-radius: 50%; }
 
 /* Footer */
-.std-foot { border-top: 1px solid var(--line); background: var(--surface); padding: 6px 16px; font-size: .8125rem; }
+.std-foot {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 20px;
+  border-top: 1px solid var(--line); background: var(--surface); padding: 6px 16px; font-size: .8125rem;
+}
+.std-foot-about { margin: 0 0 0 auto; max-width: none; }
+.std-foot-about a { color: inherit; }
 .std-foot-items { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 20px; }
 .std-foot-items li { max-width: none; }
 .std-foot-items .glyph, .std-row .glyph, .std .mark .glyph { color: var(--muted); }

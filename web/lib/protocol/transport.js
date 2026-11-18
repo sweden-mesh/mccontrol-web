@@ -14,7 +14,7 @@ import { createMqttClient } from './mqtt-client.js';
 import { SUBACK_FAILURE } from './mqtt-codec.js';
 import { DEFAULT_TTL_SECS, KEY_HEX_LEN, NODE_HEX_LEN, TOPIC_PREFIX, TOKEN } from './constants.js';
 import { buildV1, buildV2 } from './envelope.js';
-import { parseAny } from './results.js';
+import { makeResult, parseAny } from './results.js';
 import { registerPayload } from './registration.js';
 import { makeToken, username as tokenUsername } from './token.js';
 import {
@@ -111,7 +111,9 @@ export async function send({
     if (!msgTopic.startsWith(prefix)) return;          // another region on the same broker
     const [node, , result] = readResult(msgTopic, bytes, handle, keys);
     if (!result || result.counter !== c) return;
-    answers[node] = result;
+    // A refused v2 command is answered with a node-signed r2 whose command field is empty (the
+    // sealed command is not repeated in the clear, OTM-8): it is the command sent, as the CLI fills it.
+    answers[node] = result.command === '' ? makeResult(result.node, result.counter, result.code, command, result.reply, result.verified) : result;
   };
   const client = await openClient(config, handle, { connect, onMessage });
   try {

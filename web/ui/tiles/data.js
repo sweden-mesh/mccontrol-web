@@ -12,7 +12,7 @@
 import { needsAttention, lastHeard } from '../../lib/jobs/overview.js';
 
 export const STATES = Object.freeze(['alert', 'warn', 'unknown', 'ok']);
-const ALERT_KINDS = new Set(['refused', 'forged']);
+export const ALERT_KINDS = new Set(['refused', 'forged']);
 
 // The row's state: 'alert' for a refused or forged last answer, 'warn' for anything else the
 // overview counts as needing attention (not heard, low battery, outdated firmware), 'ok' when the

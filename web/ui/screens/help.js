@@ -23,7 +23,9 @@ export function helpRuns(body, topics, pattern = '\\[\\[([a-z0-9_-]+)\\]\\]') {
   return out;
 }
 
-// Every result code in order: [{ code, name, help }]; help is '' where the table has none.
+// Every result code in order: [{ code, name, help }]; help is '' where the table has none, and
+// the page says what the code means in its own words, "help.code.<name>" (W-35g: no "As the
+// name says" rows; the shared table's texts are mccontrol-spec's, in English).
 export function resultRows(results) {
   return Object.entries(results.codes).map(([code, name]) => ({ code: Number(code), name, help: results.help[code] || '' }))
     .sort((a, b) => a.code - b.code);
@@ -43,7 +45,7 @@ function codesTable(ctx, data) {
         h('tbody', {}, resultRows(data.results).map((r) => h('tr', { id: `code-${r.code}` },
           h('td', { class: 'num' }, String(r.code)),
           h('th', { scope: 'row' }, h('code', {}, r.name)),
-          h('td', { lang: r.help ? 'en' : null }, r.help || t('help.asNamed'))))))));
+          h('td', { lang: r.help ? 'en' : null }, r.help || t(`help.code.${r.name}`))))))));
 }
 
 export function render(ctx) {

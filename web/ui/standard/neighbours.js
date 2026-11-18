@@ -44,13 +44,19 @@ export function render(ctx) {
     const dB = (v) => (v === null ? '–' : `${v.toFixed(1)} dB`);
     const tr = rows.map((r) => {
       let pick = null;
+      let name = h('span', { class: 'nb-name' }, r.name || ctx.t('std.unnamed'));
       if (r.own) {
+        // Select, or a click on the name (one tab stop: Select's): the dialog closes and the
+        // layout selects the node as a click in its list does (W-35h; ui/standard/index.js follows).
+        const choose = () => { setSelected(r.own.node); ctx.close(); };
         pick = h('button', { type: 'button', class: 'tool std-small' }, ctx.t('std.select'));
-        pick.addEventListener('click', () => { setSelected(r.own.node); ctx.close(); });
+        pick.addEventListener('click', choose);
+        name = h('button', { type: 'button', class: 'link-button nb-name', tabindex: '-1' }, r.name || ctx.t('std.unnamed'));
+        name.addEventListener('click', choose);
       }
       const heard = r.heardAt || r.beaconSeen;
       return h('tr', {},
-        h('th', { scope: 'row' }, h('span', { class: 'nb-name' }, r.name || ctx.t('std.unnamed')), ' ', h('code', { class: 'muted' }, r.prefix)),
+        h('th', { scope: 'row' }, name, ' ', h('code', { class: 'muted' }, r.prefix)),
         h('td', {}, dB(r.snrLast), h('span', { class: 'muted' }, ` / ${dB(r.snrAvg)}`), r.samples > 1 ? h('span', { class: 'muted small' }, ` (${r.samples})`) : null),
         h('td', { class: 'muted' }, ctx.t('std.noRssi')),
         h('td', {}, heard ? age(ctx, heard) : '–'),

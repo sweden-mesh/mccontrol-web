@@ -1,5 +1,6 @@
 // The command field's suggestions (W-33c, W-33d): an own listbox in the page's style, in place of
-// the native <datalist> whose popup no page can style. The combobox pattern: the field is
+// the native <datalist> whose popup no page can style. It opens when the field gets focus or a
+// click, and narrows as one types (W-35c). The combobox pattern: the field is
 // role=combobox with aria-expanded, aria-controls and aria-activedescendant; ↓ ↑ move, Enter takes
 // the marked one (and does not send), Esc closes, a click takes one. The list is a popover in the
 // top layer, placed under the field or above it when the field sits at the bottom of the screen,
@@ -104,6 +105,9 @@ export function attachCombo(ctx, input, { svc, devices }) {
 
   const opts = { signal: ctx.signal };
   input.addEventListener('input', (e) => { if (e.isTrusted) open(); }, opts);
+  // Open on focus and on a click into the field too, not only after typing (W-35c).
+  input.addEventListener('focus', () => open(), opts);
+  input.addEventListener('pointerdown', () => { if (document.activeElement === input && !isOpen()) open(); }, opts);
   input.addEventListener('keydown', (e) => {
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       e.preventDefault();

@@ -5,14 +5,15 @@
 //   header   app name (no area, W-33g), companion, Setup (gear), Help, Log out (W-29e), the layout switch
 //   list     the owner's nodes with a live search (W-29g)            ui/standard/list.js
 //   detail   the selected node: top panel, tabs, Overview's panels   ui/standard/detail.js
-//   footer   the states that gate everything, glyph and word each
+//   footer   the states that gate everything, glyph and word each; bottom right the front end's
+//            version and a link to its source (W-35e)
 //
 // On a phone (under 45em) the list and the detail take the screen in turn: a row opens the
 // detail, "All nodes" goes back. Modals (Setup, Help, a result, Neighbours) are the shell's, the
 // same as on the retro board. No keyboard shortcut is needed for anything here.
 import { h } from '../dom.js';
 import { setPref } from '../prefs.js';
-import { selected, setSelected } from '../board-state.js';
+import { onBoardChange, selected, setSelected } from '../board-state.js';
 import { keyring, keyStatus } from '../screens/key-session.js';
 import { services } from '../screens/node-services.js';
 import { confirm } from '../screens/node-kit.js';
@@ -25,6 +26,7 @@ import { onSources, source } from '../tiles/sources.js';
 import { icon } from './icons.js';
 import { nodeList } from './list.js';
 import { nodeDetail, overviewAll } from './detail.js';
+import { readVersion } from '../update.js';
 
 export const NARROW = '(width < 45em)';
 let drawn = null;
@@ -103,7 +105,12 @@ function footer(ctx, signal) {
   const timer = setInterval(draw, 60000);
   signal.addEventListener('abort', () => clearInterval(timer), { once: true });
   wire();
-  return h('footer', { class: 'std-foot', 'aria-label': ctx.t('board.statusLine') }, list);
+  // The link is index.html's #source-link (the board's footer, hidden here: the one URL in the page).
+  // "web-v0.1.0-beta.9" or "v0.1.0-beta.9" from a deploy, "dev" from the repository.
+  const ver = h('span', {}, ctx.t('std.foot.version', { version: '…' }));
+  readVersion().then((v) => { ver.textContent = ctx.t('std.foot.version', { version: String(v.version).replace(/^(web-)?v(?=\d)/, '') }); });
+  return h('footer', { class: 'std-foot', 'aria-label': ctx.t('board.statusLine') }, list,
+    h('p', { class: 'std-foot-about muted' }, ver, ' · ', h('a', { href: document.getElementById('source-link')?.href }, ctx.t('app.source'))));
 }
 
 export function drawStandard(main, base) {
@@ -121,6 +128,7 @@ export function drawStandard(main, base) {
   if (!publicKeyHex) return signal;
   let tab = 'overview';
   let detailLeave = null;
+  let shown = selected();   // the node the detail shows
   services(publicKeyHex).then((svc) => {
     if (signal.aborted) return;
     const back = h('button', { type: 'button', class: 'tool std-back' }, ctx.t('std.back'));
@@ -140,7 +148,8 @@ export function drawStandard(main, base) {
       if (focus) queueMicrotask(() => view.querySelector?.('.std-tab[aria-selected="true"]')?.focus());
     };
     function pick(id) {
-      if (id !== selected()) tab = 'overview';
+      if (id !== shown) tab = 'overview';
+      shown = id;
       setSelected(id);
       list.select(id);
       drawDetail();
@@ -149,6 +158,10 @@ export function drawStandard(main, base) {
     const list = nodeList(ctx, svc, { selected: selected(), onPick: pick });
     aside.replaceChildren(list.el);
     drawDetail();
+    // A node chosen elsewhere (the Neighbours dialog's Select, W-35h): the same as a click in the
+    // list. Without this the choice was stored but neither the list nor the detail followed it.
+    const follow = onBoardChange(({ what, selected: id }) => { if (what === 'selected' && id && id !== shown) pick(id); });
+    signal.addEventListener('abort', follow, { once: true });
   }).catch((e) => { detail.replaceChildren(h('p', { class: 'tile-err' }, e.message)); });
   return signal;
 }

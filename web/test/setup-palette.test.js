@@ -114,7 +114,7 @@ test('palette: the entries, and typing narrows them best first', () => {
 test('broker errors in words, with a next step', () => {
   const unreachable = brokerProblem(t, 'cannot reach wss://mqtt-meshcore.louie.se/ (1006)');
   assert.equal(unreachable.code, 'unreachable');
-  assert.equal(unreachable.text, 'Could not reach the broker mqtt-meshcore.louie.se.');
+  assert.equal(unreachable.text, 'Could not reach the command server mqtt-meshcore.louie.se.');
   assert.ok(unreachable.next.length > 10);
   assert.equal(brokerProblem(t, 'wss://b.se/ did not answer the connection in 10 s').code, 'noAnswer');
   assert.match(brokerProblem(t, 'the broker refused the connection: not authorized').text, /not authorized/);
@@ -127,7 +127,7 @@ test('broker errors in words, with a next step', () => {
   // A line per broker.
   assert.match(registrationText(t, { host: 'b.se', state: 'ok' }), /b\.se knows/);
   assert.match(registrationText(t, { host: 'b.se', state: 'failed', refused: true, detail: 'denied: unknown key' }), /did not accept the key: denied/);
-  assert.match(registrationText(t, { host: 'b.se', state: 'failed', detail: 'cannot reach wss://b.se/' }), /Could not reach the broker b\.se/);
+  assert.match(registrationText(t, { host: 'b.se', state: 'failed', detail: 'cannot reach wss://b.se/' }), /Could not reach the command server b\.se/);
 });
 
 function memoryStore() {
@@ -195,7 +195,7 @@ test('registration: a broker that is silent or unreachable is said as such, and 
   assert.match(registrationText(t, s.hosts[0]), /did not confirm the registration/);
   mode = 'down';
   s = await r.registerNow(owner);
-  assert.match(registrationText(t, s.hosts[1]), /Could not reach the broker b\.example\.se/);
+  assert.match(registrationText(t, s.hosts[1]), /Could not reach the command server b\.example\.se/);
   mode = 'ok';
   s = await r.registerNow(owner);
   assert.equal(s.state, 'ok');
