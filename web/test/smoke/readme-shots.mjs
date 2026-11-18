@@ -124,7 +124,7 @@ async function main() {
         await page.click('.result-row'); await wait(800);
         await shot(page, 'retro-result');
         await go(page, `nodeinfo/${sample}`, 1280, 800); await shot(page, 'retro-node-details');
-        for (const tab of ['key', 'node', 'area', 'groups', 'sets', 'warnings', 'display']) {
+        for (const tab of ['key', 'node', 'connections', 'groups', 'sets', 'warnings', 'display']) {
           await go(page, `setup/${tab}`, 1280, 800); await shot(page, `retro-setup-${tab}`);
         }
         await go(page, '', 390, 844); await shot(page, 'retro-phone');

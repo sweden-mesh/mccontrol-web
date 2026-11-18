@@ -1,7 +1,9 @@
 // My nodes (W-7): every node set up with this key, as a table on a wide screen and as cards on
 // a phone (the same <table>, restyled under ~700 px by a container query). Search is the first
-// control under the heading; a group narrows the list. Nodes are added by discovery (one signed
-// harmless read to a region, answered only by nodes that hold this key) or by pasting a key.
+// control under the heading; a group narrows the list. Nodes are added by discovery (the alive
+// messages of lou-20 and later, opened with this key wherever the node is: nothing is sent and no
+// region is chosen, IATA-2) or by pasting a whole key. Each row says whether the node is online
+// (its alive opens), offline (its will cleared it) or no longer yours (it opens with another key).
 import { h } from '../dom.js';
 import { lowBatteryVolts, notHeardHours } from './settings-store.js';
 import { brokerText } from './key-register.js';
@@ -36,6 +38,13 @@ function versionCell(ctx, svc, d, release) {
     up ? h('span', { class: 'tag tag-update' }, ctx.t('update.available')) : null);
 }
 
+// online / offline / not yours, from the node's alive (lou-20 and later); a dash before that.
+export function stateCell(ctx, d) {
+  const state = d.alive?.state;
+  if (!state) return h('span', { class: 'muted' }, '–');
+  return h('span', { class: state === 'online' ? '' : 'warn-text' }, ctx.t(`alive.${state}`));
+}
+
 function resultCell(ctx, svc, d) {
   if (!d.lastResult) return h('span', { class: 'muted' }, '–');
   const x = explainEvent(ctx, svc, { ...d.lastResult, node: d.node, note: '' });
@@ -46,7 +55,7 @@ function resultCell(ctx, svc, d) {
 // layout (hidden in the table layout, shown in the cards).
 function table(ctx, svc, devices, release) {
   const now = Date.now();
-  const cols = ['nodes.colRegion', 'nodes.colHeard', 'nodes.colVersion', 'nodes.colBattery', 'nodes.colResult'];
+  const cols = ['nodes.colState', 'nodes.colHeard', 'nodes.colVersion', 'nodes.colBattery', 'nodes.colResult'];
   const cell = (key, content) => h('td', {}, h('span', { class: 'cell-label', 'aria-hidden': 'true' }, ctx.t(key)), content);
   return h('div', { class: 'table-wrap', role: 'region', 'aria-labelledby': 'nodes-caption', tabindex: '0' },
     h('table', { class: 'nodes-table' },
@@ -55,45 +64,44 @@ function table(ctx, svc, devices, release) {
       h('tbody', {}, devices.map((d) => h('tr', {},
         h('th', { scope: 'row' }, h('a', { href: `#/node/${d.node}` }, nameOf(d)),
           d.name ? h('code', { class: 'node-id' }, d.node) : null),
-        cell(cols[0], d.region),
+        cell(cols[0], stateCell(ctx, d)),
         cell(cols[1], heardCell(ctx, d, now)),
         cell(cols[2], versionCell(ctx, svc, d, release)),
         cell(cols[3], batteryCell(ctx, d)),
         cell(cols[4], resultCell(ctx, svc, d)))))));
 }
 
-function discoverForm(ctx, svc, devices, redraw) {
-  const region = h('input', { type: 'text', autocomplete: 'off', autocapitalize: 'characters', maxlength: '8', class: 'short',
-    value: devices[0]?.region || '' });
+// "Find my nodes": the alive scan, as discovery does it by itself; nothing is sent.
+function discoverForm(ctx, svc, redraw) {
   const button = h('button', { type: 'submit', class: 'button' }, ctx.t('nodes.discoverButton'));
   const out = h('div', { 'aria-live': 'polite' });
   const form = h('form', { class: 'stack' }, h('p', { class: 'muted' }, ctx.t('nodes.discoverExplain')),
-    field(ctx.t('nodes.region'), region, ctx.t('nodes.regionHint')), h('div', { class: 'row' }, button), out);
+    h('div', { class: 'row' }, button), out);
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     button.disabled = true;
     const bar = progressLine();
     put(out, bar.el);
     try {
-      const found = await svc.jobs.discover({
-        region: region.value, signal: ctx.signal,
-        onProgress: (s) => bar.set(s.elapsed / s.total, ctx.t('nodes.discoverWait', { n: s.answered, secs: Math.ceil(s.total - s.elapsed) })),
+      const found = await svc.jobs.discoverAlive({
+        signal: ctx.signal,
+        onProgress: (s) => bar.set(s.total ? s.elapsed / s.total : null, ctx.t('nodes.discoverWait', { n: s.answered, secs: Math.ceil(s.total - s.elapsed) })),
       });
-      if (!found.length) { put(out, h('p', {}, ctx.t('nodes.discoverNone', { region: region.value.toUpperCase() }))); return; }
+      redraw();
+      if (!found.length) { put(out, h('p', {}, ctx.t('nodes.discoverNone'))); return; }
       put(out, h('ul', { class: 'found' }, found.map((f) => {
         const name = h('input', { type: 'text', value: f.name || '', autocomplete: 'off', class: 'short' });
         const add = h('button', { type: 'button', class: 'tool' }, ctx.t('nodes.adopt'));
         add.addEventListener('click', async () => {
           try {
-            await svc.jobs.adopt(f, name.value);
+            await svc.jobs.adopt({ node: f.key, key: f.key, region: '', alive: f.alive }, name.value);
             add.replaceWith(h('span', {}, ctx.t('nodes.adopted')));
             redraw();
           } catch (err) { ctx.notify(err.message, { kind: 'error' }); }
         });
-        return h('li', {}, h('code', {}, f.node), ' ',
-          f.knownAs ? h('span', {}, ctx.t('nodes.knownAs', { name: f.knownAs })) : [field(ctx.t('nodes.nameFor', { node: f.node }), name), add],
-          f.verified === false ? h('span', { class: 'err' }, ctx.t('send.res.forged')) : null,
-          f.keyChanged ? h('span', { class: 'err' }, ctx.t('nodes.keyChanged')) : null);
+        return h('li', {}, h('code', {}, f.node), ' ', h('span', {}, ctx.t(`alive.${f.state}`)), ' ',
+          f.knownAs ? h('span', {}, ctx.t('nodes.knownAs', { name: f.knownAs }))
+            : f.state === 'online' ? [field(ctx.t('nodes.nameFor', { node: f.node }), name), add] : null);
       })));
     } catch (err) {
       put(out, h('p', { class: 'err', role: 'alert' }, err.code === 'locked' ? lockedNote(ctx) : brokerText(ctx.t, err.message)));
@@ -104,17 +112,17 @@ function discoverForm(ctx, svc, devices, redraw) {
 
 function addForm(ctx, svc, redraw) {
   const key = h('input', { type: 'text', autocomplete: 'off', spellcheck: 'false', class: 'mono' });
-  const region = h('input', { type: 'text', autocomplete: 'off', maxlength: '8', class: 'short' });
   const name = h('input', { type: 'text', autocomplete: 'off' });
   const out = h('p', { 'aria-live': 'polite' });
   const form = h('form', { class: 'stack' },
-    field(ctx.t('nodes.key'), key, ctx.t('nodes.keyHint')), field(ctx.t('nodes.region'), region),
+    field(ctx.t('nodes.key'), key, ctx.t('nodes.keyHint')),
     field(ctx.t('nodes.name'), name), h('div', { class: 'row' }, h('button', { type: 'submit', class: 'button' }, ctx.t('nodes.add'))), out);
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     try {
-      const k = key.value.replace(/\s+/g, '');
-      await svc.stores.devices.add({ node: k, key: k.length === 64 ? k : null, region: region.value, name: name.value });
+      const k = key.value.replace(/\s+/g, '').toUpperCase();
+      if (!/^[0-9A-F]{64}$/.test(k)) throw new Error(ctx.t('nodes.wholeKey'));
+      await svc.stores.devices.add({ node: k, key: k, region: '', name: name.value });
       out.textContent = ctx.t('nodes.added');
       form.reset();
       redraw();
@@ -144,7 +152,7 @@ export function render(ctx) {
       const q = search.value.trim().toLowerCase();
       const g = groups.find((x) => x.id === groupFilter.value);
       const shown = all.filter((d) => (!g || g.members.includes(d.node))
-        && (!q || [d.name, d.node, d.region, d.ver, d.notes].some((v) => String(v || '').toLowerCase().includes(q))));
+        && (!q || [d.name, d.node, d.ver, d.notes].some((v) => String(v || '').toLowerCase().includes(q))));
       if (!all.length) {
         put(listSlot, h('p', {}, ctx.t('nodes.empty')));
       } else if (!shown.length) {
@@ -196,7 +204,7 @@ export function render(ctx) {
       listSlot,
       tools,
       h('h2', {}, ctx.t('nodes.addTitle')),
-      h('details', { class: 'block' }, h('summary', {}, ctx.t('nodes.discoverTitle')), discoverForm(ctx, svc, await svc.stores.devices.list(), draw)),
+      h('details', { class: 'block' }, h('summary', {}, ctx.t('nodes.discoverTitle')), discoverForm(ctx, svc, draw)),
       h('details', { class: 'block' }, h('summary', {}, ctx.t('nodes.addByKey')), addForm(ctx, svc, draw)));
     await draw();
     svc.releases().then((r) => { release = r; if (r && !ctx.signal.aborted) draw(); });

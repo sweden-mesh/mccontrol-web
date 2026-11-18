@@ -10,6 +10,7 @@
 // What is seen is kept per key in the meta store ('resultsSeen': { upTo, ids }), so it survives a
 // reload and holds on another tab of the same browser after its next draw.
 import { h } from '../dom.js';
+import { areaName } from '../../lib/discovery/areas.js';
 import { setSelected } from '../board-state.js';
 import { explainEvent, nameOf } from '../screens/node-kit.js';
 import { resultKind } from '../../lib/store/index.js';
@@ -72,11 +73,11 @@ function fill(ctx, svc, body) {
     const row = (e, isNew) => {
       const kind = resultKind(e);
       const x = explainEvent(ctx, svc, e, byNode[e.node] || null);
-      const who = e.node ? names[e.node] || e.node : e.region;
+      const who = e.node ? names[e.node] || e.node : areaName(svc.data.areas, e.region);
       const what = kind === 'ok' ? x.text : kind === 'refused' ? x.text : kind === 'summary' ? e.note : '';
       const button = h('button', { type: 'button', class: 'result-row', 'data-id': e.id },
         h('span', { class: 'res-time' }, clockTime(ctx, e.at, now)),
-        h('span', { class: 'res-who', title: e.node ? full[e.node] || e.node : e.region }, who),
+        h('span', { class: 'res-who', title: e.node ? full[e.node] || e.node : areaName(svc.data.areas, e.region) }, who),
         stateMark(ctx, KIND_STATE[kind], ctx.t(`history.kind.${kind}`)),
         h('span', { class: 'res-what' }, h('code', {}, e.command), what ? ` ${what}` : ''),
         isNew ? h('span', { class: 'visually-hidden' }, ctx.t('tile.new')) : null);
@@ -137,7 +138,7 @@ export const resultModal = Object.freeze({
       const device = e.node ? await svc.stores.devices.get(e.node) : null;
       const kind = resultKind(e);
       const x = explainEvent(ctx, svc, e, device);
-      const who = device ? nameOf(device) : e.node || e.region;
+      const who = device ? nameOf(device) : e.node || areaName(svc.data.areas, e.region);
       heading.textContent = ctx.t('tile.resultHeading', { command: e.command, who });
       const at = new Date(e.at);
       const pair = (k, v) => (v === null || v === undefined || v === '' ? null : [h('dt', {}, k), h('dd', {}, v)]);

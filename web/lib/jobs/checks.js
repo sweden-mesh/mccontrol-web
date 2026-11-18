@@ -1,5 +1,6 @@
-// The checks before anything is signed: the deny list, the broadcast rules, plain ASCII for old
-// firmware, a region, and what the node's firmware admits. A port of the checks in
+// The checks before anything is signed: the deny list, the area-act rules, plain ASCII for old
+// firmware, what each plane needs of the node (mcc3 its whole key, the old scheme an IATA code it
+// learns by itself), and what the node's firmware admits. A port of the checks in
 // mccontrol/actions.py's send and api/jobs.py's _vet, driven by rules.js (lib/data/).
 //
 // A refusal is { code, vars }: the screens say it through t(`send.why.${code}`, vars), so the
@@ -8,6 +9,8 @@ import { isTransmit } from '../protocol/envelope.js';
 import { squash } from '../protocol/text.js';
 import { MESH } from '../protocol/constants.js';
 import { MESH_AFTER_MINS, chooseRoad } from './road.js';
+import { MESH_MAX_COMMAND } from '../protocol/mcc3.js';
+import { oldRegion, scheme } from './scheme.js';
 
 export class JobError extends Error {
   constructor(code, vars = {}, message = code) {
@@ -23,47 +26,52 @@ const bytes = (text) => new TextEncoder().encode(text).length;
 // Why every road `road` may take would refuse `text` to `device` (api/jobs.py's _refusal): over
 // the mesh the repair allowance travels and a mesh-only node refuses what needs an uplink; auto
 // refuses only what both roads refuse.
+const meshMax = (rules, device) => (scheme(rules, device) === 'mcc3' ? MESH_MAX_COMMAND : MESH.max_command);
+
 function roadRefusal(rules, text, device, road) {
   if (road === 'mqtt' || !device) return rules.refusal(text);
   const only = rules.deviceMeshOnly(device);
+  const max = meshMax(rules, device);
   let onMesh = rules.meshRefusal(text, only);
-  if (onMesh === null && bytes(text) > MESH.max_command) onMesh = `over the mesh a command is 1..${MESH.max_command} bytes`;
+  if (onMesh === null && bytes(text) > max) onMesh = `over the mesh a command is 1..${max} bytes`;
   return road === 'mesh' || only ? onMesh : (onMesh && rules.refusal(text));
 }
 
 // What the mesh road needs of the node before anything is signed (actions.send_mesh): a
-// command of at most 59 bytes, the node's whole key, firmware that speaks it.
+// command of at most 59 bytes (57 to lou-20 and later, 0xC2), the node's whole key, firmware
+// that speaks it.
 export function meshBlocker(rules, text, device) {
   const name = device.name || device.node;
-  if (bytes(text) > MESH.max_command) return { code: 'meshTooLong', vars: { bytes: bytes(text), max: MESH.max_command } };
+  const max = meshMax(rules, device);
+  if (bytes(text) > max) return { code: 'meshTooLong', vars: { bytes: bytes(text), max } };
   if (!device.key || !/^[0-9A-Fa-f]{64}$/.test(device.key)) return { code: 'meshNoKey', vars: { name } };
-  if (rules.speaksMesh(device.ver) === false) return { code: 'meshOldFirmware', vars: { name, version: device.ver } };
+  if (scheme(rules, device) === 'old' && rules.speaksMesh(device.ver) === false) return { code: 'meshOldFirmware', vars: { name, version: device.ver } };
   return null;
 }
 
-// Why `command` cannot go to `device` (or, with `region`, to every node there) by `road`
-// ('mqtt', 'mesh' or 'auto'), or null.
-export function blocker(rules, { command, device = null, region = null, road = 'mqtt' }) {
+// Why `command` cannot go to `device` (or, with `area`, to each of the owner's nodes in that
+// county, one sealed command each: there is no broadcast) by `road` ('mqtt', 'mesh' or 'auto'),
+// or null. An area act refuses a command that transmits and the mesh road.
+export function blocker(rules, { command, device = null, area = null, road = 'mqtt' }) {
   const text = squash(command);
   if (!text) return { code: 'empty', vars: {} };
-  if (region && road === 'mesh') return { code: 'meshBroadcast', vars: {} };
-  const denied = roadRefusal(rules, text, region ? null : device, region ? 'mqtt' : road);
+  if (area && road === 'mesh') return { code: 'meshBroadcast', vars: {} };
+  const denied = roadRefusal(rules, text, area ? null : device, area ? 'mqtt' : road);
   if (denied) return { code: 'denied', vars: { command: text, detail: denied } };
-  if (region) {
-    if (isTransmit(text)) return { code: 'broadcastTransmit', vars: { command: text } };
-    if (rules.broadcastRefusal(text)) return { code: 'broadcastUpdate', vars: { command: text } };
-    if (!ascii(text)) return { code: 'broadcastAscii', vars: {} };
-    return null;
-  }
+  if (area) return isTransmit(text) ? { code: 'broadcastTransmit', vars: { command: text } } : null;
   if (!device) return { code: 'noTarget', vars: {} };
-  if (!device.region) return { code: 'noRegion', vars: { name: device.name || device.node } };
   const only = rules.deviceMeshOnly(device);
+  const plane = scheme(rules, device);
+  if (plane === 'mcc3' && !(device.key && /^[0-9A-Fa-f]{64}$/.test(device.key))) {
+    return { code: 'mcc3NoKey', vars: { name: device.name || device.node } };
+  }
+  if (plane === 'old' && !only && !oldRegion(device)) return { code: 'noRegion', vars: { name: device.name || device.node } };
   if (only && road === 'mqtt') return { code: 'meshOnlyNode', vars: { name: device.name || device.node } };
   if (road === 'mesh' || only) {
     const mesh = meshBlocker(rules, text, device);
     if (mesh) return mesh;
   }
-  if (!ascii(text) && !rules.admitsUtf8(device.ver)) {
+  if (plane === 'old' && !ascii(text) && !rules.admitsUtf8(device.ver)) {
     return { code: 'oldAscii', vars: { name: device.name || device.node, version: device.ver || '?' } };
   }
   return null;
@@ -75,12 +83,12 @@ export function blocker(rules, { command, device = null, region = null, road = '
 // known; lacks: 'ar' | 'rc' | null; needs: the oldest tag that admits it), whether it goes
 // encrypted (v2: the firmware opens it and the whole key is known), and for one node the road
 // it would take now ({ road, why } from road.js, with what the device itself remembers).
-export function preflight(rules, { command, device = null, region = null, road = 'mqtt', meshAfterMins = MESH_AFTER_MINS, now = Date.now() }) {
+export function preflight(rules, { command, device = null, area = null, road = 'mqtt', meshAfterMins = MESH_AFTER_MINS, now = Date.now() }) {
   const text = squash(command);
-  const block = blocker(rules, { command: text, device, region, road });
+  const block = blocker(rules, { command: text, device, area, road });
   const known = Boolean(device?.ver);
   let choice = null;
-  if (!region && device && text) {
+  if (!area && device && text) {
     try { choice = chooseRoad(rules, { device, command: text, via: road, meshAfterMins, now }); } catch { choice = null; }
   }
   const onMesh = choice?.road === 'mesh';
@@ -92,7 +100,8 @@ export function preflight(rules, { command, device = null, region = null, road =
     admits: known && text && !onMesh ? rules.admits(device.ver, text) : null,
     lacks: known && text && !onMesh ? rules.lacks(device.ver, text) : null,
     needs: text ? rules.needs(text) : null,
-    v2: Boolean(!region && !onMesh && device?.key && rules.speaksV2(device.ver)),
+    v2: Boolean(!area && !onMesh && device?.key && rules.speaksV2(device.ver) && scheme(rules, device) === 'old'),
+    mcc3: Boolean(!area && device && scheme(rules, device) === 'mcc3'),
     read: text ? rules.isRead(text) : false,
     road: choice,
   });

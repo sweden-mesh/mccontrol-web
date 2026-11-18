@@ -51,6 +51,16 @@ export function fakeJobs(stores, answers = {}) {
   const calls = [];
   const jobs = {
     calls,
+    async discoverAlive({ onProgress }) {
+      calls.push(['alive']);
+      const a = answers['*alive'] || [];
+      if (a instanceof Error) throw a;
+      onProgress?.({ elapsed: 10, total: 10, answered: a.length });
+      const known = new Map((await stores.devices.list()).map((d) => [d.node, d]));
+      return a.map((e) => ({ node: e.key.slice(0, 8), key: e.key, name: e.name || '', version: 'lou-20', state: e.state || 'online',
+        knownAs: known.get(e.key.slice(0, 8)) ? (known.get(e.key.slice(0, 8)).name || e.key.slice(0, 8)) : null,
+        alive: { state: e.state || 'online', region: e.region || '' } }));
+    },
     async discover({ region, onProgress }) {
       calls.push(['discover', region]);
       const a = answers[region] || [];
@@ -65,7 +75,8 @@ export function fakeJobs(stores, answers = {}) {
     },
     async adopt(entry) {
       calls.push(['adopt', entry.node]);
-      return stores.devices.add({ node: entry.node, key: entry.verified === false ? null : entry.key, region: entry.region, name: entry.name || '' });
+      const d = await stores.devices.add({ node: entry.node, key: entry.verified === false ? null : entry.key, region: entry.region, name: entry.name || '' });
+      return entry.alive ? stores.devices.update(d.node, { alive: entry.alive }) : d;
     },
     async send({ command, nodes }) {
       calls.push(['send', command, ...nodes]);

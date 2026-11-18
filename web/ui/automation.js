@@ -1,23 +1,22 @@
-// The page's automatic work (W-20a, W-20b, W-20e): discovery by itself on unlock, the area it
-// searches, and the status refresh. One instance of lib/discovery and lib/refresh per key,
-// started and stopped with the key: Beacon runs while there is a key (it needs none), discovery
-// and the daily `ver` only while it is unlocked. Sets the status line's `area` item, and says what
-// discovery added in a message with an undo (the undo is also on the STATUS tile).
+// The page's automatic work (W-20a, W-20e, IATA2-MC4): discovery by itself on unlock (the alive
+// scan, wherever the owner's nodes are, with no area to choose) and the status refresh. One
+// instance of lib/discovery and lib/refresh per key, started and stopped with the key: Beacon
+// runs while there is a key (it needs none), discovery and the daily `ver` only while it is
+// unlocked. Says what discovery added in a message with an undo (the undo is also on the STATUS tile).
 //
-// The interface the STATUS tile (and Setup's area tab) reads. No DOM here.
+// The interface the STATUS tile (and Setup's connections tab) reads. No DOM here.
 //
 //   automationState()   frozen snapshot, see SNAPSHOT below
 //   onAutomation(fn)    fn(snapshot) after every change; returns unsubscribe
 //   lookNow()           discovery now ("Look now"): the cooldown is skipped, the broker caps are not
 //   refreshNow()        Beacon now, then `ver` where due
 //   undoDiscovery()     remove what the last discovery added, keep those nodes out
-//   setArea(scb)        choose the area by SCB code ('' for none); its regions are searched at once
-//   areaChoices(lang)   [{ scb, county, scope, iatas, label }] for a picker (ui/area.js)
 //   meshCandidates()    repeaters in the connected companion's contacts not in the list ([] without one)
-//   addMeshNode(c)      add one as a mesh-only node in the area
+//   addMeshNode(c)      add one as a mesh-only node, by its whole key
 //   findMeshNodes(geo)  W-24: possible mesh-only nodes, no transmission: the companion's contacts and
-//                       Beacon's repeaters (not observers) placed inside the area's county outline
-//                       (`geo`, se-lan.json) -> { area, companion: [c], beacon: [c], beaconError }
+//                       Beacon's repeaters (not observers) placed inside the county outlines (`geo`,
+//                       se-lan.json) of the counties the owner's nodes name as their region home
+//                       -> { counties, companion: [c], beacon: [c], beaconError }
 //   checkMeshNode(c)    W-24: one signed `ver` over the mesh to c (the owner's press only); an
 //                       answer adds it as mesh-only -> { answered, result, device }
 //   startAutomation({ t, notify })   the shell, once, after the strings are loaded; t is a getter
@@ -25,24 +24,24 @@
 // SNAPSHOT
 //   owner        the key's public key, or null (no key: nothing runs)
 //   unlocked     whether the key is unlocked
-//   area         { scb, county, scope, iatas, label } | null
 //   discovery    lib/discovery's state: running, progress, lastRun, nextRun, regions, last,
-//                canUndo, needsArea, scheduled (see lib/discovery/index.js)
+//                canUndo, scheduled (see lib/discovery/index.js)
 //   refresh      lib/refresh's state: running, beacon { lastRun, nextRun, updated, unknown, failed,
 //                error }, ver { lastRun, nextRun, sent, skipped } (see lib/refresh/index.js)
-//   changed      what the last change was: 'key' | 'area' | 'discovery' | 'refresh' | 'nodes';
+//   changed      what the last change was: 'key' | 'discovery' | 'refresh' | 'nodes';
 //                'nodes' when discovery added or removed nodes, so the NODES tile reloads its list
 import { load } from '../lib/data/load.js';
 import { createDiscovery, META } from '../lib/discovery/index.js';
 import { beaconCandidates } from '../lib/discovery/mesh-candidates.js';
-import { areaByScb, areaLabel, areaList } from '../lib/discovery/areas.js';
+import { areaByScope } from '../lib/discovery/areas.js';
+import { areaOf } from '../lib/jobs/scheme.js';
 import { createRefresh } from '../lib/refresh/index.js';
 import { beaconBase, beaconClient } from '../lib/stats/beacon.js';
 import { keyStatus, onKeyStatus } from './screens/key-session.js';
 import { services } from './screens/node-services.js';
 import { companion } from './companion-session.js';
 
-const EMPTY = Object.freeze({ owner: null, unlocked: false, area: null, discovery: null, refresh: null, changed: 'key' });
+const EMPTY = Object.freeze({ owner: null, unlocked: false, discovery: null, refresh: null, changed: 'key' });
 
 let snapshot = EMPTY;
 let table = null;
@@ -58,11 +57,9 @@ export function onAutomation(fn) {
 }
 
 function publish(changed) {
-  const area = live?.discovery.state().area ? areaByScb(table, live.discovery.state().area) : null;
   snapshot = Object.freeze({
     owner: live?.owner || null,
     unlocked: Boolean(live && !statusOf().locked),
-    area: area ? Object.freeze({ ...area, label: areaLabel(area) }) : null,
     discovery: live ? live.discovery.state() : null,
     refresh: live ? live.refresh.state() : null,
     changed,
@@ -70,8 +67,8 @@ function publish(changed) {
   for (const fn of listeners) { try { fn(snapshot); } catch { /* a listener's problem */ } }
 }
 
-// The area is no longer in the status line (W-33g, operator 2026-11-18): it stays Setup's choice of
-// where discovery and Beacon look (#setup/area) until the IATA work replaces it.
+// There is no area to choose (IATA-2, operator 2026-11-18): discovery reads the alive messages of
+// every node wherever it is, and the old discovery only the IATA codes of the list's own old nodes.
 
 // What one finished discovery run says: "2 nodes answer your key: Gisebo, Torpa. Added." + Undo.
 function tell(outcome) {
@@ -87,7 +84,7 @@ function tell(outcome) {
 async function makeFor(owner) {
   const svc = await services(owner);
   const unlocked = () => !keyStatus().locked;
-  const discovery = createDiscovery({ stores: svc.stores, jobs: svc.jobs, table, unlocked });
+  const discovery = createDiscovery({ stores: svc.stores, jobs: svc.jobs, rules: svc.rules, unlocked });
   const beacon = beaconClient({ base: await beaconBase() });
   const refresh = createRefresh({
     stores: svc.stores, jobs: svc.jobs, unlocked, meshOnly: (d) => svc.rules.deviceMeshOnly(d), beacon,
@@ -124,8 +121,7 @@ async function follow(status) {
     await parts.refresh.start();
   }
   if (live) {
-    // Locked (as every reload starts): nothing is scheduled, but the stored area is still read,
-    // so the status line and Setup show it (W-23e: it read "not chosen" until the unlock).
+    // Locked (as every reload starts): nothing is scheduled, but the last run is still read.
     if (status.locked) { live.discovery.stop(); await live.discovery.refresh(); }
     else if (!live.discovery.state().scheduled) await live.discovery.start();
     else await live.discovery.refresh();
@@ -159,40 +155,39 @@ export async function undoDiscovery() {
   return removed;
 }
 
-export async function setArea(scb) {
-  await need().discovery.setArea(scb);
-  publish('area');
-}
-
-export const areaChoices = (lang) => areaList(table, lang);
-
 export const meshCandidates = () => need().discovery.meshCandidates(companion());
 
 export async function findMeshNodes(geo) {
   const l = need();
-  const area = snapshot.area;
   const fromCompanion = await l.discovery.meshCandidates(companion()).catch(() => []);
   let beacon = [];
   let beaconError = null;
-  if (area && l.beacon && l.stores) {
+  const devices = l.stores ? await l.stores.devices.list() : [];
+  const counties = [...new Set(devices.map(areaOf).filter(Boolean))].map((s) => areaByScope(table, s)).filter(Boolean);
+  if (counties.length && l.beacon) {
     try {
-      const known = new Set((await l.stores.devices.list()).map((d) => d.node));
+      const known = new Set(devices.map((d) => d.node));
       const ignored = new Set((await l.stores.meta.get(META.ignored)) || []);
       const inCompanion = new Set(fromCompanion.map((c) => c.node));
-      beacon = beaconCandidates(await l.beacon.allNodes(), { geo, scb: area.scb, known, ignored })
-        .filter((c) => !inCompanion.has(c.node));
+      const all = await l.beacon.allNodes();
+      const seen = new Set();
+      for (const c of counties) {
+        for (const n of beaconCandidates(all, { geo, scb: c.scb, known, ignored })) {
+          if (!inCompanion.has(n.node) && !seen.has(n.node)) { seen.add(n.node); beacon.push(n); }
+        }
+      }
     } catch (e) {
       beaconError = e?.message || String(e);
+      beacon = [];
     }
   }
-  return { area, companion: fromCompanion, beacon, beaconError };
+  return { counties, companion: fromCompanion, beacon, beaconError };
 }
 
 export async function checkMeshNode(candidate, { signal, onProgress } = {}) {
   const l = need();
   if (!l.jobs) throw new Error('There is no key.');
-  const region = snapshot.area?.iatas?.[0] || null;
-  const out = await l.jobs.checkMeshNode({ candidate, region, signal, onProgress });
+  const out = await l.jobs.checkMeshNode({ candidate, signal, onProgress });
   if (out.answered) { await l.discovery.refresh(); publish('nodes'); }
   return out;
 }

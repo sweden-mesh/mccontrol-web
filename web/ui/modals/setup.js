@@ -6,7 +6,7 @@
 import { h } from '../dom.js';
 import * as key from '../screens/key.js';
 import * as node from '../screens/setup.js';
-import { renderArea, renderWarnings } from '../screens/settings.js';
+import { renderConnections, renderWarnings } from '../screens/settings.js';
 import * as groups from '../screens/groups.js';
 import * as sets from '../screens/sets.js';
 import { tabScreen } from '../screens/key-kit.js';
@@ -19,15 +19,16 @@ const display = (ctx) => tabScreen('display', ctx.t('setup.tab.display'),
 export const TABS = Object.freeze({
   key: { label: 'setup.tab.key', route: 'key', render: key.render },
   node: { label: 'setup.tab.node', route: 'setup', render: node.render },
-  area: { label: 'setup.tab.area', route: 'settings', render: renderArea },
+  connections: { label: 'setup.tab.connections', route: 'settings', render: renderConnections },
   groups: { label: 'setup.tab.groups', route: 'groups', render: groups.render },
   sets: { label: 'setup.tab.sets', route: 'sets', render: sets.render },
   warnings: { label: 'setup.tab.warnings', route: 'settings', render: renderWarnings },
   display: { label: 'setup.tab.display', route: 'settings', render: display },
 });
 
-// Older names of a tab: "#setup/settings" (the old settings screen) is the area tab.
-export const ALIASES = Object.freeze({ settings: 'area', setup: 'node' });
+// Older names of a tab: "#setup/settings" (the old settings screen) and "#setup/area" (the area
+// choice, gone with IATA-2) are the connections tab.
+export const ALIASES = Object.freeze({ settings: 'connections', area: 'connections', setup: 'node' });
 
 export const tabFor = (name) => (TABS[name] ? name : ALIASES[name] || null);
 

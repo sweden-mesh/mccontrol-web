@@ -1,20 +1,19 @@
 // ui/automation.js: follows the key (Beacon with any key, discovery only unlocked), publishes the
-// snapshot the STATUS tile reads, sets the status line's area, and says what discovery added with
-// an undo. Fake key source, fake clock, fake jobs and Beacon: nothing leaves the process.
+// snapshot the STATUS tile reads (no area: IATA-2), and says what discovery added with an undo. Fake key source, fake clock, fake jobs and Beacon: nothing leaves the process.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  automationState, onAutomation, startAutomation, setArea, lookNow, undoDiscovery, areaChoices, refreshNow,
+  automationState, onAutomation, startAutomation, lookNow, undoDiscovery, refreshNow,
 } from '../ui/automation.js';
 import { statusItems } from '../ui/statusline.js';
 import { createDiscovery } from '../lib/discovery/index.js';
 import { createRefresh } from '../lib/refresh/index.js';
 import { areasTable, fakeBeacon, fakeClock, fakeJobs, memStores, OWNER, settle } from './auto-fakes.js';
 
-test('follows the key, publishes the snapshot, the area and what discovery added', async () => {
+test('follows the key, publishes the snapshot and what discovery added', async () => {
   const clock = fakeClock();
   const stores = memStores(clock);
-  const jobs = fakeJobs(stores, { JKG: [{ node: '4AC61A7F', name: 'Gisebo' }] });
+  const jobs = fakeJobs(stores, { '*alive': [{ key: `4AC61A7F${'1'.repeat(56)}`, name: 'Gisebo', region: 'se-jkp' }] });
   let status = { exists: true, locked: true, publicKeyHex: OWNER };
   const keyListeners = new Set();
   const messages = [];
@@ -27,7 +26,7 @@ test('follows the key, publishes the snapshot, the area and what discovery added
       keyStatus: () => status,
       onKeyStatus: (fn) => { keyListeners.add(fn); return () => keyListeners.delete(fn); },
       make: async () => ({
-        discovery: createDiscovery({ stores, jobs, table: areasTable, clock, unlocked: () => !status.locked }),
+        discovery: createDiscovery({ stores, jobs, clock, unlocked: () => !status.locked }),
         refresh: createRefresh({ stores, jobs, beacon: fakeBeacon({}), clock, unlocked: () => !status.locked }),
       }),
     },
@@ -40,15 +39,9 @@ test('follows the key, publishes the snapshot, the area and what discovery added
   assert.equal(s.unlocked, false);
   assert.equal(s.discovery.scheduled, false);
   assert.equal(s.refresh.scheduled, true);
-  assert.equal(s.area, null);
+  assert.equal('area' in s, false);
   assert.equal(statusItems().find((i) => i.name === 'area'), undefined, 'no area in the status line (W-33g)');
-
-  await setArea('06');
-  s = automationState();
-  assert.equal(s.area.label, 'Jönköpings län · se-jkp');
-  assert.deepEqual(s.area.iatas, ['JKG']);
-  assert.equal(statusItems().find((i) => i.name === 'area'), undefined);
-  assert.equal(jobs.calls.filter((c) => c[0] === 'discover').length, 0);   // locked: nothing signed
+  assert.equal(jobs.calls.length, 0);   // locked: nothing read or signed
 
   status = { ...status, locked: false };
   for (const fn of keyListeners) await fn(status);
@@ -70,7 +63,6 @@ test('follows the key, publishes the snapshot, the area and what discovery added
   assert.equal(messages.length, 1);                 // nothing new added: nothing said
   await refreshNow();
   assert.notEqual(automationState().refresh.beacon.lastRun, null);
-  assert.equal(areaChoices('sv').length, 21);
 
   status = { exists: true, locked: true, publicKeyHex: OWNER };
   for (const fn of keyListeners) await fn(status);

@@ -312,3 +312,23 @@ test('another tab replaced the key: reconcile locks the old handle here (W-12)',
   assert.equal(here.handle(), null);
   assert.throws(() => old.sign(utf8('x')), /locked/);
 });
+
+test('the mcc3 shared secrets are kept sealed beside the key, open only while it is unlocked (IATA2-MC4)', async () => {
+  const storage = memoryStorage();
+  const { ring: r } = ring({ storage });
+  await r.create(PASS);
+  assert.deepEqual(await r.loadSecrets(), {});
+  const map = { ['A'.repeat(64)]: 'B'.repeat(64) };
+  await r.saveSecrets(map);
+  const [record] = await storage.list();
+  assert.ok(!JSON.stringify(record).includes('B'.repeat(64)), 'no secret in the clear');
+  assert.deepEqual(await r.loadSecrets(), map);
+  r.lock();
+  assert.deepEqual(await r.loadSecrets(), {}, 'locked: nothing opens');
+  await r.saveSecrets({});
+  await r.unlock(PASS);
+  assert.deepEqual(await r.loadSecrets(), map, 'a locked save writes nothing');
+  const forged = { ...(await storage.list())[0] };
+  await storage.put({ ...forged, secrets: forged.secrets.replace(/^../, '00') });
+  assert.deepEqual(await r.loadSecrets(), {}, 'an altered record opens to nothing');
+});

@@ -46,10 +46,11 @@ async function setup({ behaviour = null, ring = fakeRing(), jobsRules = rules } 
 test('checks: deny list, broadcast rules, ASCII before lou-17, and what the firmware admits', () => {
   assert.equal(blocker(rules, { command: 'set prv.key 00' , device: { region: 'JKG' } }).code, 'denied');
   assert.equal(blocker(rules, { command: '  ', device: null }).code, 'empty');
-  assert.equal(blocker(rules, { command: 'trigger test', region: 'JKG' }).code, 'broadcastTransmit');
-  assert.equal(blocker(rules, { command: 'set name Väster', region: 'JKG' }).code, 'broadcastAscii');
-  assert.equal(blocker(rules, { command: 'ota update', region: 'JKG' }).code, 'broadcastUpdate');
-  assert.equal(blocker(rules, { command: 'reboot', region: 'JKG' }).code, 'broadcastUpdate');
+  // an area act is one command per node: a transmit and the mesh road are refused, nothing else
+  assert.equal(blocker(rules, { command: 'trigger test', area: 'se-jkp' }).code, 'broadcastTransmit');
+  assert.equal(blocker(rules, { command: 'ver', area: 'se-jkp', road: 'mesh' }).code, 'meshBroadcast');
+  assert.equal(blocker(rules, { command: 'set name Väster', area: 'se-jkp' }), null);
+  assert.equal(blocker(rules, { command: 'reboot', area: 'se-jkp' }), null);
   assert.equal(blocker(rules, { command: 'reboot', device: { region: 'JKG', ver: LOU18 } }), null);
   assert.equal(blocker(rules, { command: 'ota update', device: { region: 'JKG', ver: LOU19 } }), null);
   assert.ok(preflight(rules, { command: 'ota update', device: { region: 'JKG', ver: LOU19 } }).caution);
@@ -100,7 +101,8 @@ test('a locked key signs nothing; a denied command is refused before signing', a
   await assert.rejects(jobs.send({ command: 'ver', nodes: ['AAAA0001'] }), (e) => e instanceof JobError && e.code === 'locked');
   const open = await setup();
   await assert.rejects(open.jobs.send({ command: 'set prv.key 00', nodes: ['AAAA0001'] }), (e) => e.code === 'denied');
-  await assert.rejects(open.jobs.send({ command: 'trigger test', region: 'JKG' }), (e) => e.code === 'broadcastTransmit');
+  await open.stores.devices.update('AAAA0001', { alive: { state: 'online', region: 'se-jkp' } });
+  await assert.rejects(open.jobs.send({ command: 'trigger test', area: 'se-jkp' }), (e) => e.code === 'broadcastTransmit');
   assert.equal(transport.calls.length + open.transport.calls.length, 0);
 });
 
@@ -132,16 +134,10 @@ test('silence and refusal are recorded as such; a forged answer is not heard', a
   assert.equal((await stores.devices.get('AAAA0001')).reads.neighbors, undefined);
 });
 
-test('a region-wide send: one broadcast, every known node in the region heard, a count line', async () => {
-  const { stores, transport, jobs } = await setup();
-  const out = await jobs.send({ command: 'get radio', region: 'jkg' });
-  assert.equal(transport.calls.length, 1);
-  assert.equal(transport.calls[0].topic, 'meshcore/JKG/all/cmd');
-  assert.equal(transport.calls[0].v2Key, undefined);
-  assert.deepEqual(transport.calls[0].nodesToHear.sort(), ['AAAA0001', 'BBBB0002']);
-  assert.equal(out.asked, 2);
-  const [summary] = await stores.history.list({ node: 'all' });
-  assert.equal(summary.note, '2 of 2 answered');
+test('no region-wide broadcast: a region is no target any more', async () => {
+  const { transport, jobs } = await setup();
+  await assert.rejects(jobs.send({ command: 'get radio', region: 'jkg' }), (e) => e.code === 'oneTarget');
+  assert.equal(transport.calls.length, 0);
 });
 
 test('a set stops at the first refusal; the steps after are not sent', async () => {

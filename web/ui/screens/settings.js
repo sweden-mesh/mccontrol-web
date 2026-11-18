@@ -1,15 +1,14 @@
-// Setup's "Area and brokers" and "Warnings" tabs (proposal §2.5): a broker per region and the
-// companion radio for the mesh road (W-16); when the board warns (low battery, not heard) and
+// Setup's "Connections" and "Warnings" tabs (proposal §2.5): the command server and the companion
+// radio for the mesh road (W-16); when the board warns (low battery, not heard) and
 // when the auto road takes the mesh. All on this device only (settings-store.js). Every change
 // applies at once and says so in a status line. Auto-lock is the Key tab's, display the Display tab's.
 import { h } from '../dom.js';
 import { useStyles } from './key-kit.js';
 import {
   DEFAULTS, LIMITS, lowBatteryVolts, meshAfterMins, notHeardHours, regionBrokers, removeRegionBroker, setLowBatteryVolts,
-  setMeshAfterMins, setNotHeardHours, setRegionBroker, validHost, validRegion,
+  setMeshAfterMins, setNotHeardHours,
 } from './settings-store.js';
 import { companionControl } from './road-kit.js';
-import { areaPicker } from '../area.js';
 import { meshFindBlock } from './mesh-find.js';
 import { loadAll } from '../../lib/data/load.js';
 
@@ -41,6 +40,9 @@ function numberField(ctx, { id, label, unit, hint, value, step, limits, save }) 
     h('p', { class: 'hint-line', id: `${id}-hint` }, hint), status);
 }
 
+// The command server: the shared one, wherever a node is (IATA-2: no region, no area). Own command
+// servers set up per IATA code before lou-20 are still used for lou-19-and-older nodes and listed
+// here to be removed; new ones are not added (they end with the old scheme, lou-21).
 function brokersBlock(ctx) {
   const { t } = ctx;
   const list = h('div', {});
@@ -49,7 +51,7 @@ function brokersBlock(ctx) {
   const draw = () => {
     const rows = Object.entries(regionBrokers()).sort();
     list.replaceChildren(h('dl', { class: 'facts brokers' },
-      h('dt', {}, t('settings.everyRegion')), h('dd', {}, h('code', {}, `wss://${shared}`), ' ', h('span', { class: 'muted' }, t('settings.default'))),
+      h('dt', {}, t('settings.everyRegion')), h('dd', {}, h('code', {}, `wss://${shared}`)),
       rows.flatMap(([region, host]) => {
         const remove = h('button', { type: 'button', class: 'link-button', 'aria-label': t('settings.removeLabel', { region }) }, t('settings.remove'));
         remove.addEventListener('click', () => {
@@ -57,48 +59,24 @@ function brokersBlock(ctx) {
           status.textContent = t('settings.removed', { region, host: shared });
           draw();
         });
-        return [h('dt', {}, region), h('dd', {}, h('code', {}, `wss://${host}`), ' ', remove)];
+        return [h('dt', {}, t('settings.legacyBroker')), h('dd', {}, h('code', {}, `wss://${host}`), ' ', remove)];
       })));
   };
   loadAll().then(({ brokers }) => { shared = brokers.shared; draw(); }).catch(() => draw());
   draw();
-  const region = h('input', { type: 'text', id: 'broker-region', autocomplete: 'off', spellcheck: 'false', autocapitalize: 'characters',
-    maxlength: '8', class: 'short', 'aria-describedby': 'broker-region-hint' });
-  const host = h('input', { type: 'text', id: 'broker-host', autocomplete: 'off', spellcheck: 'false', autocapitalize: 'off',
-    inputmode: 'url', 'aria-describedby': 'broker-host-hint' });
-  const err = h('p', { class: 'err', role: 'alert' });
-  const form = h('form', { class: 'stack', novalidate: true },
-    h('div', { class: 'field' }, h('label', { for: 'broker-region' }, t('settings.region')), region,
-      h('p', { class: 'hint-line', id: 'broker-region-hint' }, t('settings.regionHint'))),
-    h('div', { class: 'field' }, h('label', { for: 'broker-host' }, t('settings.host')), host,
-      h('p', { class: 'hint-line', id: 'broker-host-hint' }, t('settings.hostHint'))),
-    h('div', { class: 'row' }, h('button', { type: 'submit', class: 'button' }, t('settings.addBroker'))), err);
-  form.addEventListener('submit', (e) => {
-    e.preventDefault();
-    err.textContent = '';
-    region.removeAttribute('aria-invalid');
-    host.removeAttribute('aria-invalid');
-    if (!validRegion(region.value)) { region.setAttribute('aria-invalid', 'true'); err.textContent = t('settings.badRegion'); region.focus(); return; }
-    if (!validHost(host.value)) { host.setAttribute('aria-invalid', 'true'); err.textContent = t('settings.badHost'); host.focus(); return; }
-    const [r, hst] = setRegionBroker(region.value, host.value);
-    region.value = ''; host.value = '';
-    status.textContent = t('settings.added', { region: r, host: hst });
-    draw();
-  });
-  return block('brokers-title', t('settings.brokers'), h('p', {}, t('settings.brokersBody')), list, form, status,
+  return block('brokers-title', t('settings.brokers'), h('p', {}, t('settings.brokersBody')), list, status,
     h('p', {}, h('a', { href: '#help/ownregion' }, t('settings.brokersHelp'))));
 }
 
 const tabSection = (id, title, ...children) => h('section', { 'aria-labelledby': id, class: 'scr key-screen' },
   h('h2', { id }, title), ...children);
 
-// Setup's "Area and brokers" tab: the county (ui/area.js, W-20b), where commands go (a region's
-// own broker) and the companion radio the mesh road uses.
-export function renderArea(ctx) {
+// Setup's "Connections" tab: where commands go (the command server) and the companion radio the
+// mesh road uses. No area: the owner's nodes are found wherever they are (IATA-2).
+export function renderConnections(ctx) {
   useStyles();
   const { t } = ctx;
-  return tabSection('area-title', t('setup.tab.area'),
-    block('area-label', t('area.label'), areaPicker(ctx, { id: 'area-choice' })),
+  return tabSection('connections-title', t('setup.tab.connections'),
     brokersBlock(ctx),
     block('companion-title', t('companion.title'), h('p', {}, t('companion.lede')),
       companionControl(ctx),
@@ -121,5 +99,5 @@ export function renderWarnings(ctx) {
       value: meshAfterMins(), hint: t('settings.meshAfterHint', { m: DEFAULTS.meshAfterMins }), save: setMeshAfterMins }));
 }
 
-// The old settings screen (#/settings) is Setup's area tab now; kept for the screen list.
-export const render = renderArea;
+// The old settings screen (#/settings) is Setup's connections tab now; kept for the screen list.
+export const render = renderConnections;

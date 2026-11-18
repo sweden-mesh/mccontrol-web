@@ -1,15 +1,18 @@
-// Automatic discovery (W-20a, operator decision 6): when the key is unlocked, look in each of the
-// owner's regions for nodes that answer to the owner's key, at most once an hour per region, and
-// add every new one with the name it reports, with an undo. "Look now" runs it at once.
+// Automatic discovery (W-20a, IATA2-MC4): when the key is unlocked, look for nodes that answer to
+// the owner's key, at most once an hour, and add every new one with the name it gives, with an
+// undo. "Look now" runs it at once.
 //
-// A region is an IATA code: those of the chosen area (lib/discovery/areas.js, a county) and those
-// of every node already in the list, so a node set to another code by hand is still searched.
-// One run in a region is jobs.discover(): a signed broadcast of a harmless read, then a signed
-// `get name` broadcast to the nodes that answered. Costs, against the broker's caps (5 broadcasts
+// First and always, the alive scan (IATA-2 §6): the retained `mcc/alive/<KEY>` messages on the
+// shared command server, each tried with the owner's key; what opens is a lou-20-or-later node of
+// the owner's, wherever it is, with no region or area to choose. It only reads (jobs.discoverAlive).
+//
+// Then, only while the list holds lou-19-or-older nodes, the old discovery in their IATA codes
+// (the stored one, or Beacon's for the node; never chosen or shown in the page): jobs.discover(),
+// a signed broadcast of a harmless read, then a signed `get name` broadcast to the nodes that
+// answered. lou-20 nodes do not hear broadcasts. Costs, against the broker's caps (5 broadcasts
 // an hour per key per region, 8 regions an hour per key): an automatic run is 2 of the 5; "Look
 // now" is refused in a region already searched RUNS_PER_HOUR times in the last hour; a run takes
-// at most REGIONS_PER_HOUR regions an hour, the rest wait. Nothing goes on the air: the nodes
-// answer over their own MQTT, and each spends 2 of its 10 commands an hour.
+// at most REGIONS_PER_HOUR regions an hour, the rest wait. Nothing goes on the air.
 //
 // Never added: a node whose answer failed its signature (forged), a node whose key differs from
 // the one stored (said, not adopted, as jobs.discover does), a node the owner removed with undo
@@ -20,21 +23,19 @@
 // one with addMeshNode(), which cannot tell whether the node holds this key.
 //
 // Everything persisted is per key, in the key's meta store (IndexedDB):
-//   'area'          the chosen county's SCB code ('06'), or absent
-//   'disc.runs'     { IATA: [ms, ...] }: the runs of the last hour, and always the newest
-//   'disc.added'    the last run's added nodes [{ node, name, region }], for undo after a reload
+//   'disc.runs'     { IATA: [ms, ...], '*alive': [ms] }: the runs of the last hour, and always the newest
+//   'disc.added'    the last run's added nodes [{ node, name }], for undo after a reload
 //   'disc.ignored'  [node]: removed with undo; never added again by discovery
 //
 // No DOM. `clock` is { now(), setTimeout(fn, ms), clearTimeout(id) }; the tests pass a fake.
 //
-//   const d = createDiscovery({ stores, jobs, table, clock, unlocked: () => bool });
+//   const d = createDiscovery({ stores, jobs, rules, clock, unlocked: () => bool });
 //   d.state()        see STATE below; d.on(fn) -> unsubscribe, fn(state) after every change
 //   d.start()        schedule (call on unlock); d.stop() (on lock: a run in progress finishes)
-//   d.run({ force }) one run now: due regions, or with force every region still under its cap
+//   d.run({ force }) one run now: the alive scan, then due regions (with force every region still under its cap)
 //   d.undo()         remove what the last run added and keep it out
-//   d.setArea(scb)   choose the area ('' for none): its regions become due at once
 
-import { iatasOf } from './areas.js';
+import { oldRegion, scheme } from '../jobs/scheme.js';
 
 export const COOLDOWN_MS = 60 * 60 * 1000;
 export const HOUR_MS = 60 * 60 * 1000;
@@ -42,7 +43,8 @@ export const REGIONS_PER_HOUR = 8;
 export const RUNS_PER_HOUR = 2;           // 2 broadcasts each: 4 of the broker's 5
 export const MAX_DELAY_MS = 2 ** 31 - 1;  // setTimeout's limit
 
-export const META = Object.freeze({ area: 'area', runs: 'disc.runs', added: 'disc.added', ignored: 'disc.ignored' });
+export const META = Object.freeze({ runs: 'disc.runs', added: 'disc.added', ignored: 'disc.ignored' });
+export const ALIVE = '*alive';       // the alive scan's entry in 'disc.runs'
 
 export const realClock = Object.freeze({
   now: () => Date.now(),
@@ -51,28 +53,26 @@ export const realClock = Object.freeze({
 });
 
 // STATE: what the STATUS tile shows.
-//   area        the chosen SCB code, or null
-//   regions     the IATA codes searched (the area's and the list's)
+//   regions     the IATA codes the old discovery searches (those of the list's lou-19-or-older nodes)
 //   running     true while a run is in progress; progress { region, elapsed, total, answered } | null
 //   lastRun     ms of the newest run in any region, or null; nextRun ms of the next automatic one, or null
 //   last        the newest run's outcome, or null:
-//               { at, regions, added: [{ node, name, region }], known, ignored,
+//               { at, regions, alive: { ours, offline, notYours } | null, added: [{ node, name }], known, ignored,
 //                 rejected: [{ node, region, reason: 'forged' | 'keyChanged' }],
 //                 failed: [{ region, code, detail }], skipped: [{ region, reason: 'cap' | 'recent' }],
 //                 undone }
 //   canUndo     the last run added nodes that are still there
-//   needsArea   no area and no node yet: there is nowhere to look
 //   scheduled   start() has been called and stop() has not
 const EMPTY = Object.freeze({
-  area: null, regions: [], running: false, progress: null, lastRun: null, nextRun: null,
-  last: null, canUndo: false, needsArea: false, scheduled: false,
+  regions: [], running: false, progress: null, lastRun: null, nextRun: null,
+  last: null, canUndo: false, scheduled: false,
 });
 
 const upper = (r) => String(r || '').trim().toUpperCase();
 const validRegion = (r) => (/^[A-Z0-9]{2,8}$/.test(r) ? r : null);
 
 export function createDiscovery({
-  stores, jobs, table, clock = realClock, unlocked = () => true,
+  stores, jobs, rules = null, clock = realClock, unlocked = () => true,
   cooldownMs = COOLDOWN_MS, regionsPerHour = REGIONS_PER_HOUR, runsPerHour = RUNS_PER_HOUR,
 }) {
   let state = EMPTY;
@@ -89,15 +89,16 @@ export function createDiscovery({
   const readRuns = async () => (await stores.meta.get(META.runs)) || {};
   const readIgnored = async () => (await stores.meta.get(META.ignored)) || [];
 
-  // The area's regions, then the list's, without repeats.
+  // The IATA codes of the list's lou-19-or-older nodes, without repeats: the only places the old
+  // discovery still finds anything (lou-20 answers no broadcast).
   async function regions() {
-    const area = (await stores.meta.get(META.area)) || null;
     const out = [];
-    for (const r of [...iatasOf(table, area), ...(await stores.devices.list()).map((d) => d.region)]) {
-      const v = validRegion(upper(r));
+    for (const d of await stores.devices.list()) {
+      if (rules && scheme(rules, d) !== 'old') continue;
+      const v = validRegion(upper(oldRegion(d)));
       if (v && !out.includes(v)) out.push(v);
     }
-    return { area, regions: out };
+    return { regions: out };
   }
 
   // Keep each region's runs of the last hour, and its newest always (the cooldown reads it).
@@ -109,16 +110,16 @@ export function createDiscovery({
 
   const newest = (list) => (list?.length ? Math.max(...list) : null);
 
-  // When the next automatic run is due: the earliest region's newest run + the cooldown.
+  // When the next automatic run is due: the earliest of the alive scan and the regions, by its
+  // newest run + the cooldown.
   function nextOf(regionList, runs, now) {
-    if (!regionList.length) return null;
     let next = Infinity;
-    for (const r of regionList) {
+    for (const r of [ALIVE, ...regionList]) {
       const last = newest(runs[r]);
       next = Math.min(next, last === null ? now : last + cooldownMs);
     }
     // A region over the per-key cap waits until the oldest region of the last hour leaves it.
-    const hourRegions = Object.entries(runs).filter(([, list]) => list.some((t) => now - t < HOUR_MS));
+    const hourRegions = Object.entries(runs).filter(([r, list]) => r !== ALIVE && list.some((t) => now - t < HOUR_MS));
     if (hourRegions.length >= regionsPerHour && next <= now) {
       next = Math.min(...hourRegions.map(([, list]) => Math.max(...list.filter((t) => now - t < HOUR_MS)))) + HOUR_MS;
     }
@@ -127,16 +128,16 @@ export function createDiscovery({
 
   async function refreshState(extra = {}) {
     const now = clock.now();
-    const { area, regions: list } = await regions();
+    const { regions: list } = await regions();
     const runs = pruned(await readRuns(), now);
     const lastRun = Object.values(runs).reduce((m, l) => Math.max(m, newest(l) ?? -Infinity), -Infinity);
     const added = (await stores.meta.get(META.added)) || [];
     const present = new Set((await stores.devices.list()).map((d) => d.node));
     set({
-      area, regions: list, lastRun: Number.isFinite(lastRun) ? lastRun : null,
+      regions: list, lastRun: Number.isFinite(lastRun) ? lastRun : null,
       nextRun: scheduled && unlocked() ? nextOf(list, runs, now) : null,
       canUndo: added.some((a) => present.has(a.node)),
-      needsArea: !list.length, scheduled, ...extra,
+      scheduled, ...extra,
     });
   }
 
@@ -156,8 +157,38 @@ export function createDiscovery({
     const { regions: list } = await regions();
     let runs = pruned(await readRuns(), now);
     const ignored = new Set(await readIgnored());
-    const outcome = { at: now, regions: [], added: [], known: 0, ignored: 0, rejected: [], failed: [], skipped: [], undone: false };
-    const inHour = () => new Set(Object.entries(runs).filter(([, l]) => l.some((t) => clock.now() - t < HOUR_MS)).map(([r]) => r));
+    const outcome = { at: now, regions: [], alive: null, added: [], known: 0, ignored: 0, rejected: [], failed: [], skipped: [], undone: false };
+    const inHour = () => new Set(Object.entries(runs).filter(([r, l]) => r !== ALIVE && l.some((t) => clock.now() - t < HOUR_MS)).map(([r]) => r));
+
+    // The alive scan: free (it only reads), so every run has one.
+    const lastAlive = newest(runs[ALIVE]);
+    if (force || lastAlive === null || clock.now() - lastAlive >= cooldownMs) {
+      runs = { ...runs, [ALIVE]: [clock.now()] };
+      await stores.meta.set(META.runs, runs);
+      set({ progress: { region: null, elapsed: 0, total: 0, answered: 0 } });
+      try {
+        const found = await jobs.discoverAlive({
+          signal,
+          onProgress: (p) => { set({ progress: { region: null, elapsed: p.elapsed, total: p.total, answered: p.answered } }); onProgress?.(p); },
+        });
+        const count = (s) => found.filter((e) => e.state === s).length;
+        outcome.alive = { ours: count('online'), offline: count('offline'), notYours: count('not-yours') };
+        for (const e of found) {
+          if (e.knownAs) { outcome.known += 1; continue; }
+          if (e.state !== 'online') continue;
+          if (ignored.has(e.node)) { outcome.ignored += 1; continue; }
+          try {
+            const d = await jobs.adopt({ node: e.key, key: e.key, region: '', name: e.name, alive: e.alive });
+            outcome.added.push({ node: d.node, name: d.name });
+          } catch (err) {
+            outcome.failed.push({ region: null, code: 'adopt', detail: `${e.node}: ${err?.message || err}` });
+          }
+        }
+      } catch (e) {
+        outcome.failed.push({ region: null, code: e?.code || 'broker', detail: e?.message || String(e) });
+        if (e?.code === 'locked') return outcome;
+      }
+    }
 
     // Never searched first, then the longest ago: under the cap every region gets its turn.
     const order = [...list].sort((a, b) => (newest(runs[a]) ?? -Infinity) - (newest(runs[b]) ?? -Infinity));
@@ -197,7 +228,7 @@ export function createDiscovery({
         if (ignored.has(e.node)) { outcome.ignored += 1; continue; }
         try {
           const d = await jobs.adopt(e);
-          outcome.added.push({ node: d.node, name: d.name, region: d.region });
+          outcome.added.push({ node: d.node, name: d.name });
         } catch (err) {
           outcome.failed.push({ region, code: 'adopt', detail: `${e.node}: ${err?.message || err}` });
         }
@@ -214,7 +245,7 @@ export function createDiscovery({
       set({ running: true, progress: null });
       try {
         const outcome = await work({ force, signal, onProgress });
-        await refreshState({ running: false, progress: null, ...(outcome.regions.length || outcome.skipped.length ? { last: Object.freeze(outcome) } : {}) });
+        await refreshState({ running: false, progress: null, ...(outcome.alive || outcome.regions.length || outcome.skipped.length || outcome.failed.length ? { last: Object.freeze(outcome) } : {}) });
         return outcome;
       } catch (e) {
         await refreshState({ running: false, progress: null });
@@ -251,14 +282,6 @@ export function createDiscovery({
     await stores.meta.set(META.ignored, (await readIgnored()).filter((n) => n !== id));
   }
 
-  async function setArea(scb) {
-    const value = scb ? String(scb) : null;
-    if (value && !iatasOf(table, value).length) throw new Error(`no area with SCB code ${value}`);
-    await stores.meta.set(META.area, value);
-    await refreshState();
-    arm();
-  }
-
   // Repeaters in the companion's contact list that are not in the list (or kept out): candidates
   // for a mesh-only node. Reads the companion's own list; nothing is transmitted.
   async function meshCandidates(companion) {
@@ -271,11 +294,9 @@ export function createDiscovery({
       .filter((c) => !known.has(c.node) && !ignored.has(c.node));
   }
 
-  // Add a candidate as a mesh-only node in `region` (an IATA code: the area's when not given).
-  async function addMeshNode(candidate, region = null) {
-    const r = validRegion(upper(region || iatasOf(table, state.area ?? (await stores.meta.get(META.area)))[0]));
-    if (!r) throw new Error('Choose an area first: a node needs its region.');
-    const d = await jobs.adopt({ node: candidate.node, key: candidate.key, region: r, name: candidate.name, verified: null });
+  // Add a candidate as a mesh-only node, by its whole key (no region: a mesh-only node has none).
+  async function addMeshNode(candidate) {
+    const d = await jobs.adopt({ node: candidate.node, key: candidate.key, region: '', name: candidate.name, verified: null });
     const out = await stores.devices.update(d.node, { meshOnly: true });
     await refreshState();
     return out;
@@ -297,7 +318,7 @@ export function createDiscovery({
   return Object.freeze({
     state: () => state,
     on: (fn) => { listeners.add(fn); return () => listeners.delete(fn); },
-    start, stop, run, undo, allow, setArea, regions, meshCandidates, addMeshNode,
+    start, stop, run, undo, allow, regions, meshCandidates, addMeshNode,
     refresh: () => refreshState(),
   });
 }

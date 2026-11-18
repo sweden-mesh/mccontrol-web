@@ -84,7 +84,7 @@ test('Check: one signed ver on meshcore/mesh/<key>/cmd; an answer adds the node 
   assert.equal(out.answered, true);
   assert.equal(out.device.node, N);
   assert.equal(out.device.meshOnly, true);
-  assert.equal(out.device.region, 'JKG');
+  assert.equal(out.device.region, '', 'by its whole key: no region');
   assert.equal(out.device.ver, 'v1.18.0-lou-19-rc-1a2b3c4d');
   const events = await stores.history.list({ node: N });
   assert.equal(events.length, 1);
@@ -103,10 +103,9 @@ test('Check: silence adds nothing; a node signed for its IATA does not answer th
   assert.equal((await mqtt.jobs.checkMeshNode({ candidate: { node: N, key: K }, region: 'JKG' })).answered, false);
 });
 
-test('Check needs the whole key, a region, the key unlocked and the companion', async () => {
+test('Check needs the whole key (no region), the key unlocked and the companion', async () => {
   const { jobs } = await setup();
   await assert.rejects(jobs.checkMeshNode({ candidate: { node: N, key: 'AB' }, region: 'JKG' }), (e) => e instanceof JobError && e.code === 'meshNoKey');
-  await assert.rejects(jobs.checkMeshNode({ candidate: { node: N, key: K } }), (e) => e.code === 'noRegion');
   await assert.rejects((await setup({ locked: true })).jobs.checkMeshNode({ candidate: { node: N, key: K }, region: 'JKG' }), (e) => e.code === 'locked');
   await assert.rejects((await setup({ connected: false })).jobs.checkMeshNode({ candidate: { node: N, key: K }, region: 'JKG' }), (e) => e.code === 'noCompanion');
 });

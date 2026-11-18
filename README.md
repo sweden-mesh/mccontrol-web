@@ -62,7 +62,7 @@ node --test "web/test/**/*.test.js"                    # node 22, offline
 node web/test/smoke/run.mjs                            # every modal in headless Chrome
 node web/test/smoke/filled.mjs                         # the filled board, phone and desktop
 node scripts/spec-sync.mjs v0.1.0                      # copy a mccontrol-spec tag; --check compares
-node scripts/web-dist.mjs --out dist/web --version web-v0.1.0 --commit "$(git rev-parse HEAD)"
+node scripts/web-dist.mjs --out dist/web --version v0.1.0 --commit "$(git rev-parse HEAD)"
 ```
 
 `web-dist.mjs` makes the deployable copy (versions stamped, `integrity.json` with the SHA-256 of

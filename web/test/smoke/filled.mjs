@@ -363,7 +363,7 @@ async function main() {
       const views = [...PHONES.map(([w, hh]) => [w, hh, '']), ...PHONES.map(([w, hh]) => [w, hh, `node/${sample}`]),
         [740, 360, ''], [740, 360, `node/${sample}`], [1280, 800, ''],
         // Every modal with data, as a phone's full-screen sheet.
-        ...['setup/key', 'setup/node', 'setup/area', 'setup/groups', 'setup/sets', 'setup/warnings', 'setup/display', 'help', 'history',
+        ...['setup/key', 'setup/node', 'setup/connections', 'setup/groups', 'setup/sets', 'setup/warnings', 'setup/display', 'help', 'history',
           'nodes', `nodeinfo/${sample}`, `stats/${sample}`, `run/cmd/n:${sample}/ver`, 'run/set/-'].map((x) => [360, 780, x])];
       for (const [w, hh, hash] of views) {
         problems.length = 0;
@@ -390,7 +390,7 @@ async function main() {
         if (look === 'amber') {
           await go(page, '', 360, 780); await shot(page, 'beta-phone-board-360', true);
           await go(page, `node/${sample}`, 360, 780); await shot(page, 'beta-phone-node-360');
-          for (const tab of ['key', 'node', 'area', 'groups', 'sets', 'warnings', 'display']) {
+          for (const tab of ['key', 'node', 'connections', 'groups', 'sets', 'warnings', 'display']) {
             await go(page, `setup/${tab}`, 1280, 800); await shot(page, `beta-setup-${tab}`);
           }
           await go(page, '', 1280, 800);

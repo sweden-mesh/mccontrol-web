@@ -28,7 +28,7 @@ test('devices: add by key or prefix, unique node and name, update, remove leaves
   await assert.rejects(s.devices.add({ node: '4ac61a7f', region: 'JKG' }), /already/);
   await assert.rejects(s.devices.add({ node: 'F355EEDD', region: 'JKG', name: 'gisebo' }), /named/);
   await assert.rejects(s.devices.add({ node: 'F355', region: 'JKG' }), /8 hex/);
-  await assert.rejects(s.devices.add({ node: 'F355EEDD', region: 'J' }), /region/);
+  await assert.rejects(s.devices.add({ node: 'F355EEDD', region: 'J' }), /IATA/);
   const g = await s.devices.add({ node: 'F355EEDD', region: 'JKG' });
   assert.equal(g.key, null);
   assert.equal((await s.devices.update('f355eedd', { name: 'Granarp' })).name, 'Granarp');

@@ -11,15 +11,17 @@
 //                       exported table's, else the shared broker; wss on 443, path "/"
 //   meshAfterMins()     15 unless set: the auto road takes the mesh for a node not heard over
 //                       MQTT this long (W-16)
-//   companionKind()     'bluetooth' | 'usb' | '': how this device reaches the companion radio
+//   companionKind()     'bluetooth' | 'usb' | 'network' | '': how this device reaches the companion radio
+//   bridgeAddress()     the mccontrol-bridge address last connected to ('ws://IP:port'), or '' (W-31d);
+//                       its token, if any, is never stored
 //   onSettingsChange(fn)  fn() after a change here or in another tab
 import { configFor } from '../../lib/protocol/transport.js';
 
 export const DEFAULTS = Object.freeze({ lowBatteryVolts: 3.5, notHeardHours: 24, meshAfterMins: 15 });
 export const LIMITS = Object.freeze({ lowBatteryVolts: [2.8, 4.4], notHeardHours: [1, 720], meshAfterMins: [1, 1440] });
 const KEYS = { lowBatteryVolts: 'mccontrol.lowBatteryV', notHeardHours: 'mccontrol.notHeardHours', brokers: 'mccontrol.brokers',
-  meshAfterMins: 'mccontrol.meshAfterMins', companionKind: 'mccontrol.companion' };
-export const COMPANION_KINDS = Object.freeze(['bluetooth', 'usb']);
+  meshAfterMins: 'mccontrol.meshAfterMins', companionKind: 'mccontrol.companion', bridge: 'mccontrol.bridge' };
+export const COMPANION_KINDS = Object.freeze(['bluetooth', 'usb', 'network']);
 const EVENT = 'mccontrol:settings';
 const REGION = /^[A-Z0-9]{2,8}$/;
 const HOST = /^(?=.{1,253}(:|$))[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+(:\d{1,5})?$/;
@@ -78,6 +80,9 @@ export function setCompanionKind(kind, store) {
   write('companionKind', kind || null, store);
   return kind || '';
 }
+
+export const bridgeAddress = (store) => String(read('bridge', store) || '');
+export const setBridgeAddress = (address, store) => write('bridge', address ? String(address) : null, store);
 
 export function regionBrokers(store) {
   try {

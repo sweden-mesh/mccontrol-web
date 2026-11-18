@@ -25,14 +25,36 @@
  },
  "help": {
   "0": "The node ran the command.",
+  "1": "The message reached the node with nothing in it.",
+  "2": "The message is longer than a node takes (512 bytes).",
+  "3": "The message carries no signature.",
+  "4": "The signature is not 128 hex characters long.",
+  "5": "The signature is not valid hex.",
+  "6": "The message is in a format the node does not know. Its firmware may be older than this tool.",
+  "7": "A field is missing from the message, or its expiry is not a number.",
+  "8": "The counter is not a number the node can read.",
   "9": "The node has already seen a higher counter. Wait a second and send again.",
   "10": "The envelope expired before the node read it. Check the node's clock and yours.",
+  "11": "The expiry is more than an hour ahead of the node's clock. Check the node's clock and yours.",
   "12": "The node has no clock yet, so it cannot judge expiry. It will after its first advert.",
+  "13": "The command holds a character the node refuses: a control character, the | separator or broken UTF-8.",
   "14": "The command is not on the node's allowlist. Only what its firmware admits travels this way.",
   "15": "The node has no command key provisioned. Set mqtt.cmd.pubkey over serial first.",
   "16": "The signature did not verify. The node holds a different public key than this one.",
   "17": "The node's rate limit refused it. Wait a few minutes.",
   "18": "A command that transmits may not be sent to every node at once.",
   "19": "The node takes commands over the mesh only while its MQTT link has been down for 15 minutes. Send over MQTT."
+ },
+ "help_sv": {
+  "1": "Meddelandet kom fram till noden utan innehåll.",
+  "2": "Meddelandet är längre än en nod tar emot (512 byte).",
+  "3": "Meddelandet har ingen signatur.",
+  "4": "Signaturen är inte 128 hextecken lång.",
+  "5": "Signaturen är inte giltig hex.",
+  "6": "Meddelandet har ett format som noden inte känner till. Dess firmware kan vara äldre än det här verktyget.",
+  "7": "Ett fält saknas i meddelandet, eller så är utgångstiden inte ett tal.",
+  "8": "Räknaren är inte ett tal som noden kan läsa.",
+  "11": "Utgångstiden ligger mer än en timme före nodens klocka. Kontrollera nodens klocka och din.",
+  "13": "Kommandot innehåller ett tecken som noden nekar: ett styrtecken, avgränsaren | eller trasig UTF-8."
  }
 }

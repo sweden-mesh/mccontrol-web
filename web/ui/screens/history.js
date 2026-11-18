@@ -3,6 +3,7 @@
 // another browser, or a backup) -- events already here are skipped, never overwritten.
 // #/history/<node> opens it filtered to that node. An event sent over the mesh (W-16) says so.
 import { h } from '../dom.js';
+import { areaName } from '../../lib/discovery/areas.js';
 import { resultKind } from '../../lib/store/index.js';
 import {
   byName, download, explainEvent, field, nameOf, outcomeTag, screen, when, withServices, put, resultBody,
@@ -58,7 +59,7 @@ export function render(ctx) {
         const x = explainEvent(ctx, svc, e);
         return h('tr', {},
           h('td', {}, when(ctx, e.at)),
-          h('th', { scope: 'row' }, e.node ? h('a', { href: `#/node/${e.node}` }, names[e.node] || e.node) : ctx.t('history.region', { region: e.region || '' })),
+          h('th', { scope: 'row' }, e.node ? h('a', { href: `#/node/${e.node}` }, names[e.node] || e.node) : ctx.t('history.region', { region: areaName(svc.data.areas, e.region) })),
           h('td', {}, h('code', {}, e.command)),
           h('td', {}, outcomeTag(ctx, x.kind), e.road === 'mesh' ? [' ', h('span', { class: 'road-mark' }, ctx.t('road.overMesh'))] : null),
           h('td', { class: 'res-cell' }, x.kind === 'summary' ? x.text : resultBody(x)[0],

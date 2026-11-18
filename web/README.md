@@ -49,11 +49,11 @@ that says why.
 | `styles/` | `tokens.css` (fonts, the four themes' colour tokens), `app.css` (shell: status line, board, tiles, key bar, modal), `key-screens.css` (unlock, key, set-up, settings, help) | shell (W-6, W-20), screens |
 | `fonts/`, `icon*` | IBM Plex (OFL) and the icons, copied from the regional template | shell |
 | `_headers`, `manifest.webmanifest`, `sw.js`, `version.json` | the hosted copy: headers, install, offline copy | shell (W-10) |
-| `lib/protocol/` | envelope v1/v2, results r1/r2/r3, broker token, registration, the MQTT client | protocol (W-3, W-4, W-16) |
+| `lib/protocol/` | envelope v1/v2, results r1/r2/r3, broker token, registration, the MQTT client; `mcc3.js`, the sealed plane of lou-20 and later (`test/mcc3-vectors.json`) | protocol (W-3, W-4, W-16) |
 | `lib/key/` | the key: `handle.js` (seed -> signing handle), storage, unlock, auto-lock, backup, passphrase change | key and security (W-5) |
 | `lib/store/` | IndexedDB stores per key: devices, history, groups, sets, meta | screens (W-7, W-9) |
 | `lib/jobs/` | send, run a set, discover, refresh, update; checks before signing; the overview's sums; Beacon fleet reads (through `lib/stats`); the firmware release list (GitHub) | screens (W-8, W-15, W-18, W-19) |
-| `lib/discovery/` | automatic discovery (`index.js`: on unlock, hourly per region, adds with undo, the broker's caps, mesh-only candidates) and the areas (`areas.js`: county, scope, IATA) | discovery (W-20a, W-20b) |
+| `lib/discovery/` | automatic discovery (`index.js`: on unlock and hourly, the alive scan wherever the nodes are; the old broadcast discovery only in the IATA codes of the list's lou-19-and-older nodes; adds with undo, the broker's caps, mesh-only candidates) and the counties (`areas.js`: a node's region home to its county, for an area act) | discovery (W-20a, IATA2-MC4) |
 | `lib/refresh/` | the status refresh: Beacon every 15 minutes, one signed `ver` per node per day | refresh (W-20e) |
 | `lib/stats/` | the Beacon client and the traffic arithmetic; the page's only Beacon | statistics (W-14) |
 | `lib/qr.js` | QR code, byte mode, level M, for the key screen (no network, no library) | key screen (W-5) |
@@ -107,7 +107,7 @@ for this origin only (`test/shell-deploy.test.js` keeps the two in step):
 
 ```
 default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self';
-connect-src 'self' wss: https://beacon.meshcoresverige.se https://beacon.meshcore-jkp.se https://api.github.com https://tiles.openfreemap.org; manifest-src 'self';
+connect-src 'self' wss: ws: https://beacon.meshcoresverige.se https://beacon.meshcore-jkp.se https://api.github.com https://tiles.openfreemap.org; manifest-src 'self';
 worker-src 'self';
 base-uri 'none'; form-action 'none'; object-src 'none'; require-trusted-types-for 'script'; trusted-types mccontrol-sw mccontrol-map
 ```
@@ -122,7 +122,9 @@ What it means for code:
   `h(tag, attrs, ...children)`, which sets text as text; attach listeners with
   `addEventListener`.
 - **No third-party requests.** `connect-src` allows this origin, any `wss:` command server (an
-  owner may use their own, RB-1), Beacon's API (`lib/stats/beacon.json`) and GitHub's API for the firmware
+  owner may use their own, RB-1), `ws:` for mccontrol-bridge on the owner's own network (W-31e:
+  from the https page only a private or loopback address, behind Chrome's local-network prompt;
+  security review L7b), Beacon's API (`lib/stats/beacon.json`) and GitHub's API for the firmware
   release list (`lib/jobs/releases.json`). No fonts, images, analytics or scripts from
   elsewhere. A new origin is a CSP change and a security-review item, not a code change.
 - A `<meta>` CSP cannot carry `frame-ancestors`; `_headers` does.
@@ -345,10 +347,10 @@ palette's `:` (70, "Commands") and `ctrl+k`.
 Setup (`ui/modals/setup.js`) has seven tabs, each its own address: `#setup/key` (public key, copy,
 QR, broker registration, lock and auto-lock, backup, private key behind the passphrase,
 passphrase, fingerprint, replace), `#setup/node` (put the key on a node: USB, and the lines to type,
-each with a Copy button, W-20h), `#setup/area` (the county, your own command servers, the companion
-radio), `#setup/groups`, `#setup/sets` (what a set is, when to use one, the shipped example; every
+each with a Copy button, W-20h), `#setup/connections` (the command server, the companion radio, mesh-only nodes; the area choice
+is gone with IATA-2), `#setup/groups`, `#setup/sets` (what a set is, when to use one, the shipped example; every
 step says what it does, W-20i), `#setup/warnings` (battery, not heard, mesh road), `#setup/display`.
-`TABS` lists them; `ALIASES` maps the old names (`settings` -> `area`, `setup` -> `node`).
+`TABS` lists them; `ALIASES` maps the old names (`settings` and `area` -> `connections`, `setup` -> `node`).
 
 Registration runs by itself (`ui/screens/key-register.js`): when a key is unlocked (made, imported
 or unlocked) that this browser has not registered with every broker it sends to, once per page,
@@ -362,15 +364,15 @@ error reaches a person.
 The palette (`:` or Ctrl+K on the board) is a non-modal `<dialog popover>` with a combobox: every
 Setup tab, Help, History, lock or unlock, every command line of the exported table with what it
 does (`palette.cmd.<command>` strings, one per table entry in both languages: a test fails when the
-table gains a command without them), the sets, the groups and "every node in a region". It never
+table gains a command without them), the sets, the groups and "each of your nodes in a county". It never
 signs: a command or a set opens `#run/cmd/<target>/<command>` or `#run/set/<target>/<set>`, the old
-send form with its checks and confirmations (a region-wide send asks, naming the region and the
-count). `<target>` is `n:ID,ID`, `g:<group>`, `r:<region>` or `-`; the palette takes the tagged
+send form with its checks and confirmations (an area act asks, naming the county and the
+count). `<target>` is `n:ID,ID`, `g:<group>`, `a:<scope>` (a county, one sealed command per node) or `-`; the palette takes the tagged
 nodes, else the selected one.
 
-### Discovery, the area and the status refresh
+### Discovery and the status refresh
 
-`ui/automation.js` runs them for the page (W-20a, W-20b, W-20e; the shell starts it once). It
+`ui/automation.js` runs them for the page (W-20a, W-20e, IATA2-MC4; the shell starts it once). It
 follows the key: Beacon is read with any key (it needs none), discovery and the daily `ver` run only
 while the key is unlocked. The logic is in `lib/discovery/` and `lib/refresh/` (no DOM, tested with a
 fake clock, fake jobs and a fake Beacon); everything they keep is per key, in the key's meta store.
@@ -381,11 +383,9 @@ What the STATUS tile reads:
 import { automationState, onAutomation, lookNow, refreshNow, undoDiscovery } from '../automation.js';
 const s = automationState();          // frozen; onAutomation(fn) -> unsubscribe, fn(s) on every change
 s.owner, s.unlocked                   // no owner: no key, nothing runs
-s.area                                // { scb, county, scope, iatas, label: 'Jönköpings län · se-jkp' } | null
 s.discovery.running                   // and .progress { region, elapsed, total, answered } while it runs
 s.discovery.lastRun, .nextRun         // epoch ms or null (nextRun null: locked, stopped or nowhere to look)
-s.discovery.needsArea                 // no area and no node: "choose an area" (link '#setup/area')
-s.discovery.last                      // { at, regions, added: [{ node, name, region }], known, ignored,
+s.discovery.last                      // { at, regions, alive: { ours, offline, notYours } | null, added: [{ node, name }], known, ignored,
                                       //   rejected: [{ node, region, reason: 'forged'|'keyChanged' }],
                                       //   failed: [{ region, code, detail }], skipped: [{ region, reason: 'recent'|'cap' }], undone }
 s.discovery.canUndo                   // undoDiscovery() removes them and keeps them out
@@ -393,14 +393,22 @@ s.refresh.running                     // 'beacon' | 'ver' | null
 s.refresh.beacon                      // { lastRun, nextRun, updated, unknown, failed, error }
 s.refresh.ver                         // { lastRun, nextRun, sent: [{ node, name, ok, code }],
                                       //   skipped: [{ node, name, reason: 'notHeard'|'budget'|'locked' }] }
-s.changed                             // 'key'|'area'|'discovery'|'refresh'|'nodes' ('nodes': reload the list)
+s.changed                             // 'key'|'discovery'|'refresh'|'nodes' ('nodes': reload the list)
 await lookNow();                      // "Look now": skips the cooldown, not the broker caps
 await refreshNow();                   // Beacon now, then `ver` where due
 ```
 
-Rules it keeps: discovery at most once an hour per region (`get autoreply` then `get name`, 2 of the
+Rules it keeps: every run starts with the alive scan (IATA-2 §6: `mcc/alive/+` on the shared command
+server, read with the session's throwaway login, every message tried with the owner's key; the
+shared secret per node key is kept sealed beside the key, `ring.loadSecrets`; nothing is sent). The
+first sight of a key costs one X25519 (~1 ms); messages are opened in 15 ms slices with a yield
+between, on the page rather than in a Web Worker, because a Worker would need the seed or every
+shared secret handed to it, which the key boundary below forbids. A node of the owner's that is
+not in the list is added by its whole key with no region. Then, only for lou-19-and-older nodes,
+the old discovery at most once an hour per region (`get autoreply` then `get name`, 2 of the
 broker's 5 broadcasts an hour per region), "Look now" at most twice an hour per region, at most 8
-regions an hour per key; the regions are the area's IATA codes and those of every node in the list.
+regions an hour per key; its regions are the IATA codes of the list's own old nodes (stored, or
+Beacon's for the node), never chosen or shown.
 It never adds a node whose answer failed its signature or whose key changed, nor one removed with
 undo. The daily `ver` goes over MQTT only, never to a mesh-only node, never to one not heard on MQTT
 in the last 2 hours, and never when the node has had 5 or more commands in the last hour (half its
@@ -408,19 +416,18 @@ in the last 2 hours, and never when the node has had 5 or more commands in the l
 device as `fleet` (battery, seen, firmware, airtime, noise floor, uptime, neighbours and their
 Beacon ids, position, IATA codes); a node Beacon does not know has its fleet cleared.
 
-The area: `areaPicker(ctx, { id })` in `ui/area.js` (a county dropdown showing the scope, saved with a
-button because it starts a discovery), mounted in Setup's `area` tab (`#setup/area`); the status
-line no longer shows it, nor does MAP's title (W-33g). The table is `lib/data/areas.json`, from mccontrol-spec (exported by mccontrol-cli's `mccontrol/areas.py`,
-which is the regional template's counties; its `tests/test_areas.py` compares it with a template
-checkout). Mesh-only nodes: `meshCandidates()` lists the repeaters in the connected companion's
-contacts that are not in the list, `addMeshNode(c)` adds one as mesh-only in the area. Setup's area
-tab finds them (W-24, `ui/screens/mesh-find.js`): `findMeshNodes(geo)` adds Beacon's repeaters that
-are not observers and lie inside the county's outline (`lib/discovery/mesh-candidates.js`; by
-position, since Beacon's IATA is only where a node was heard), sending nothing; `checkMeshNode(c)`
+No area is chosen anywhere (IATA-2, operator 2026-11-18): the old county picker and Setup's area tab
+are gone; `#setup/area` lands on the connections tab. A node's own region home (from its alive) is
+shown only in that node's details, and names its county for an area act (`lib/discovery/areas.js`,
+`nodeAreas`). Mesh-only nodes: `meshCandidates()` lists the repeaters in the connected companion's
+contacts that are not in the list, `addMeshNode(c)` adds one as mesh-only by its whole key. Setup's
+connections tab finds them (W-24, `ui/screens/mesh-find.js`): `findMeshNodes(geo)` adds Beacon's
+repeaters that are not observers and lie inside the outline of a county the owner's nodes name as
+their region home (`lib/discovery/mesh-candidates.js`), sending nothing; `checkMeshNode(c)`
 (`jobs.checkMeshNode`) sends one signed `ver` on `meshcore/mesh/<key>/cmd` through the companion,
 only on the owner's press, and adds the node as mesh-only when it answers.
 
-Strings: `area.*`, `disc.*`, `refresh.*`.
+Strings: `disc.*`, `refresh.*`, `alive.*`.
 
 ### Themes
 
@@ -459,7 +466,7 @@ without `test/`, `package.json` and this file, the version stamped into `sw.js` 
 `.github/workflows/web-deploy.yml` runs the tests on every push and pull request, deploys that
 copy to the Cloudflare Pages project `mccontrol` on a push to `main` (only when the repository
 variable `DEPLOY_ENABLED` is `true`; secrets `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`),
-and for a tag `web-v*` attaches `mccontrol-<tag>.zip`, its `.sha256` and the `integrity.json`
+and for a tag `v*` (the repository's `v0.1.0-beta.N`) attaches `mccontrol-<tag>.zip`, its `.sha256` and the `integrity.json`
 to that tag's GitHub release.
 
 The offline copy (`sw.js`) installs a release only when every file matches `integrity.json`,

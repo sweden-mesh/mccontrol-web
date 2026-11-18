@@ -100,8 +100,7 @@ export function render(ctx) {
     const s = await svc();
     const handle = currentHandle();
     if (!s || !handle) throw new Error(ctx.t('send.locked'));
-    const region = (await s.stores.devices.list())[0]?.region || '';
-    const steps = await testConnection({ config: brokerConfig(s.data.brokers, region), handle });
+    const steps = await testConnection({ config: brokerConfig(s.data.brokers, ''), handle });
     const bad = steps.find((x) => !x.ok);
     reportBroker({ ok: !bad, detail: bad ? `${bad.step}: ${bad.detail}` : steps.map((x) => x.detail).join(' · ') });
     ctx.announce(bad ? `${ctx.t('tile.unreached')}: ${bad.detail}` : ctx.t('tile.reached'));
@@ -158,7 +157,6 @@ export function render(ctx) {
     const src = source('discovery');
     if (!src) return line('discovery', 'unknown', ctx.t('tile.notRunHere'), h('a', { href: '#nodes', class: 'status-act' }, ctx.t('tile.lookNow')));
     const st = src.state();
-    if (st.needsArea) return line('discovery', 'warn', ctx.t('disc.needsArea'), h('a', { href: '#setup/area', class: 'status-act' }, ctx.t('tile.chooseArea')));
     const acts = [src.run && ctx.key.state().status === 'unlocked' ? act(ctx.t('tile.lookNow'), () => src.run()) : null,
       src.undo && st.canUndo ? act(ctx.t('disc.undo'), async () => { await src.undo(); ctx.announce(ctx.t('disc.undone')); }) : null].filter(Boolean);
     return line('discovery', st.state, clock(st, ctx.t('tile.notYet')), acts.length ? h('span', { class: 'status-acts' }, acts) : null, st.detail);

@@ -27,7 +27,7 @@ export function nodeList(ctx, svc, { selected, onPick }) {
     radios.map((r, i) => h('label', { class: 'seg-option' }, r, words[i])));
   const rows = h('ul', { class: 'std-rows', id: `${id}-rows`, 'aria-label': ctx.t('tile.nodes') });
   const more = h('button', { type: 'button', class: 'tool std-more' }, ctx.t('std.findMore'));
-  more.addEventListener('click', () => ctx.navigate('#setup/area'), { signal: ctx.signal });
+  more.addEventListener('click', () => ctx.navigate('#nodes'), { signal: ctx.signal });
   const el = h('div', { class: 'std-list' },
     h('div', { class: 'std-list-tools' },
       h('label', { class: 'visually-hidden', for: search.id }, ctx.t('std.search')), search, filter, count),

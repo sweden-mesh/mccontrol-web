@@ -1,4 +1,4 @@
-// Setup's area tab: find mesh-only nodes (W-24). A board without Wi-Fi never uses MQTT, so
+// Setup's connections tab: find mesh-only nodes (W-24). A board without Wi-Fi never uses MQTT, so
 // discovery's broadcast cannot reach it. "Look for them" reads, and sends nothing: the companion's
 // contacts and Beacon's repeaters (not observers) placed inside the chosen county. Each is a
 // possible mesh-only node, not confirmed. "Check" sends ONE signed `ver` over the mesh through the
@@ -96,7 +96,7 @@ export function meshFindBlock(ctx) {
       const all = [...r.companion, ...r.beacon];
       list.replaceChildren(...all.map(row));
       const parts = [all.length ? t('mesh.find.found', { n: all.length }) : t('mesh.find.none')];
-      if (!r.area) parts.push(t('mesh.find.noArea'));
+      if (!r.counties.length) parts.push(t('mesh.find.noArea'));
       if (companionState().status !== 'connected') parts.push(t('mesh.find.noContacts'));
       if (r.beaconError) parts.push(t('mesh.find.beaconFailed', { reason: r.beaconError }));
       status.textContent = parts.join(' ');

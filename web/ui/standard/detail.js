@@ -14,7 +14,7 @@ import { updateAvailable } from '../../lib/jobs/releases.js';
 import { lowBatteryVolts, notHeardHours } from '../screens/settings-store.js';
 import { explainEvent, nameOf, volts } from '../screens/node-kit.js';
 import * as historyScreen from '../screens/history.js';
-import { editForm, factList, firmwareBlock, REGION_SET } from '../screens/node.js';
+import { editForm, factList, firmwareBlock, nodeFacts, REGION_SET } from '../screens/node.js';
 import { runSetPanel } from '../screens/sets.js';
 import { commandLine } from '../tiles/node-view.js';
 import { age, clockTime, stateMark } from '../tiles/kit.js';
@@ -108,7 +108,7 @@ export function nodeDetail(ctx, svc, nodeId, { tab = 'overview', onTab, onPick }
     el.replaceChildren(
       h('div', { class: 'std-top' },
         h('h1', {}, nameOf(device)),
-        h('p', { class: 'muted std-meta' }, [kind, device.ver ? shortVersion(svc.rules, device.ver) : ctx.t('nodes.verUnknown'), device.region,
+        h('p', { class: 'muted std-meta' }, [kind, device.ver ? shortVersion(svc.rules, device.ver) : ctx.t('nodes.verUnknown'), ...nodeFacts(ctx, device),
           heard ? h('span', {}, ctx.t('tile.heard'), ' ', age(ctx, heard)) : ctx.t('nodes.heardUnknown')]
           .filter(Boolean).flatMap((x, i) => (i ? [' · ', x] : [x]))),
         tabs),

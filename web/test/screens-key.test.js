@@ -165,12 +165,16 @@ test('help: links between topics, and every result code with mesh-closed', () =>
   const closed = rows.find((r) => r.code === 19);
   assert.equal(closed.name, 'mesh-closed');
   assert.match(closed.help, /Send over MQTT/);
-  assert.equal(rows.find((r) => r.code === 1).help, '');
-  // W-35g: a code the shared table leaves without words has the page's own, in every language.
+  // W-36: every code has the spec's own text (no "As the name says", W-35g), and none of the page's
+  for (const r of rows) assert.ok(r.help, `results.json help for ${r.code}`);
+  assert.match(rows.find((r) => r.code === 1).help, /nothing in it/);
+  assert.match(rows.find((r) => r.code === 13).sv, /styrtecken/);
   for (const lang of ['en', 'sv']) {
     const strings = JSON.parse(readFileSync(new URL(`../i18n/${lang}.json`, import.meta.url), 'utf8'));
-    for (const r of rows.filter((x) => !x.help)) assert.ok(strings[`help.code.${r.name}`], `${lang}: help.code.${r.name}`);
+    assert.deepEqual(Object.keys(strings).filter((k) => k.startsWith('help.code.')), [], `${lang}: the spec holds them`);
   }
+  assert.match(help.topics.ownregion.title, /command server/);
+  assert.doesNotMatch(help.topics.ownregion.body, /region's broker/);
   for (const name of Object.values(help.topics.index.body.match(/\[\[([a-z0-9_-]+)\]\]/g)).map((m) => m.slice(2, -2))) {
     assert.ok(help.topics[name], `the contents link to ${name}`);
   }

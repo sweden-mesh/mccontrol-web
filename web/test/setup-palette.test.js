@@ -52,13 +52,14 @@ test('the shipped command set explains every step', () => {
   for (const s of steps) assert.ok(commandHelp(t, table, s.replaceAll('{arg}', 'se-jkp')), s);
 });
 
-test('Setup: seven tabs in the order an owner meets them, old names land on one', () => {
-  assert.deepEqual(Object.keys(TABS), ['key', 'node', 'area', 'groups', 'sets', 'warnings', 'display']);
+test('Setup: seven tabs in the order an owner meets them, old names land on one; no area tab', () => {
+  assert.deepEqual(Object.keys(TABS), ['key', 'node', 'connections', 'groups', 'sets', 'warnings', 'display']);
   for (const tab of Object.values(TABS)) {
     assert.ok(tab.label in en && tab.label in sv, tab.label);
     assert.equal(typeof tab.render, 'function');
   }
-  assert.equal(tabFor('settings'), 'area');
+  assert.equal(tabFor('settings'), 'connections');
+  assert.equal(tabFor('area'), 'connections');
   assert.equal(tabFor('setup'), 'node');
   assert.equal(tabFor('groups'), 'groups');
   assert.equal(tabFor('nope'), null);
@@ -78,23 +79,24 @@ test('palette: the command lines, the target and its address', () => {
   assert.equal(targetFor({ selected: '4AC61A7F', tagged: ['AB', 'CD'] }), 'n:AB,CD', 'tagged wins');
   assert.deepEqual(parseTarget('n:ab,CD'), { kind: 'nodes', ids: ['AB', 'CD'] });
   assert.deepEqual(parseTarget('g:roof:2'), { kind: 'group', id: 'roof:2' });
-  assert.deepEqual(parseTarget('r:jkg'), { kind: 'region', region: 'JKG' });
+  assert.deepEqual(parseTarget('a:SE-JKP'), { kind: 'area', area: 'se-jkp' });
+  assert.equal(parseTarget('r:jkg'), null, 'no region target');
   assert.equal(parseTarget('-'), null);
   assert.equal(parseTarget('n:'), null);
   assert.equal(runHash('cmd', 'n:AB', 'region put se-jkp *'), '#run/cmd/n%3AAB/region%20put%20se-jkp%20*');
-  assert.equal(runHash('cmd', 'r:JKG'), '#run/cmd/r%3AJKG');
+  assert.equal(runHash('cmd', 'a:se-jkp'), '#run/cmd/a%3Ase-jkp');
   assert.equal(runHash('set', '', 'add-scope'), '#run/set/-/add-scope');
 });
 
 test('palette: the entries, and typing narrows them best first', () => {
   const entries = buildEntries({
     t, tabs: TABS, table, sets: { 'add-scope': ['region put {arg} *'] }, groups: [{ id: 'roof', members: ['AB'] }],
-    regions: [{ region: 'JKG', count: 4 }], key: { status: 'unlocked' }, target: 'n:AB',
+    areas: [{ scope: 'se-jkp', label: 'Jönköpings län', count: 4 }], key: { status: 'unlocked' }, target: 'n:AB',
   });
   const labels = entries.map((e) => e.label);
   assert.ok(labels.includes('Setup: Key') && labels.includes('Setup: Display'));
   assert.ok(labels.includes('Lock the key'));
-  assert.ok(entries.find((e) => e.label === 'Every node in region JKG').hash.startsWith('#run/cmd/r%3AJKG'));
+  assert.ok(entries.find((e) => e.label === 'Each of your nodes in Jönköpings län').hash.startsWith('#run/cmd/a%3Ase-jkp'));
   assert.equal(entries.find((e) => e.label === 'Run the set add-scope').hash, '#run/set/n%3AAB/add-scope');
   assert.equal(entries.find((e) => e.label === 'ver').hash, '#run/cmd/n%3AAB/ver');
   assert.equal(new Set(entries.map((e) => e.id)).size, entries.length, 'ids are unique');
@@ -103,7 +105,7 @@ test('palette: the entries, and typing narrows them best first', () => {
   assert.equal(filterEntries(entries, 'ver')[0].label, 'ver', 'a label that starts with the query first');
   assert.ok(filterEntries(entries, 'flood hops').some((e) => e.label === 'get flood.max'), 'words match the help too');
   assert.equal(filterEntries(entries, 'zzzz').length, 0);
-  assert.equal(filterEntries(entries, 'REGION JKG')[0].label, 'Every node in region JKG', 'case is ignored');
+  assert.equal(filterEntries(entries, 'JÖNKÖPINGS')[0].label, 'Each of your nodes in Jönköpings län', 'case is ignored');
 
   const none = buildEntries({ t, tabs: TABS, table: [], key: { status: 'none' }, modals: () => false });
   assert.ok(!none.some((e) => /key/i.test(e.label) && e.hash === '#unlock'), 'no unlock entry: the gate is in front (W-28b)');
