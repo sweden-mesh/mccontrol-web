@@ -4,13 +4,13 @@
 // origin. The outlines are the regional template's se-lan.geojson (Natural Earth 10m admin-1,
 // public domain, simplified to ~1 km), copied as se-lan.json; positions and neighbours are Beacon's
 // /nodes?iatas=<region>&neighbors=true (the origin the CSP already names), read once per region and
-// kept 15 minutes. The map frames the owner's own nodes, not the region (W-25c); the region frames
-// it only when none of them has a position.
+// kept 15 minutes. The map frames the owner's own nodes, not the region (W-25c), at least 2 km
+// across (W-26a); the region frames it only when none of them has a position.
 //
 // A mark's shape is its status, the same as the NODES glyph (● ok, ▲ needs attention, ✕ refused,
 // ○ not known), so nothing rests on colour. A click or Enter on a mark selects the node; its name
-// and state are the mark's tooltip and accessible name. "As a list" under the map is the text
-// alternative: every node, its state, its neighbours, or that Beacon has no position for it.
+// and state are the mark's tooltip and accessible name; NODES is the text alternative (the "As a
+// list" under the map was removed, W-26e).
 // Under the outlines, faintly, the lakes and the coast (se-water.json: Natural Earth 1:10m lakes
 // and coastline, public domain, clipped to Sweden and simplified; scripts/water-outline.py), so
 // the land reads as land (W-23c). Same origin, so the CSP is unchanged.
@@ -18,7 +18,7 @@ import { h } from '../dom.js';
 import { lowBatteryVolts, notHeardHours } from '../screens/settings-store.js';
 import { beaconBase } from '../../lib/stats/beacon.js';
 import { nameOf } from '../screens/node-kit.js';
-import { forKey, s, stateMark } from './kit.js';
+import { forKey, s } from './kit.js';
 import { fit, mapFrame, mapModel, nodeStatus, outlinePaths, project, sharedPrefix, waterPaths } from './data.js';
 import { onDataChanged } from './sources.js';
 
@@ -72,21 +72,22 @@ function mark(state, x, y) {
 function fill(ctx, svc, body) {
   const figure = h('div', { class: 'map-figure' });
   const caption = h('p', { class: 'row muted map-caption', id: 'map-caption' });
-  const listBox = h('ul', { class: 'rows map-list' });
-  const details = h('details', { class: 'map-alt' }, h('summary', {}, ctx.t('tile.mapList')), listBox);
-  body.replaceChildren(figure, caption, details);
+  body.replaceChildren(figure, caption);
 
+  // A later draw wins (W-26a): one started before discovery added the nodes may finish after the
+  // one started after it (Beacon answers in any order), and must not paint over it.
+  let turn = 0;
   async function draw() {
+    const mine = turn += 1;
+    const stale = () => ctx.signal.aborted || mine !== turn;
     const devices = await svc.stores.devices.list();
-    if (ctx.signal.aborted) return;
+    if (stale()) return;
     if (!devices.length) {
       figure.replaceChildren();
       caption.textContent = ctx.t('tile.mapEmpty');
-      details.hidden = true;
       ctx.tile.setTitle('');
       return;
     }
-    details.hidden = false;
     const regions = [...new Set(devices.map((d) => d.region))].sort();
     ctx.tile.setTitle(regions.join(' '));
     const now = Date.now();
@@ -98,17 +99,11 @@ function fill(ctx, svc, body) {
       try { rows = rows.concat(await areaNodes(r)); } catch { failed = true; }
     }
     const [geo, wet] = await Promise.all([loadOutline(), loadWater()]);
-    if (ctx.signal.aborted) return;
+    if (stale()) return;
     const model = mapModel(devices, rows);
     const selected = ctx.board.selected();
     const placedMine = model.mine.filter((m) => m.node);
     const f = mapFrame(model);
-    listBox.replaceChildren(...model.mine.map((m) => h('li', { class: 'row' },
-      stateMark(ctx, status.get(m.device.node)), ' ', h('span', { class: 'node-name' }, nameOf(m.device)), ' ',
-      h('span', { class: 'muted' }, m.node
-        ? [ctx.t('tile.at', { lat: m.node.lat.toFixed(3), lng: m.node.lng.toFixed(3) }),
-          m.neighbours !== null ? ` · ${ctx.t('tile.neighbours', { n: m.neighbours })}` : ''].join('')
-        : ctx.t('tile.noPosition')))));
     if (!f) {
       figure.replaceChildren();
       caption.textContent = failed ? ctx.t('tile.mapBeaconFailed') : ctx.t('tile.mapNoPositions');

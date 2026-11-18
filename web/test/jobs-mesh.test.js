@@ -9,7 +9,7 @@ import { openStores } from '../lib/store/index.js';
 import { rulesFrom } from '../lib/protocol/rules.js';
 import { createJobs, JobError } from '../lib/jobs/jobs.js';
 import { blocker, preflight } from '../lib/jobs/checks.js';
-import { chooseRoad, mqttHeardAt } from '../lib/jobs/road.js';
+import { chooseRoad, mqttHeardAt, startRoad } from '../lib/jobs/road.js';
 import { openCompanion } from '../lib/mesh/companion.js';
 import { keyFromSeed } from '../lib/key/handle.js';
 import { fromHex } from '../lib/bytes.js';
@@ -162,4 +162,15 @@ test('importing history keeps a road and refuses a made-up one', async () => {
   assert.equal(r.added, 2);
   const roads = Object.fromEntries((await stores.history.list()).map((e) => [e.id, e.road]));
   assert.deepEqual(roads, { a1: 'mesh', a3: 'mqtt' });
+});
+
+// W-26b, W-26c: the selector starts on the node's remembered road, else the mesh with a companion.
+test('the road the selector starts on: remembered, else mesh with a companion, else MQTT', () => {
+  assert.equal(startRoad({}), 'mqtt');
+  assert.equal(startRoad({ companion: true }), 'mesh');
+  assert.equal(startRoad({ meshOnly: true }), 'auto');
+  assert.equal(startRoad({ remembered: 'mqtt', companion: true }), 'mqtt');
+  assert.equal(startRoad({ remembered: 'auto' }), 'auto');
+  assert.equal(startRoad({ remembered: 'mqtt', meshOnly: true, companion: true }), 'mesh');
+  assert.equal(startRoad({ remembered: 'bogus' }), 'mqtt');
 });

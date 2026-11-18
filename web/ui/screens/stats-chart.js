@@ -8,6 +8,8 @@
 // The statistics screen (stats.js) uses it and the stats it resolves with. Plain SVG drawn here, no library.
 import { h } from '../dom.js';
 import { beaconBase, beaconClient, nodeStats, niceScale } from '../../lib/stats/beacon.js';
+import { batteryKnown } from '../../lib/jobs/overview.js';
+import { volts } from './node-kit.js';
 
 // The SVG namespace: a name, not an address anything is fetched from (built up so the CSP test's
 // "no URL in our code" check keeps meaning what it says).
@@ -147,7 +149,7 @@ function chartFigure(data, ctx) {
         h('th', { scope: 'row' }, f.full(b.t)),
         h('td', {}, b.tx === null ? t('stats.noData') : f.n(b.tx)),
         h('td', {}, b.rx === null ? t('stats.noData') : f.n(b.rx)),
-        h('td', {}, b.batteryMv === null ? t('stats.noData') : f.n(b.batteryMv)))))));
+        h('td', {}, batteryKnown(b.batteryMv) ? f.n(b.batteryMv) : volts(t, b.batteryMv)))))));
 
   const figure = h('figure', { class: 'stats-chart' },
     h('figcaption', {},

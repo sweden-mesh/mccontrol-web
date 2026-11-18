@@ -2,7 +2,7 @@
 // key gate, ages, a result in words, the confirmation dialog, a progress line and downloads.
 import { h } from '../dom.js';
 import { codeHelp, codeName } from '../../lib/protocol/results.js';
-import { shortVersion } from '../../lib/jobs/overview.js';
+import { batteryKnown, NO_READING, shortVersion, voltsText } from '../../lib/jobs/overview.js';
 import { services } from './node-services.js';
 import { unlockHash } from './key-session.js';
 
@@ -182,3 +182,11 @@ export function field(label, control, hint = null) {
 
 // Sort helper for names in the page's language.
 export const byName = (lang) => (a, b) => nameOf(a).localeCompare(nameOf(b), lang);
+
+// A battery reading for the screen (W-26j): "3.98 V", or "NA" with "Not available" as its tooltip
+// and as what a screen reader says, when the node has no battery or reports 0 mV.
+export function volts(t, mv) {
+  if (batteryKnown(mv)) return voltsText(mv);
+  const words = t('battery.na');
+  return h('abbr', { class: 'na', title: words }, h('span', { 'aria-hidden': 'true' }, NO_READING), h('span', { class: 'visually-hidden' }, words));
+}

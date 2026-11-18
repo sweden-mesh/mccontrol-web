@@ -2,7 +2,8 @@
 // Beacon (battery, airtime sent per hour, noise floor), links to its details, statistics and
 // history, and at the bottom the command line: type, Enter signs and sends to this node, or to
 // the tagged nodes when some are tagged. The road switch (Auto / MQTT / Mesh) sits on the same
-// line. A command's answer is shown once, in HISTORY (W-23g): not here as a log, not under the
+// line (it starts on the node's last choice, else the mesh while a companion is connected: W-26b,
+// W-26c). A command's answer is shown once, in HISTORY (W-23g): not here as a log, not under the
 // line. The command area is two fixed rows (W-23h, W-23i): the line, and the companion's state
 // when the road may take the mesh; what is wrong with a command tints the field and is its
 // description, never a third row.
@@ -16,18 +17,20 @@
 // here. Every outcome lands in the history store (jobs.js) and so in HISTORY.
 import { h } from '../dom.js';
 import { deriveFacts } from '../../lib/store/index.js';
-import { lastHeard, shortVersion } from '../../lib/jobs/overview.js';
+import { batteryKnown, lastHeard, shortVersion } from '../../lib/jobs/overview.js';
 import { blocker, preflight } from '../../lib/jobs/checks.js';
 import { beaconBase, beaconClient } from '../../lib/stats/beacon.js';
 import { CompanionError } from '../../lib/mesh/companion.js';
 import { lowBatteryVolts, meshAfterMins, notHeardHours } from '../screens/settings-store.js';
-import { confirm, nameOf } from '../screens/node-kit.js';
+import { confirm, nameOf, volts } from '../screens/node-kit.js';
 import { companionBrief } from '../screens/road-kit.js';
+import { companion as connectedCompanion, onCompanion } from '../companion-session.js';
+import { startRoad } from '../../lib/jobs/road.js';
 import { whyText } from '../screens/send.js';
 import { tagged as taggedIds, onBoardChange, clearTags } from '../board-state.js';
 import { age, s } from './kit.js';
 import { GLYPH } from '../statusline.js';
-import { hourly, known, nodeStatus, sparkRuns } from './data.js';
+import { hourly, known, newCounts, nodeStatus, sparkRuns } from './data.js';
 import { dataChanged, onDataChanged, reportBroker, startJob } from './sources.js';
 
 const TELEMETRY_MAX_AGE = 15 * 60000;
@@ -56,7 +59,7 @@ export function readTelemetry(device, now = Date.now()) {
 }
 
 // A sparkline: the line (hidden from a screen reader) beside its words, which carry the values.
-function spark(ctx, label, values, { unit, digits = 0, scale = 1, latestKnown = true }) {
+function spark(ctx, label, values, { unit, digits = 0, scale = 1, latestKnown = true, none = '–' }) {
   const vals = values.map((v) => (Number.isFinite(v) ? v / scale : null));
   const k = known(vals);
   const fmt = (v) => `${v.toFixed(digits)}${unit}`;
@@ -70,7 +73,7 @@ function spark(ctx, label, values, { unit, digits = 0, scale = 1, latestKnown = 
       cx: runs.at(-1).split(' ').at(-1).split(',')[0], cy: runs.at(-1).split(' ').at(-1).split(',')[1] }) : null) : h('span', { class: 'spark spark-empty', 'aria-hidden': 'true' });
   return h('li', { class: 'row fact spark-row' },
     h('span', { class: 'fact-name' }, label),
-    h('span', { class: 'fact-value' }, k.length ? fmt(last) : '–'),
+    h('span', { class: 'fact-value' }, k.length ? fmt(last) : none),
     svg,
     h('span', { class: 'fact-age muted' }, k.length ? h('span', { class: 'visually-hidden' }, words) : null, ctx.t('tile.h24')));
 }
@@ -114,10 +117,13 @@ export function nodeView(ctx, svc, nodeId, { heading = null } = {}) {
     }
     heading?.(device);
     line.use(device);
-    const events = await svc.stores.history.list({ node: device.node, limit: 60 });
+    const [events, seen] = await Promise.all([svc.stores.history.list({ node: device.node, limit: 60 }), svc.stores.meta.get('resultsSeen')]);
+    if (ctx.signal.aborted) return;
     const heard = lastHeard(device);
+    // The node's results not yet seen in HISTORY (W-26g: moved here from NODES).
+    const fresh = newCounts(events, seen)[device.node] || 0;
     // Each part keeps its dot at its end, so a wrapped line never starts with one.
-    const meta = [device.region, device.ver ? shortVersion(svc.rules, device.ver) : ctx.t('nodes.verUnknown'),
+    const meta = [...(fresh ? [h('a', { class: 'node-new', href: `#history/${device.node}` }, ctx.t('tile.newCount', { n: fresh }))] : []), device.region, device.ver ? shortVersion(svc.rules, device.ver) : ctx.t('nodes.verUnknown'),
       [`${ctx.t('tile.heard')} `, heard ? age(ctx, heard) : ctx.t('nodes.heardUnknown')],
       device.key && svc.rules.speaksV2(device.ver) ? ctx.t('tile.v2') : ctx.t('tile.v1')];
     // Why it needs attention, whole: NODES cuts it to fit its row (W-23d).
@@ -149,7 +155,8 @@ export function nodeView(ctx, svc, nodeId, { heading = null } = {}) {
       if (!tel) { sparks.replaceChildren(h('li', { class: 'row muted' }, ctx.t('tile.noBeacon'))); return; }
       const now = Date.now();
       sparks.replaceChildren(
-        spark(ctx, ctx.t('tile.battery'), hourly(tel.points, 'batteryMv', now), { unit: ' V', digits: 2, scale: 1000 }),
+        spark(ctx, ctx.t('tile.battery'), hourly(tel.points, 'batteryMv', now).map((mv) => (batteryKnown(mv) ? mv : null)),
+          { unit: ' V', digits: 2, scale: 1000, none: volts(ctx.t, null) }),
         spark(ctx, ctx.t('tile.airtime'), hourly(tel.points, 'airtimeTxSecs', now, { diff: true }), { unit: ' s', digits: 0 }),
         spark(ctx, ctx.t('tile.noise'), hourly(tel.points, 'noiseFloorDb', now), { unit: ' dBm', digits: 0 }),
         tel.sampledAt ? h('li', { class: 'row muted small-row' }, ctx.t('tile.beaconAge'), ' ', age(ctx, tel.sampledAt)) : null);
@@ -257,8 +264,23 @@ function commandLine(ctx, svc, nodeId) {
     companionSlot.replaceChildren(...(show ? [h('span', { class: 'muted' }, ctx.t('tile.line.companion'), ' '), companion] : []));
   }
 
+  // The road starts on the node's last choice, else the mesh while a companion is connected (W-26b,
+  // W-26c); a choice made here is stored with the node, and until one is, a companion connecting
+  // or going away moves the start with it.
+  let chosen = false;
+  const pickStart = () => {
+    if (!device || chosen) return;
+    road.value = startRoad({ remembered: device.road, companion: Boolean(connectedCompanion()), meshOnly: svc.rules.deviceMeshOnly(device) });
+    drawPrompt();
+    drawChecks();
+  };
+  ctx.signal.addEventListener('abort', onCompanion(pickStart), { once: true });
   input.addEventListener('input', drawChecks, { signal: ctx.signal });
-  road.addEventListener('change', drawChecks, { signal: ctx.signal });
+  road.addEventListener('change', () => {
+    chosen = true;
+    if (device) svc.stores.devices.update(device.node, { road: road.value }).then((d) => { device = d; }).catch(() => {});
+    drawChecks();
+  }, { signal: ctx.signal });
   const onTags = () => { drawPrompt(); drawChecks(); };
   ctx.signal.addEventListener('abort', onBoardChange((st) => { if (st.what === 'tagged') onTags(); }), { once: true });
 
@@ -312,8 +334,7 @@ function commandLine(ctx, svc, nodeId) {
     async use(d) {
       device = d;
       all = await svc.stores.devices.list();
-      const meshOnly = svc.rules.deviceMeshOnly(d);
-      if (!form.dataset.ready) { road.value = meshOnly ? 'auto' : 'mqtt'; form.dataset.ready = '1'; }
+      if (!form.dataset.ready) { form.dataset.ready = '1'; pickStart(); return; }
       drawPrompt();
       drawChecks();
     },

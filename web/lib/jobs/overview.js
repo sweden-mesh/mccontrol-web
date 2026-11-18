@@ -6,6 +6,13 @@ import { updateAvailable } from './releases.js';
 
 const HOUR = 3600000;
 
+// A battery reading (W-26j): a node without a battery, or one that reports 0 mV, has no reading.
+// 0 and missing are the same; a real low reading (3.10 V) is shown as it is.
+export const batteryKnown = (mv) => Number.isFinite(mv) && mv > 0;
+export const NO_READING = 'NA';
+// "3.98 V", or "NA" when there is no reading: never "0.00 V".
+export const voltsText = (mv) => (batteryKnown(mv) ? `${(mv / 1000).toFixed(2)} V` : NO_READING);
+
 // The newest moment the node was heard on MQTT: its last status on Beacon, or its last answer
 // to us (answers travel over MQTT too). null when neither is known.
 export function lastHeard(device) {
@@ -28,7 +35,7 @@ export function needsAttention(devices, { now, hours, thresholdMv, release = nul
   }
   for (const d of devices) {
     const mv = d.fleet?.batteryMv;
-    if (Number.isFinite(mv) && mv < thresholdMv) {
+    if (batteryKnown(mv) && mv < thresholdMv) {
       out.push({ node: d.node, name: name(d), kind: 'battery', vars: { volts: (mv / 1000).toFixed(2) }, at: Date.parse(d.fleet.seen) });
     }
   }

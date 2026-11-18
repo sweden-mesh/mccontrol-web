@@ -4,6 +4,8 @@
 // (lib/stats/beacon.js); nothing here sends to the mesh. Without an id it asks for one.
 import { h } from '../dom.js';
 import { ageParts } from '../../lib/stats/beacon.js';
+import { batteryKnown } from '../../lib/jobs/overview.js';
+import { volts } from './node-kit.js';
 import { mountTrafficChart, useStatsStyles } from './stats-chart.js';
 
 export const route = 'stats';
@@ -41,7 +43,7 @@ function statList(data, { t, lang }) {
   const block = data.stats;
   if (!block) return h('p', { class: 'stats-note muted' }, t('stats.noStatus'));
   const show = {
-    battery_mv: (x) => `${v.format(x / 1000)} V`,
+    battery_mv: (x) => (batteryKnown(x) ? `${v.format(x / 1000)} V` : volts(t, x)),
     uptime_secs: (x) => uptime(x, t),
     noise_floor: (x) => `${n.format(x)} dBm`,
   };

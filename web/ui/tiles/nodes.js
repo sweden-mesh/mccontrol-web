@@ -1,9 +1,9 @@
 // NODES (W-20c): one row per node, what needs attention first. Each row, on ONE line (W-23d): the
-// status glyph, the name, the reason it needs attention (else the status word), region, firmware,
-// battery and when it was last heard; the row is tinted by severity. The reason is cut to fit,
+// status glyph, the name, the reason it needs attention (else the status word), region, firmware
+// and when it was last heard (no battery: NODE shows it, W-26f); the row is tinted by severity. The reason is cut to fit,
 // whole in its tooltip and to a screen reader, and whole in NODE (on a phone the node opens full
-// screen, the way in on a touch screen). The title says "4 · 1 needs attention". A node with new
-// results says "2 new" first in that column (W-25d: the counts moved here from HISTORY's title).
+// screen, the way in on a touch screen). The title says "4 · 1 needs attention". The "2 new"
+// results count is NODE's (W-26g; W-25d had put it here).
 //
 // Pointer: a click on a row selects it (the NODE tile follows; on a phone the node opens full
 // screen); the box at the row's start tags it for a send to several. Keyboard: '/' searches,
@@ -13,8 +13,8 @@ import { h } from '../dom.js';
 import { lowBatteryVolts, notHeardHours } from '../screens/settings-store.js';
 import { lastHeard, shortVersion } from '../../lib/jobs/overview.js';
 import { nameOf } from '../screens/node-kit.js';
-import { age, everyMinute, forKey, stateMark, volts } from './kit.js';
-import { byAttention, matches, newCounts, nodeStatus, sharedPrefix } from './data.js';
+import { age, everyMinute, forKey, stateMark } from './kit.js';
+import { byAttention, matches, nodeStatus, sharedPrefix } from './data.js';
 import { onDataChanged } from './sources.js';
 
 export const id = 'nodes';
@@ -39,10 +39,8 @@ function fill(ctx, svc, body) {
   let focusId = null;
 
   async function draw() {
-    const [devices, events, seen] = await Promise.all([
-      svc.stores.devices.list(), svc.stores.history.list({ limit: 200 }), svc.stores.meta.get('resultsSeen')]);
+    const devices = await svc.stores.devices.list();
     if (ctx.signal.aborted) return;
-    const fresh = newCounts(events, seen);
     const now = Date.now();
     const opts = { now, hours: notHeardHours(), thresholdMv: lowBatteryVolts() * 1000, release, rules: svc.rules };
     const rows = byAttention(devices.map((d) => ({ device: d, status: nodeStatus(d, opts) })), ctx.lang);
@@ -61,7 +59,7 @@ function fill(ctx, svc, body) {
     const tags = new Set(ctx.board.tagged());
     if (!focusId || !shown.some((r) => r.device.node === focusId)) focusId = selected && shown.some((r) => r.device.node === selected) ? selected : shown[0]?.device.node;
     const prefix = sharedPrefix(devices.map(nameOf));
-    list.replaceChildren(...(shown.length ? shown.map((r) => row(ctx, svc, r, { now, selected, tags, focusId, prefix, fresh: fresh[r.device.node] || 0 }))
+    list.replaceChildren(...(shown.length ? shown.map((r) => row(ctx, svc, r, { now, selected, tags, focusId, prefix }))
       : [h('li', { class: 'row muted', role: 'status' }, ctx.t('nodes.noMatch'))]));
     foot.textContent = [
       shown.length === devices.length ? ctx.t(devices.length === 1 ? 'tile.nodesCountOne' : 'tile.nodesCount', { n: devices.length }) : ctx.t('nodes.count', { n: shown.length, of: devices.length }),
@@ -69,8 +67,8 @@ function fill(ctx, svc, body) {
     ].join(' · ');
   }
 
-  // A row: [tag box] [button: glyph word · name · region · firmware · battery · heard] [reason]
-  function row(ctx, svc, { device: d, status }, { now, selected, tags, focusId: f, prefix = '', fresh = 0 }) {
+  // A row: [tag box] [button: glyph word · name · reason · region · firmware · heard]
+  function row(ctx, svc, { device: d, status }, { now, selected, tags, focusId: f, prefix = '' }) {
     const name = nameOf(d);
     // The part that tells it apart: what every name shares at the start says nothing (data.js).
     const short = prefix && name.startsWith(prefix) ? name.slice(prefix.length) : name;
@@ -83,12 +81,10 @@ function fill(ctx, svc, body) {
     const reasonText = reason ? ctx.t(`dash.att.${reason.kind}`, reason.vars) : null;
     const allReasons = status.reasons.map((r) => ctx.t(`dash.att.${r.kind}`, r.vars)).join('; ');
     // The glyph's word is read aloud; the column shows the reason, or the word when there is none.
-    const news = fresh ? [h('span', { class: 'node-new' }, ctx.t('tile.newCount', { n: fresh })), ' '] : [];
     const why = reasonText
-      ? h('span', { class: 'node-why', title: allReasons }, ...news, reasonText,
+      ? h('span', { class: 'node-why', title: allReasons }, reasonText,
         status.reasons.length > 1 ? ` ${ctx.t('tile.more', { n: status.reasons.length - 1 })}` : '')
-      : fresh ? h('span', { class: 'node-why' }, news[0])
-        : h('span', { class: 'node-why muted', 'aria-hidden': 'true' }, ctx.t(`tile.state.${status.state}`));
+      : h('span', { class: 'node-why muted', 'aria-hidden': 'true' }, ctx.t(`tile.state.${status.state}`));
     const button = h('button', { type: 'button', class: 'node-row', 'data-node': d.node, tabindex: d.node === f ? '0' : '-1',
       'aria-current': d.node === selected ? 'true' : null },
     stateMark(ctx, status.state),
@@ -96,7 +92,6 @@ function fill(ctx, svc, body) {
     why,
     h('span', { class: 'node-reg' }, d.region),
     h('span', { class: 'node-ver' }, d.ver ? shortVersion(svc.rules, d.ver) : '–'),
-    h('span', { class: 'node-batt' }, volts(d.fleet?.batteryMv)),
     h('span', { class: 'node-heard' }, heard ? age(ctx, heard, now) : '–'));
     button.addEventListener('click', () => { focusId = d.node; ctx.board.select(d.node); });
     return h('li', { class: `node-item${tagged ? ' is-tagged' : ''}`, 'data-state': status.state },

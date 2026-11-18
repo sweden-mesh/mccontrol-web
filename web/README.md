@@ -200,29 +200,35 @@ the `.alert` class (inverse in Amber and Green).
 
 - **NODES** (`ui/tiles/nodes.js`): one row per node, refused or forged first, then what needs
   attention, not known, ok; each on one line, the reason in place of the status word (whole in its
-  tooltip and on the selected row), the row tinted by severity (W-23d). A click selects (on a phone:
+  tooltip and on the selected row), the row tinted by severity (W-23d); no battery column (W-26f). A click selects (on a phone:
   the node full screen; the selection is remembered by the browser), the box tags. Keys in the list: ↑ ↓ Home End, Enter selects, Space tags; `/` searches.
 - **NODE** (`node.js`, `node-view.js`): facts with their age, 24-hour sparklines from Beacon
   (battery, airtime sent, noise floor), links to details, statistics and history, and the command
-  area at the bottom: two fixed rows, the line with the road (auto, MQTT, mesh) and the companion's
+  area at the bottom: two fixed rows, the line with the road (auto, MQTT, mesh: the node's last
+  choice, kept as the device's `road`, else the mesh while a companion is connected, else MQTT;
+  `startRoad` in `lib/jobs/road.js`, W-26b, W-26c) and the companion's
   line when the road may take the mesh. A reply shows only in HISTORY (W-23g); what is wrong with a
   command tints the field and is its description, Send off when it cannot go (W-23h). It sends to the tagged nodes when any are tagged, else to this one,
   through `lib/jobs` with the checks before signing. The `node` modal (`#node/<id>`) is the same
-  view full screen; beta.2's node screen (firmware update, name, region, forget) is `#nodeinfo/<id>`.
+  view full screen; beta.2's node screen is `#nodeinfo/<id>`, "Firmware, name and region" (W-26h): name, region,
+  notes and forget at the top, facts, the firmware update, one "Set/update region" (the shipped
+  `add-scope` steps; the owner's own sets stay in the palette and Setup, W-26i) and "All history"; no
+  Send and no results, which the board has.
 - **HISTORY** (`results.js`, RESULTS until W-25d): the selected node's answers, refusals and silences,
   new ones first, kept new until opened or marked seen (meta `resultsSeen` per key); with no node
-  selected every node's, the title saying "all nodes". How many are new shows per node in NODES
-  ("2 new" ahead of the reason), not in the title. Running jobs as bars; the `result` modal shows one.
+  selected every node's, the title saying "all nodes". How many are new shows in NODE
+  ("2 new" first on its meta line, a link to the node's history; W-26g, NODES until then), not in the title. Running jobs as bars; the `result` modal shows one.
 - **STATUS** (`status.js`): broker (Test), key (Lock), registration, companion (the word opens the
   chooser, `companionChooser` in `ui/screens/road-kit.js`, W-23a), status
   refresh and discovery, each with its action; sets the status line's `broker`.
 - **MAP** (`map.js`): the owner's nodes on the county outlines (`ui/tiles/se-lan.json`, the
   regional template's Natural Earth outlines, public domain), shape = status, Beacon's neighbour
-  links and the area's other repeaters (`/nodes?iatas=<region>&neighbors=true`), "As a list" as
-  the text alternative. Under the outlines, faintly, lakes and the coast (`ui/tiles/se-water.json`,
+  links and the area's other repeaters (`/nodes?iatas=<region>&neighbors=true`); NODES is
+  the text alternative (W-26e removed "As a list"). Under the outlines, faintly, lakes and the coast (`ui/tiles/se-water.json`,
   Natural Earth 1:10m, made by `scripts/water-outline.py`, W-23c). No map tiles, no new origin.
-  The frame is the owner's own nodes (`mapFrame` in `data.js`, W-25c); the region's nodes frame it
-  only when none of the owner's has a position.
+  The frame is the owner's own nodes (`mapFrame` in `data.js`, W-25c), at least 2 km across rather
+  than the region's 30 (W-26a: nodes 300 m apart showed as one dot); the region's nodes frame it
+  only when none of the owner's has a position. A later draw wins over an earlier one still reading.
 
 What the tiles share besides the selection is `ui/tiles/sources.js` (no DOM): `provideSource(name,
 { state, on, run, undo })` for STATUS's `broker`, `registration`, `refresh` and `discovery` lines

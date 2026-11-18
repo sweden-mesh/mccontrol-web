@@ -103,3 +103,22 @@ test('which firmware speaks the mesh road, and which is mesh only', () => {
   assert.equal(rules.deviceMeshOnly({ ver: 'nrf52-v1.18.0-lou-19-rc-1a2b3c4d', meshOnly: false }), false);
   assert.equal(rules.deviceMeshOnly({ ver: 'esp32s3-v1.18.0-lou-19-arrc-observer-1a2b3c4d', meshOnly: true }), true);
 });
+
+// W-26d: LOUTEST (an MQTT-capable lou-19 arrc-observer node in JKG) answered the web app's mesh
+// `ver` with a refusal and MQTT's with the version. The web app's request is byte for byte the
+// CLI's (this frame is Python's mesh.frame for the same seed, counter and expiry): both sign
+// meshcore/JKG/<whole key>/cmd, the topic the firmware rebuilds for a node with an IATA
+// (mqttCtrlMeshRegion: its mqtt.iata, upper case since set). A node only answers a request whose
+// signature and counter it accepts, so the refusal was the node's own: 19 mesh-closed, its
+// mqtt.cmd.mesh being auto with MQTT up. Nothing to fix on either side.
+test('LOUTEST: the web app\'s mesh ver is the CLI\'s, byte for byte', async () => {
+  const { createHash } = await import('node:crypto');
+  const { meshRequest, meshTopic } = await import('../lib/protocol/mesh.js');
+  const { sendAnonReq } = await import('../lib/mesh/frames.js');
+  const key = 'F415473DD701A5B949A039991C672FCF119C564799F0ADE1E1B73150696F66A7';
+  const owner = keyFromSeed(fromHex(createHash('sha256').update('w26d test seed').digest('hex')));
+  const topic = meshTopic('JKG', key, false);
+  assert.equal(topic, `meshcore/JKG/${key}/cmd`);
+  assert.equal(toHex(sendAnonReq(key, meshRequest(owner, topic, 1795000000, 1795000300, 'ver'))).toLowerCase(),
+    '39f415473dd701a5b949a039991c672fcf119c564799f0ade1e1b73150696f66a7c1c086fd6aec87fd6aac5b2737de1207150257e3ecb5cfa6221a215fb78da869618970c351b4c1fc8708eb0ed15620e16cff30319011eab794ea356e331e57406d953657a937d85a00766572');
+});

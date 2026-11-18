@@ -5,7 +5,7 @@
 // seen"; a reload does not clear anything (beta.2's "since your last visit" emptied itself on
 // every load, finding 2). Seen results stay, dimmed, under the new ones. A running job is a bar
 // on its own line at the top. "All history" opens the history modal. How many are new is per node
-// in NODES (newCounts in data.js), not in this tile's title, which names whose history it shows.
+// in NODE (newCounts in data.js, W-26g), not in this tile's title, which names whose history it shows.
 //
 // What is seen is kept per key in the meta store ('resultsSeen': { upTo, ids }), so it survives a
 // reload and holds on another tab of the same browser after its next draw.

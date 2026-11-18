@@ -39,16 +39,18 @@ function explainSets(ctx, svc) {
     h('p', { class: 'muted' }, t('sets.argExplain')));
 }
 
-export function runSetPanel(ctx, svc, target, sets, { initial = '' } = {}) {
+// `only`: one set, named by the section around it, so no chooser (the node view's "Set/update
+// region", W-26i); `argLabel`/`argHint` name its value.
+export function runSetPanel(ctx, svc, target, sets, { initial = '', only = false, argLabel = null, argHint = null } = {}) {
   const names = Object.keys(sets);
   if (!names.length) return h('p', { class: 'muted' }, ctx.t('sets.none'), ' ', h('a', { href: '#setup/sets' }, ctx.t('sets.toSets')));
   const select = h('select', {}, names.map((n) => h('option', { value: n, selected: n === initial }, n)));
   const arg = h('input', { type: 'text', autocomplete: 'off', class: 'short' });
-  const argField = field(ctx.t('sets.arg'), arg, ctx.t('sets.argHint'));
+  const argField = field(argLabel || ctx.t('sets.arg'), arg, argHint || ctx.t('sets.argHint'));
   const steps = h('ol', { class: 'steps' });
   const run = h('button', { type: 'submit', class: 'button' }, ctx.t('sets.run'));
   const out = h('div', { 'aria-live': 'polite' });
-  const form = h('form', { class: 'stack' }, field(ctx.t('sets.set'), select), steps, argField, h('div', { class: 'row' }, run), out);
+  const form = h('form', { class: 'stack' }, only ? null : field(ctx.t('sets.set'), select), steps, argField, h('div', { class: 'row' }, run), out);
   const draw = () => {
     const s = sets[select.value] || [];
     put(steps, ...stepList(ctx, svc, s).childNodes);

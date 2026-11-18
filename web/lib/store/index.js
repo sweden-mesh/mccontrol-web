@@ -6,6 +6,7 @@
 //   device         id = node (8 hex); key (64 hex or null), name, region, notes, ver,
 //                  lastSent, lastHeard, lastHeardMqtt, lastHeardMesh (which road it last answered
 //                  on), meshOnly (true | false | absent: the version decides),
+//                  road ('auto' | 'mqtt' | 'mesh' | absent: the node view's last choice, W-26c),
 //                  lastResult { at, command, code, codeName, verified },
 //                  reads { command: { reply, at, verified } }, fleet { batteryMv, seen, firmware,
 //                  fetched } | null, observerId
