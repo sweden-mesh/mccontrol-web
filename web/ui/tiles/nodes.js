@@ -1,8 +1,7 @@
-// NODES (W-20c): one row per node, what needs attention first. Each row, on ONE line (W-23d): the
-// status glyph, the name, the reason it needs attention (else the status word), region, firmware
-// and when it was last heard (no battery: NODE shows it, W-26f); the row is tinted by severity. The reason is cut to fit,
-// whole in its tooltip and to a screen reader, and whole in NODE (on a phone the node opens full
-// screen, the way in on a touch screen). The title says "4 · 1 needs attention". The "2 new"
+// NODES (W-20c): one row per node, what needs attention first. Each row, on ONE line: the status
+// glyph, the name, region, firmware and when it was last heard (no battery: NODE shows it, W-26f);
+// the row is tinted by severity. No status text at all (W-28c, which replaced W-23d's reason
+// column): the reason is NODE's, and on a phone the node opens full screen. The title says "4 · 1 needs attention". The "2 new"
 // results count is NODE's (W-26g; W-25d had put it here).
 //
 // Pointer: a click on a row selects it (the NODE tile follows; on a phone the node opens full
@@ -77,19 +76,12 @@ function fill(ctx, svc, body) {
       'aria-label': ctx.t('tile.tagNode', { name }) });
     box.addEventListener('change', () => ctx.board.toggleTag(d.node));
     const heard = lastHeard(d);
-    const reason = status.reasons.find((r) => r.kind === 'refused' || r.kind === 'forged') || status.reasons[0];
-    const reasonText = reason ? ctx.t(`dash.att.${reason.kind}`, reason.vars) : null;
-    const allReasons = status.reasons.map((r) => ctx.t(`dash.att.${r.kind}`, r.vars)).join('; ');
-    // The glyph's word is read aloud; the column shows the reason, or the word when there is none.
-    const why = reasonText
-      ? h('span', { class: 'node-why', title: allReasons }, reasonText,
-        status.reasons.length > 1 ? ` ${ctx.t('tile.more', { n: status.reasons.length - 1 })}` : '')
-      : h('span', { class: 'node-why muted', 'aria-hidden': 'true' }, ctx.t(`tile.state.${status.state}`));
+    // The reason lives in NODE (W-28c): the row is the name, region, firmware, heard and the
+    // severity mark; the glyph's word is read aloud, never shown (no "ok" on a row).
     const button = h('button', { type: 'button', class: 'node-row', 'data-node': d.node, tabindex: d.node === f ? '0' : '-1',
       'aria-current': d.node === selected ? 'true' : null },
     stateMark(ctx, status.state),
     h('span', { class: 'node-name', title: name }, short),
-    why,
     h('span', { class: 'node-reg' }, d.region),
     h('span', { class: 'node-ver' }, d.ver ? shortVersion(svc.rules, d.ver) : '–'),
     h('span', { class: 'node-heard' }, heard ? age(ctx, heard, now) : '–'));

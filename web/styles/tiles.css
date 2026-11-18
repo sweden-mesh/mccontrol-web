@@ -39,19 +39,16 @@
 .node-item { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; column-gap: 4px; }
 .tag-hit { display: inline-flex; align-items: center; justify-content: center; min-width: 24px; min-height: var(--row); cursor: pointer; }
 .tag-box { width: 1rem; height: 1rem; margin: 0; }
-/* glyph, name, reason (or the status word), region, firmware, heard: one line (W-23d). No battery
-   column (W-26f: NODE has it, a low one is a reason), so the name and the reason have its room.
-   The glyph's word is read aloud, not shown. The name takes up to 18 characters (whole in its
-   tooltip and in NODE), 14 under 28em, the reason what is left, at least 4. The region drops
-   under 24em, the firmware under 20em (em: the tile's text). */
-.node-row { grid-template-columns: 2ch fit-content(18ch) minmax(4ch, 1fr) 3ch 6ch 6ch; column-gap: 6px; }
+/* glyph, name, region, firmware, heard: one line, no status text (W-28c; the reason is NODE's).
+   No battery column (W-26f). The glyph's word is read aloud, not shown. The name takes what is
+   left. The region drops under 24em, the firmware under 20em (em: the tile's text). */
+.node-row { grid-template-columns: 2ch minmax(4ch, 1fr) 3ch 6ch 6ch; column-gap: 6px; }
 .node-row .mark { display: contents; }
 .node-row .mark .glyph { grid-column: 1; }
 .node-row .mark-word { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .node-row[aria-current="true"] { background: var(--surface); box-shadow: inset 3px 0 0 var(--accent); }
 .node-name { font-weight: 600; }
 .node-heard { text-align: end; }
-.node-why { font-size: .9em; }
 /* NODE's "2 new" results for the node (W-26g), first on its meta line. */
 .node-new { font-weight: 600; }
 /* The row tinted by severity: refused or forged stronger than "needs attention". Glyph and words
@@ -59,15 +56,12 @@
 .node-item[data-state="alert"] { background: color-mix(in srgb, var(--danger) 22%, var(--bg)); }
 .node-item[data-state="warn"] { background: color-mix(in srgb, var(--caution) 12%, var(--bg)); }
 .node-item:is([data-state="alert"], [data-state="warn"]) .node-row[aria-current="true"] { background: transparent; }
-@container tile (width < 28em) {
-  .node-row { grid-template-columns: 2ch fit-content(14ch) minmax(4ch, 1fr) 3ch 6ch 6ch; }
-}
 @container tile (width < 24em) {
-  .node-row { grid-template-columns: 2ch fit-content(12ch) minmax(4ch, 1fr) 6ch 6ch; }
+  .node-row { grid-template-columns: 2ch minmax(4ch, 1fr) 6ch 6ch; }
   .node-reg { display: none; }
 }
 @container tile (width < 20em) {
-  .node-row { grid-template-columns: 2ch fit-content(12ch) minmax(4ch, 1fr) 6ch; }
+  .node-row { grid-template-columns: 2ch minmax(4ch, 1fr) 6ch; }
   .node-ver { display: none; }
 }
 
