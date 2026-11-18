@@ -210,7 +210,10 @@ the `.alert` class (inverse in Amber and Green).
   line when the road may take the mesh. A reply shows only in HISTORY (W-23g); what is wrong with a
   command tints the field and is its description, Send off when it cannot go (W-23h). It sends to the tagged nodes when any are tagged, else to this one,
   through `lib/jobs` with the checks before signing. The `node` modal (`#node/<id>`) is the same
-  view full screen; beta.2's node screen (firmware update, name, region, forget) is `#nodeinfo/<id>`.
+  view full screen; beta.2's node screen is `#nodeinfo/<id>`, "Firmware, name and region" (W-26h): name, region,
+  notes and forget at the top, facts, the firmware update, one "Set/update region" (the shipped
+  `add-scope` steps; the owner's own sets stay in the palette and Setup, W-26i) and "All history"; no
+  Send and no results, which the board has.
 - **HISTORY** (`results.js`, RESULTS until W-25d): the selected node's answers, refusals and silences,
   new ones first, kept new until opened or marked seen (meta `resultsSeen` per key); with no node
   selected every node's, the title saying "all nodes". How many are new shows in NODE

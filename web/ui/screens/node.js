@@ -1,18 +1,20 @@
-// One node (W-7, W-8, W-19): #/node/<8 hex>. What is known about it with the age of each fact,
-// its firmware with an "update available" mark and the update button, Send, the command sets,
-// its recent results, and its name, region and notes. Region-wide sends are not here: they are
-// an advanced action on the Send screen.
+// One node (W-7, W-8, W-19), "Firmware, name and region" (#nodeinfo/<8 hex>), reworked in W-26h:
+// its name, region and notes at the top, what is known about it with the age of each fact, its
+// firmware with an "update available" mark and the update button, one "Set/update region" action
+// (W-26i: the shipped add-scope steps; the owner's own sets stay in the palette and Setup) and the
+// "All history" link. No Send and no results here: the board's command line and HISTORY have both.
 import { h } from '../dom.js';
 import { deriveFacts } from '../../lib/store/index.js';
 import { lastHeard, shortVersion } from '../../lib/jobs/overview.js';
 import { updateAvailable } from '../../lib/jobs/releases.js';
 import { blocker } from '../../lib/jobs/checks.js';
 import {
-  confirm, explainEvent, field, nameOf, outcomeTag, progressLine, screen, when, withServices, put, resultBody, lockedNote } from './node-kit.js';
-import { sendPanel } from './send.js';
+  confirm, field, nameOf, progressLine, screen, when, withServices, put, lockedNote } from './node-kit.js';
 import { runSetPanel } from './sets.js';
 
-const resLine = (x, command) => { const [text, help] = resultBody(x, command); return [h('span', { class: 'res-text' }, text), help ? h('span', { class: 'res-help' }, help) : null]; };
+// The steps of "Set/update region" (W-26i): the shipped add-scope set, as exported from Python, so
+// the action is here even when the owner has removed or changed their copy of the set.
+export const REGION_SET = 'add-scope';
 
 export const route = 'node';
 export const title = 'nav.node';
@@ -92,7 +94,7 @@ function editForm(ctx, svc, device, redraw) {
   notes.value = device.notes || '';
   // W-16: whether the node is mesh only (no Wi-Fi, no MQTT); by default its version says
   const meshOnly = h('select', {},
-    ['auto', 'yes', 'no'].map((v) => h('option', { value: v }, ctx.t(`node.meshOnly.${v}`, { guess: ctx.t(svc.rules.meshOnly(device.ver) ? 'node.meshOnly.yes' : 'node.meshOnly.no') }))));
+    ['auto', 'yes', 'no'].map((v) => h('option', { value: v }, ctx.t(`node.meshOnly.${v}`, { guess: ctx.t(svc.rules.meshOnly(device.ver) ? 'node.meshOnly.guessYes' : 'node.meshOnly.guessNo') }))));
   meshOnly.value = device.meshOnly === true ? 'yes' : device.meshOnly === false ? 'no' : 'auto';
   const out = h('p', { 'aria-live': 'polite' });
   const forget = h('button', { type: 'button', class: 'tool tool-danger' }, ctx.t('node.forget'));
@@ -132,9 +134,7 @@ export function render(ctx) {
   withServices(ctx, body, async (svc) => {
     const release = await svc.releases().catch(() => null);
     const page = await svc.releasePage().catch(() => null);
-    const top = h('div', {});
-    const rest = h('div', {});
-    let panel = null;
+    const regionSteps = svc.data.brokers.default_sets?.[REGION_SET] || null;
     async function draw() {
       const device = await svc.stores.devices.get(id);
       if (!device) {
@@ -145,35 +145,26 @@ export function render(ctx) {
       heading.textContent = nameOf(device);
       document.title = `${nameOf(device)} · mccontrol`;
       const events = await svc.stores.history.list({ node: device.node });
-      const sets = await svc.stores.sets.list();
       const heard = lastHeard(device);
-      const recent = events.slice(0, 8).map((e) => {
-        const x = explainEvent(ctx, svc, e);
-        return h('li', { class: `res res-${x.kind}` }, h('span', { class: 'res-name' }, when(ctx, e.at)), outcomeTag(ctx, x.kind),
-          ...resLine(x, e.command), e.road === 'mesh' ? h('span', { class: 'res-help road-mark' }, ctx.t('road.overMesh')) : null);
-      });
-      if (!panel) {
-        panel = sendPanel(ctx, svc, { devices: [device] }, { onDone: () => draw() });
-        put(body, top, h('h2', {}, ctx.t('send.title')), panel, rest);
-      }
-      put(top, 
+      put(body,
         h('p', { class: 'node-meta' },
           h('code', {}, device.key || device.node), ' · ', device.region, ' · ',
           heard ? [ctx.t('node.heard'), ' ', when(ctx, heard)] : ctx.t('nodes.heardUnknown'),
           Number.isFinite(device.fleet?.batteryMv) ? [' · ', `${(device.fleet.batteryMv / 1000).toFixed(2)} V`] : null),
-        device.key ? null : h('p', { class: 'check check-caution' }, ctx.t('node.noWholeKey')));
-      put(rest, 
+        device.key ? null : h('p', { class: 'check check-caution' }, ctx.t('node.noWholeKey')),
+        h('h2', {}, ctx.t('node.edit')),
+        editForm(ctx, svc, device, draw),
         h('h2', {}, ctx.t('node.facts')),
         factList(ctx, svc, device, events),
         h('p', {}, h('a', { href: `#/stats/${device.node}` }, ctx.t('node.statsLink'))),
         h('h2', {}, ctx.t('update.title')),
         firmwareBlock(ctx, svc, device, release, page, draw),
-        h('h2', {}, ctx.t('sets.title')),
-        runSetPanel(ctx, svc, { devices: [device] }, sets),
-        h('h2', {}, ctx.t('node.recent')),
-        recent.length ? h('ul', { class: 'res-list' }, recent) : h('p', { class: 'muted' }, ctx.t('node.noHistory')),
-        events.length > 8 ? h('p', {}, h('a', { href: `#/history/${device.node}` }, ctx.t('node.allHistory', { n: events.length }))) : null,
-        h('details', { class: 'block' }, h('summary', {}, ctx.t('node.edit')), editForm(ctx, svc, device, draw)));
+        regionSteps ? [h('h2', {}, ctx.t('node.regionSet')),
+          runSetPanel(ctx, svc, { devices: [device] }, { [REGION_SET]: regionSteps },
+            { only: true, argLabel: ctx.t('node.regionSetArg'), argHint: ctx.t('node.regionSetHint') })] : null,
+        h('p', {}, events.length
+          ? h('a', { href: `#/history/${device.node}` }, ctx.t('node.allHistory', { n: events.length }))
+          : h('span', { class: 'muted' }, ctx.t('node.noHistory'))));
     }
     await draw();
   });
