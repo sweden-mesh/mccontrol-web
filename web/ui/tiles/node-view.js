@@ -1,11 +1,12 @@
 // The selected node (W-20c, W-20j): its facts with their age, three 24-hour sparklines from
 // Beacon (battery, airtime sent per hour, noise floor), buttons for its details, statistics and
 // history (W-28e), and at the bottom the command line: type, Enter signs and sends to this node, or to
-// the tagged nodes when some are tagged. The road switch (Auto / MQTT / Mesh) sits on the same
+// the tagged nodes when some are tagged. The road switch (Auto / MQTT / Mesh / Relay) sits on the same
 // line (it starts on the node's last choice, else MQTT, or the mesh for a node without MQTT: W-26b,
 // W-26c). A command's answer is shown once, in HISTORY (W-23g): not here as a log, not under the
 // line. The command area is two fixed rows (W-23h, W-23i): the line, and the companion's state
-// when the road may take the mesh; what is wrong with a command tints the field and is its
+// when the road may take the mesh (through a relay: the relay and route chosen, which open the
+// picker); what is wrong with a command tints the field and is its
 // description, never a third row.
 //
 // The NODE tile shows it on a desktop; on a phone the "node" modal shows it full screen with the
@@ -23,7 +24,8 @@ import { beaconBase, beaconClient } from '../../lib/stats/beacon.js';
 import { CompanionError } from '../../lib/mesh/companion.js';
 import { lowBatteryVolts, meshAfterMins, notHeardHours } from '../screens/settings-store.js';
 import { confirm, nameOf, volts } from '../screens/node-kit.js';
-import { companionBrief } from '../screens/road-kit.js';
+import { companionBrief, relayBrief, relayForSend, relayPicker } from '../screens/road-kit.js';
+import { autoRelay } from '../../lib/jobs/relay.js';
 import { companion as connectedCompanion, onCompanion } from '../companion-session.js';
 import { startRoad } from '../../lib/jobs/road.js';
 import { scheme } from '../../lib/jobs/scheme.js';
@@ -171,12 +173,13 @@ export function nodeView(ctx, svc, nodeId, { heading = null } = {}) {
   return el;
 }
 
-// The road (W-28d): a segmented switch of three radios in the page's button style, not a native
+// The road (W-28d): a segmented switch of radios in the page's button style, not a native
 // select, so it matches the fields and buttons in every theme and has no browser popup.
-// `value` reads and sets the checked one; setDisabled(value, on); 'change' bubbles from the radios.
+// `value` reads and sets the checked one; setDisabled(value, on, why) with why as the option's
+// tooltip; 'change' bubbles from the radios.
 export function roadSwitch(ctx, nodeId) {
   const name = `road-${nodeId}-${lists += 1}`;
-  const radios = ['auto', 'mqtt', 'mesh'].map((r) => h('input', { type: 'radio', name, value: r, class: 'seg-input' }));
+  const radios = ['auto', 'mqtt', 'mesh', 'relay'].map((r) => h('input', { type: 'radio', name, value: r, class: 'seg-input' }));
   const el = h('fieldset', { class: 'seg road' },
     h('legend', { class: 'visually-hidden' }, ctx.t('road.legend')),
     radios.map((input) => h('label', { class: 'seg-option' }, input, h('span', {}, ctx.t(`tile.road.${input.value}`)))));
@@ -185,7 +188,10 @@ export function roadSwitch(ctx, nodeId) {
     get: () => radios.find((r) => r.checked)?.value || 'auto',
     set: (v) => { const r = radios.find((x) => x.value === v); if (r) r.checked = true; },
   });
-  el.setDisabled = (v, on) => { const r = radios.find((x) => x.value === v); if (r) r.disabled = on; };
+  el.setDisabled = (v, on, why = '') => {
+    const r = radios.find((x) => x.value === v);
+    if (r) { r.disabled = on; r.parentElement.title = on ? why : ''; }
+  };
   return el;
 }
 
@@ -212,6 +218,9 @@ export function commandLine(ctx, svc, nodeId) {
   let all = [];
   let running = false;
   let companion = null;
+  // The relay road: to one node only, and only while a node of yours can relay to it.
+  const picker = relayPicker(ctx, svc, { onChange: () => { brief.draw(); drawChecks(); } });
+  const brief = relayBrief(ctx, picker);
 
   // Who it goes to: the tagged nodes when any are tagged, else this one.
   const targets = () => {
@@ -234,6 +243,16 @@ export function commandLine(ctx, svc, nodeId) {
     return { ...p, block: skip.length === to.length ? skip[0][1] : null, skip, refuse };
   };
 
+  // Fill the picker for the one target and say whether the relay road is there to take.
+  function relayOffered() {
+    const to = targets();
+    if (to.length !== 1) { road.setDisabled('relay', true, ctx.t('send.why.relayOne')); return false; }
+    picker.use(to[0], all);
+    brief.draw();
+    road.setDisabled('relay', !picker.offered(), picker.why());
+    return picker.offered();
+  }
+
   function drawPrompt() {
     const to = targets();
     const many = to.length > 1 || (to.length === 1 && to[0] !== device);
@@ -242,6 +261,7 @@ export function commandLine(ctx, svc, nodeId) {
     const meshOnly = to.some((d) => svc.rules.deviceMeshOnly(d));
     road.setDisabled('mqtt', meshOnly);
     if (meshOnly && road.value === 'mqtt') road.value = 'auto';
+    if (!relayOffered() && road.value === 'relay') road.value = 'auto';
   }
 
   const needsText = (c) => (c.kind === 'text'
@@ -258,6 +278,17 @@ export function commandLine(ctx, svc, nodeId) {
     if (p.caution) return { text: `${ctx.t('send.caution')} ${p.caution}`, kind: 'warn' };
     if (to.length === 1 && p.admits === false) {
       return { text: p.lacks ? ctx.t('send.lacks', { feature: p.lacks, version: to[0].ver }) : ctx.t('send.notAdmitted', { version: to[0].ver, needs: p.needs || '?' }), kind: 'warn' };
+    }
+    if (to.length === 1 && p.road?.road === 'relay') {
+      return picker.choice() ? { text: ctx.t('road.willRelay', { how: picker.words() }), kind: '' } : { text: ctx.t('road.relayPick'), kind: 'invalid' };
+    }
+    // What auto does with no companion: a relay, when one reaches the node without a flood.
+    if (to.length === 1 && road.value === 'auto' && p.road?.road === 'mesh' && ['meshOnly', 'notHeard'].includes(p.road.why?.code) && !connectedCompanion()) {
+      const auto = autoRelay(svc.rules, all, to[0]);
+      if (auto) {
+        return { text: ctx.t('road.willRelayAuto', { relay: nameOf(auto.relay), route: ctx.t(`road.routeShort.${auto.route}`),
+          why: ctx.t(`road.why.${p.road.why.code}`, p.road.why.vars) }), kind: '' };
+      }
     }
     if (to.length === 1 && p.road?.road === 'mesh') {
       return { text: p.road.why ? ctx.t('road.willMesh', { why: ctx.t(`road.why.${p.road.why.code}`, p.road.why.vars) }) : ctx.t('road.willMeshPlain'), kind: '' };
@@ -279,9 +310,11 @@ export function commandLine(ctx, svc, nodeId) {
     input.setAttribute('aria-invalid', kind === 'invalid' ? 'true' : 'false');
     send.disabled = running || kind === 'invalid' || !input.value.trim();
     const to = targets();
-    const show = road.value !== 'mqtt' || to.some((d) => svc.rules.deviceMeshOnly(d));
+    const viaRelay = road.value === 'relay';
+    const show = !viaRelay && (road.value !== 'mqtt' || to.some((d) => svc.rules.deviceMeshOnly(d)));
     if (show && !companion) companion = companionBrief(ctx);
-    companionSlot.replaceChildren(...(show ? [h('span', { class: 'muted' }, ctx.t('tile.line.companion'), ' '), companion] : []));
+    companionSlot.replaceChildren(...(viaRelay ? [h('span', { class: 'muted' }, ctx.t('tile.line.relay'), ' '), brief.el]
+      : show ? [h('span', { class: 'muted' }, ctx.t('tile.line.companion'), ' '), companion] : []));
   }
 
   // The road starts on the node's last choice, else MQTT, or the mesh for a node without MQTT (W-26b,
@@ -290,7 +323,8 @@ export function commandLine(ctx, svc, nodeId) {
   let chosen = false;
   const pickStart = () => {
     if (!device || chosen) return;
-    road.value = startRoad({ remembered: device.road, companion: Boolean(connectedCompanion()), meshOnly: svc.rules.deviceMeshOnly(device) });
+    road.value = startRoad({ remembered: device.road, companion: Boolean(connectedCompanion()), meshOnly: svc.rules.deviceMeshOnly(device),
+      relay: relayOffered() });
     drawPrompt();
     drawChecks();
   };
@@ -318,6 +352,8 @@ export function commandLine(ctx, svc, nodeId) {
       });
       if (!ok) return;
     }
+    const relay = road.value === 'relay' ? await relayForSend(picker, p.command) : null;
+    if (road.value === 'relay' && !relay) return;
     running = true;
     send.disabled = true;
     // The progress is HISTORY' job bar; the answers are HISTORY' rows.
@@ -325,7 +361,7 @@ export function commandLine(ctx, svc, nodeId) {
     const job = startJob({ label });
     try {
       const res = await svc.jobs.send({
-        command: p.command, nodes: to.map((d) => d.node), road: road.value,
+        command: p.command, nodes: to.map((d) => d.node), road: road.value, relay,
         onProgress: (st) => {
           const fraction = st.total ? st.elapsed / st.total : null;
           job.progress(fraction, ctx.t('send.waitNode', { name: st.name, i: (st.index ?? 0) + 1, of: st.count ?? to.length }));

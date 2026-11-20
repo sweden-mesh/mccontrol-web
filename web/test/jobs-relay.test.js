@@ -12,7 +12,7 @@ import { blocker, preflight } from '../lib/jobs/checks.js';
 import { chooseRoad, startRoad } from '../lib/jobs/road.js';
 import {
   FORWARD_TTL_SECS, autoRelay, hearsTarget, noRelayWhy, parseNeighbors, parseRelayState, pathHops, relayCandidates,
-  relayRefusal, routesFor,
+  relayRefusal, relaying, routesFor,
 } from '../lib/jobs/relay.js';
 import { newSession } from '../lib/protocol/plane.js';
 import * as mcc3 from '../lib/protocol/mcc3.js';
@@ -21,6 +21,11 @@ import { data } from './protocol-helpers.js';
 import { fakeTransport } from './jobs-fakes.js';
 import { fakeCompanion } from './mesh-fakes.js';
 import { connectVia, mcc3Broker, nodeKey, otherNodeKey, ownerKey } from './mcc3-fakes.js';
+import { relayForSend } from '../ui/screens/road-kit.js';
+import { relayMark } from '../ui/screens/history.js';
+import { explainEvent } from '../ui/screens/node-kit.js';
+import { translator } from '../i18n/i18n.js';
+import { readFileSync } from 'node:fs';
 
 const all = Object.fromEntries(['brokers', 'cautions', 'commands', 'denylist', 'facts', 'firmware', 'results'].map((n) => [n, data(n)]));
 const rules = rulesFrom(all);
@@ -37,7 +42,7 @@ const ONLY20 = 'nrf52-v1.18.0-lou-20-rc-1a2b3c4d';
 const ONLY19 = 'nrf52-v1.18.0-lou-19-rc-1a2b3c4d';
 const iso = (minsAgo = 0) => new Date(Date.now() - minsAgo * 60000).toISOString();
 // An Observer lou-20 node that says it relays: flags 0x1B (old scheme, uplink, clock, relay).
-const relaying = (over = {}) => ({ state: 'online', at: iso(1), flags: 0x1b, relay: true, version: OBSERVER20, interval: 900, ...over });
+const aliveNow = (over = {}) => ({ state: 'online', at: iso(1), flags: 0x1b, relay: true, version: OBSERVER20, interval: 900, ...over });
 
 const ring = () => {
   let secrets = {};
@@ -50,7 +55,7 @@ async function setup({ target = {}, relay = {}, radio = {}, behind = {}, compani
   const stores = openStores(memoryDb(), 'C'.repeat(64));
   await stores.devices.add({ node: RELAY, key: RELAY, region: '', name: 'relay' });
   const { answer = undefined, ...relayDevice } = relay;
-  await stores.devices.update(R, { ver: OBSERVER20, alive: relaying(), ...relayDevice });
+  await stores.devices.update(R, { ver: OBSERVER20, alive: aliveNow(), ...relayDevice });
   await stores.devices.add({ node: TARGET, key: TARGET, region: '', name: 'target' });
   await stores.devices.update(T, { ver: ONLY20, ...target });
   for (const d of extra) { await stores.devices.add({ node: d.key, key: d.key, region: '', name: d.name }); await stores.devices.update(d.key.slice(0, 8), d.set); }
@@ -82,7 +87,8 @@ test('through a relay: the request sealed for the target, forwarded to the relay
   assert.equal(f.route, mcc3.ROUTES.direct);
   assert.equal(f.pathLen, 0);
   assert.equal(f.body.length, 132);
-  assert.ok(f.expiry - before >= FORWARD_TTL_SECS && f.expiry - before <= FORWARD_TTL_SECS + 5, 'well inside the relay\'s 300 s');
+  assert.equal(FORWARD_TTL_SECS, 150);
+  assert.ok(f.expiry - before >= 150 && f.expiry - before <= 155, 'well inside the relay\'s 300 s, whichever clock is behind');
   // the two counters are stored, and apart: the relay's command counter is untouched
   const r = await stores.devices.get(R);
   const t = await stores.devices.get(T);
@@ -215,13 +221,20 @@ test('both counters are stored before the forward is sent', async () => {
 
 test('who can relay: yours, fresh, an Observer lou-20, relaying, and not the target itself', async () => {
   const now = Date.now();
-  const dev = (over = {}, alive = {}) => ({ node: R, key: RELAY, name: 'relay', ver: OBSERVER20, alive: relaying(alive), ...over });
+  const dev = (over = {}, alive = {}) => ({ node: R, key: RELAY, name: 'relay', ver: OBSERVER20, alive: aliveNow(alive), ...over });
   const target = { node: T, key: TARGET, name: 'target', ver: ONLY20 };
   const why = (d, t = target) => relayRefusal(rules, d, t, now)?.code ?? null;
   assert.equal(why(dev()), null);
   assert.equal(why(null), 'relayMissing');
   assert.equal(why(dev(), { node: R }), 'relaySelf');
   assert.equal(why(dev({}, { relay: false })), 'relayOff');
+  // an alive kept before `relay` was read: the flag itself; the node's later OK to the switch wins
+  assert.equal(why(dev({}, { relay: undefined })), null);
+  assert.equal(why(dev({}, { relay: undefined, flags: 0x0b })), 'relayOff');
+  assert.equal(relaying({ state: 'online', flags: 0x1b, relay: false }), false);
+  assert.equal(relaying({ state: 'not-yours', flags: 0x1b, relay: true }), null);
+  assert.equal(relaying({ state: 'offline' }), null);
+  assert.equal(relaying(null), null);
   assert.equal(why(dev({}, { state: 'offline' })), 'relayNotHeard');
   assert.equal(why(dev({}, { state: 'not-yours' })), 'relayNotHeard');
   assert.equal(why(dev({}, { at: iso(32) })), 'relayNotHeard', 'two intervals and a minute');
@@ -277,7 +290,7 @@ test('auto takes a relay only for a node without MQTT or silent on it, with no c
 
 test('auto never takes a relay for a node that is on MQTT', async () => {
   const hears = { relayHears: { [R]: { hears: true, at: iso() } } };
-  const on = (over) => ({ ver: OBSERVER20, alive: relaying({ relay: false }), ...hears, ...over });
+  const on = (over) => ({ ver: OBSERVER20, alive: aliveNow({ relay: false }), ...hears, ...over });
   // heard over MQTT a minute ago: MQTT (the fake broker has no such node: silence, but no forward)
   const a = await setup({ target: on({ lastHeardMqtt: iso(1) }) });
   const out = await a.jobs.send({ command: 'get radio', nodes: [T], road: 'auto' });
@@ -397,4 +410,40 @@ test('importing history keeps a relay event and refuses a made-up one', async ()
   assert.equal(r.added, 2);
   const by = Object.fromEntries((await stores.history.list()).map((e) => [e.id, e.relay]));
   assert.deepEqual(by, { r1: relay, r3: { ...relay, status: null } });
+});
+
+test('the screens ask before a flood: only the dialog\'s own yes makes a send confirmed', async () => {
+  const asked = [];
+  const picker = (route, answer) => ({ choice: () => ({ node: R, route }), confirmFlood: async (c) => { asked.push([route, c]); return answer; } });
+  assert.deepEqual(await relayForSend(picker('neighbour', true), 'ver'), { node: R, route: 'neighbour', confirmed: false });
+  assert.deepEqual(await relayForSend(picker('path', true), 'ver'), { node: R, route: 'path', confirmed: false });
+  assert.equal(asked.length, 0, 'no question for a direct send');
+  assert.equal(await relayForSend(picker('flood', false), 'ver'), null, 'cancelled: nothing to send');
+  assert.equal(await relayForSend(picker('flood-wide', false), 'ver'), null);
+  assert.deepEqual(await relayForSend(picker('flood', true), 'ver'), { node: R, route: 'flood', confirmed: true });
+  assert.deepEqual(asked.map(([r]) => r), ['flood', 'flood-wide', 'flood']);
+  assert.equal(await relayForSend({ choice: () => null }, 'ver'), null);
+});
+
+test('history in words: which relay, the route, the SNR; the relay\'s status in the spec\'s text, never "refused"', () => {
+  for (const lang of ['en', 'sv']) {
+    const strings = JSON.parse(readFileSync(new URL(`../i18n/${lang}.json`, import.meta.url), 'utf8'));
+    const ctx = { t: translator(strings), lang };
+    const svc = { data: { results: all.results }, rules };
+    const e = (status, more = {}) => ({ node: T, command: 'ver', code: null, road: 'relay', relay: { node: R, route: 'flood', status, sent: 2, snr: null, ...more } });
+    assert.match(relayMark(ctx, e('answered', { snr: 5.5 }), { [R]: 'Gisebo' }), /Gisebo.*5\.5 dB$/);
+    for (const [code, name] of Object.entries(all.results.forward.statuses).slice(1)) {
+      const x = explainEvent(ctx, svc, e(name));
+      assert.equal(x.kind, 'silent', name);
+      assert.equal(x.help, lang === 'sv' ? all.results.forward.help_sv[code] : all.results.forward.help[code], name);
+    }
+    assert.equal(explainEvent(ctx, svc, e(null)).help, strings['road.relaySilent']);
+    assert.equal(explainEvent(ctx, svc, e('answered')).help, strings['road.relayUnread']);
+    // every key the screens build from a route, a reason or a refusal exists
+    for (const k of ['neighbour', 'path', 'flood', 'flood-wide']) assert.ok(strings[`road.route.${k}`] && strings[`road.routeShort.${k}`], k);
+    for (const k of ['relayOff', 'relayNotHeard', 'relayCannot']) assert.ok(strings[`road.relayNone.${k}`], k);
+    for (const k of ['relayOne', 'relayMissing', 'relaySelf', 'relayNotHeard', 'relayCannot', 'relayOff', 'relayRoute', 'relayFloodConfirm', 'relayNoPath']) {
+      assert.ok(strings[`send.why.${k}`], k);
+    }
+  }
 });

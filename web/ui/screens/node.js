@@ -2,15 +2,17 @@
 // its name, region and notes at the top, what is known about it with the age of each fact, its
 // firmware with an "update available" mark and the update button, one "Set/update region" action
 // (W-26i: the shipped add-scope steps; the owner's own sets stay in the palette and Setup) and the
-// "All history" link. No Send and no results here: the board's command line and HISTORY have both.
+// "All history" link, and for a node that can relay the switch for it. No Send and no results
+// here: the board's command line and HISTORY have both.
 import { h } from '../dom.js';
 import { deriveFacts } from '../../lib/store/index.js';
 import { lastHeard, shortVersion } from '../../lib/jobs/overview.js';
 import { updateAvailable } from '../../lib/jobs/releases.js';
 import { blocker } from '../../lib/jobs/checks.js';
 import { scheme } from '../../lib/jobs/scheme.js';
+import { relaying } from '../../lib/jobs/relay.js';
 import {
-  confirm, field, nameOf, progressLine, screen, volts, when, withServices, put, lockedNote } from './node-kit.js';
+  confirm, explain, field, nameOf, progressLine, screen, volts, when, withServices, put, lockedNote } from './node-kit.js';
 import { runSetPanel } from './sets.js';
 
 // The steps of "Set/update region" (W-26i): the shipped add-scope set, as exported from Python, so
@@ -86,6 +88,33 @@ export function firmwareBlock(ctx, svc, device, release, page, redraw) {
   }, { signal: ctx.signal });
   wrap.append(h('div', { class: 'row' }, button), out);
   return wrap;
+}
+
+// Relaying (OTM-9e): whether this node sends your commands on by radio to nodes near it, as its
+// alive says, and the switch (`set mqtt.relay off|own`, one signed command over MQTT). Shown for
+// an Observer image of lou-20 or later only: no other node can relay.
+export function relayBlock(ctx, svc, device, redraw) {
+  const on = relaying(device.alive);
+  const out = h('p', { 'aria-live': 'polite' });
+  const buttons = ['off', 'own'].filter((v) => on === null || (v === 'own') !== on).map((value) => {
+    const b = h('button', { type: 'button', class: 'tool' }, ctx.t(value === 'off' ? 'relay.switchOff' : 'relay.switchOn'));
+    b.addEventListener('click', async () => {
+      b.disabled = true;
+      try {
+        const res = await svc.jobs.send({ command: `set mqtt.relay ${value}`, nodes: [device.node], road: 'mqtt' });
+        const result = res.outcomes[0]?.result || null;
+        if (result?.ok) { redraw(); return; }
+        const x = explain(ctx, svc, result, device);
+        out.textContent = x.kind === 'refused' ? `${x.text}: ${x.help}` : x.help;
+      } catch (err) {
+        put(out, err.code === 'locked' ? lockedNote(ctx) : err.code ? ctx.t(`send.why.${err.code}`, err.vars) : err.message);
+      } finally { b.disabled = false; }
+    }, { signal: ctx.signal });
+    return b;
+  });
+  return h('div', { class: 'stack' },
+    h('p', {}, ctx.t(on === true ? 'relay.on' : on === false ? 'relay.off' : 'relay.unknown')),
+    h('p', { class: 'muted' }, ctx.t('relay.explain')), h('div', { class: 'row wrap' }, buttons), out);
 }
 
 // What the node's details say of its plane: online, offline or no longer yours (its alive), and
@@ -172,6 +201,7 @@ export function render(ctx) {
         h('p', {}, h('a', { href: `#/stats/${device.node}` }, ctx.t('node.statsLink'))),
         h('h2', {}, ctx.t('update.title')),
         firmwareBlock(ctx, svc, device, release, page, draw),
+        svc.rules.canRelay(device.ver) === true ? [h('h2', {}, ctx.t('relay.title')), relayBlock(ctx, svc, device, draw)] : null,
         regionSteps ? [h('h2', {}, ctx.t('node.regionSet')),
           runSetPanel(ctx, svc, { devices: [device] }, { [REGION_SET]: regionSteps },
             { only: true, argLabel: ctx.t('node.regionSetArg'), argHint: ctx.t('node.regionSetHint') })] : null,

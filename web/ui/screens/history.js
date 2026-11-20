@@ -22,16 +22,27 @@ export function csvCell(value) {
   return `"${text.replaceAll('"', '""')}"`;
 }
 
-export const CSV_COLUMNS = ['id', 'at', 'node', 'name', 'region', 'command', 'result', 'code', 'codeName', 'verified', 'reply', 'note', 'batch', 'road'];
+export const CSV_COLUMNS = ['id', 'at', 'node', 'name', 'region', 'command', 'result', 'code', 'codeName', 'verified', 'reply', 'note', 'batch', 'road', 'relay', 'route', 'relayStatus', 'snr'];
 
 export function toCsv(events, names = {}) {
   const rows = events.map((e) => CSV_COLUMNS.map((c) => {
     if (c === 'name') return csvCell(names[e.node] || '');
     if (c === 'result') return csvCell(resultKind(e));
     if (c === 'road') return csvCell(e.road || 'mqtt');          // before the mesh road, every event went over MQTT
+    if (c === 'relay') return csvCell(e.relay?.node ?? '');
+    if (c === 'route') return csvCell(e.relay?.route ?? '');
+    if (c === 'relayStatus') return csvCell(e.relay?.status ?? '');
+    if (c === 'snr') return csvCell(e.relay?.snr ?? '');
     return csvCell(e[c]);
   }).join(','));
   return `${CSV_COLUMNS.join(',')}\r\n${rows.join('\r\n')}\r\n`;
+}
+
+// "through Gisebo, flooded, 5.5 dB": which relay, the route asked for, and how well it heard the answer.
+export function relayMark(ctx, e, names = {}) {
+  const r = e.relay || {};
+  return ctx.t('road.overRelay', { relay: names[r.node] || r.node || '?', route: r.route ? ctx.t(`road.routeShort.${r.route}`) : '?' })
+    + (Number.isFinite(r.snr) ? `, ${r.snr} dB` : '');
 }
 
 export function render(ctx) {
@@ -61,7 +72,8 @@ export function render(ctx) {
           h('td', {}, when(ctx, e.at)),
           h('th', { scope: 'row' }, e.node ? h('a', { href: `#/node/${e.node}` }, names[e.node] || e.node) : ctx.t('history.region', { region: areaName(svc.data.areas, e.region) })),
           h('td', {}, h('code', {}, e.command)),
-          h('td', {}, outcomeTag(ctx, x.kind), e.road === 'mesh' ? [' ', h('span', { class: 'road-mark' }, ctx.t('road.overMesh'))] : null),
+          h('td', {}, outcomeTag(ctx, x.kind), e.road === 'mesh' ? [' ', h('span', { class: 'road-mark' }, ctx.t('road.overMesh'))] : null,
+            e.road === 'relay' ? [' ', h('span', { class: 'road-mark' }, relayMark(ctx, e, names))] : null),
           h('td', { class: 'res-cell' }, x.kind === 'summary' ? x.text : resultBody(x)[0],
             x.kind === 'refused' ? h('span', { class: 'res-help' }, x.help) : null));
       });

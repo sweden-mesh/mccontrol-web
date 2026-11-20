@@ -75,8 +75,11 @@ export function when(ctx, iso) {
 }
 
 // What a result means, in words: { kind, text, help }. kind is ok | refused | silent | forged.
-// Silence over the mesh (road 'mesh') has its own reasons, none of them a refusal.
-export function explain(ctx, svc, result, device = null, road = 'mqtt') {
+// Silence over the mesh (road 'mesh') has its own reasons, none of them a refusal. Through a
+// relay (`relay`: { status }) what came back without the node's answer is the relay's status in
+// the spec's words: never "refused", because the node itself has said nothing.
+export function explain(ctx, svc, result, device = null, road = 'mqtt', relay = null) {
+  if (!result && road === 'relay') return { kind: 'silent', text: ctx.t('send.res.silent'), help: relayHelp(ctx, svc, relay?.status ?? null) };
   if (!result) return { kind: 'silent', text: ctx.t('send.res.silent'), help: ctx.t(road === 'mesh' ? 'road.silentMesh' : 'send.res.silentHelp') };
   if (result.verified === false) return { kind: 'forged', text: ctx.t('send.res.forged'), help: ctx.t('send.res.forgedHelp') };
   const sig = result.verified ? ctx.t('send.res.signed') : ctx.t('send.res.unsigned');
@@ -99,11 +102,22 @@ export function explain(ctx, svc, result, device = null, road = 'mqtt') {
   return { kind: 'refused', text: name, help };
 }
 
+// What a relay's status means (results.json's `forward`, Swedish where the spec has it). No
+// status at all is a relay that said nothing; `answered` without a result is an answer that
+// did not open.
+function relayHelp(ctx, svc, status) {
+  const f = svc.data.results.forward;
+  if (status === null) return ctx.t('road.relaySilent');
+  if (status === 'answered') return ctx.t('road.relayUnread');
+  const code = Object.keys(f.statuses).find((k) => f.statuses[k] === status);
+  return (ctx.lang === 'sv' && f.help_sv?.[code]) || f.help[code] || ctx.t('road.relayStatus', { status });
+}
+
 // The same for a stored history event (no Result object).
 export function explainEvent(ctx, svc, e, device = null) {
   if (e.code === null && e.node === null) return { kind: 'summary', text: e.note, help: '' };
   if (e.verified === false) return explain(ctx, svc, { verified: false });
-  if (e.code === null) return explain(ctx, svc, null, null, e.road);
+  if (e.code === null) return explain(ctx, svc, null, null, e.road, e.relay);
   return explain(ctx, svc, { code: e.code, reply: e.reply, verified: e.verified, ok: e.code === 0, command: e.command }, device);
 }
 

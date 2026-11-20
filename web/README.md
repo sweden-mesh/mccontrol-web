@@ -52,7 +52,7 @@ that says why.
 | `lib/protocol/` | envelope v1/v2, results r1/r2/r3, broker token, registration, the MQTT client; `mcc3.js`, the sealed plane of lou-20 and later (`test/mcc3-vectors.json`) | protocol (W-3, W-4, W-16) |
 | `lib/key/` | the key: `handle.js` (seed -> signing handle), storage, unlock, auto-lock, backup, passphrase change | key and security (W-5) |
 | `lib/store/` | IndexedDB stores per key: devices, history, groups, sets, meta | screens (W-7, W-9) |
-| `lib/jobs/` | send, run a set, discover, refresh, update; checks before signing; the overview's sums; Beacon fleet reads (through `lib/stats`); the firmware release list (GitHub) | screens (W-8, W-15, W-18, W-19) |
+| `lib/jobs/` | send, run a set, discover, refresh, update; checks before signing; the roads (`road.js`) and the relay road (`relay.js`: who can relay, the routes, what auto may take); the overview's sums; Beacon fleet reads (through `lib/stats`); the firmware release list (GitHub) | screens (W-8, W-15, W-18, W-19) |
 | `lib/discovery/` | automatic discovery (`index.js`: on unlock and hourly, the alive scan wherever the nodes are; the old broadcast discovery only in the IATA codes of the list's lou-19-and-older nodes; adds with undo, the broker's caps, mesh-only candidates) and the counties (`areas.js`: a node's region home to its county, for an area act) | discovery (W-20a, IATA2-MC4) |
 | `lib/refresh/` | the status refresh: Beacon every 15 minutes, one signed `ver` per node per day | refresh (W-20e) |
 | `lib/stats/` | the Beacon client and the traffic arithmetic; the page's only Beacon | statistics (W-14) |
@@ -262,11 +262,12 @@ the `.alert` class (inverse in Amber and Green).
   the node full screen; the selection is remembered by the browser), the box tags. Keys in the list: ↑ ↓ Home End, Enter selects, Space tags; `/` searches.
 - **NODE** (`node.js`, `node-view.js`): facts with their age, 24-hour sparklines from Beacon
   (battery, airtime sent, noise floor), buttons for details, statistics and history (W-28e), and the command
-  area at the bottom: two fixed rows, the line with the road (auto, MQTT, mesh, a segmented switch of
-  three radios in the button style, W-28d: the node's last
+  area at the bottom: two fixed rows, the line with the road (auto, MQTT, mesh, relay, a segmented switch of
+  radios in the button style, W-28d: the node's last
   choice, kept as the device's `road`, else the mesh while a companion is connected, else MQTT;
   `startRoad` in `lib/jobs/road.js`, W-26b, W-26c) and the companion's
-  line when the road may take the mesh. A reply shows only in HISTORY (W-23g); what is wrong with a
+  line when the road may take the mesh (through a relay: the relay and route chosen, which open the
+  picker in a dialog; a flood asks first). A reply shows only in HISTORY (W-23g); what is wrong with a
   command tints the field and is its description, Send off when it cannot go (W-23h). It sends to the tagged nodes when any are tagged, else to this one,
   through `lib/jobs` with the checks before signing. The `node` modal (`#node/<id>`) is the same
   view full screen; beta.2's node screen is `#nodeinfo/<id>`, "Firmware, name and region" (W-26h): name, region,

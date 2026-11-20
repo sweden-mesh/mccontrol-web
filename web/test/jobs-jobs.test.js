@@ -262,7 +262,10 @@ test('history CSV: quoted, and formulas made inert', () => {
   assert.equal(csvCell('=HYPERLINK("x")'), '"\'=HYPERLINK(""x"")"');
   assert.equal(csvCell(null), '""');
   const csv = toCsv([{ id: '1', at: 't', node: 'AAAA0001', command: 'ver', code: 0, reply: '> v', verified: true, note: '' }], { AAAA0001: 'alpha' });
-  assert.match(csv, /^id,at,node,name,region,command,result,code,codeName,verified,reply,note,batch,road\r\n"1","t","AAAA0001","alpha","","ver","ok","0","","true","> v","","","mqtt"\r\n$/);
+  assert.match(csv, /^id,at,node,name,region,command,result,code,codeName,verified,reply,note,batch,road,relay,route,relayStatus,snr\r\n"1","t","AAAA0001","alpha","","ver","ok","0","","true","> v","","","mqtt","","","",""\r\n$/);
+  const relayed = toCsv([{ id: '2', at: 't', node: 'AAAA0001', command: 'ver', code: null, road: 'relay',
+    relay: { node: 'BBBB0002', route: 'flood', status: 'no-answer', sent: 2, snr: null } }]);
+  assert.match(relayed, /"relay","BBBB0002","flood","no-answer",""\r\n$/);
 });
 
 test('discover never replaces a stored key and learns none from a forged answer (W-12)', async () => {

@@ -7,12 +7,15 @@
 //
 // sendPanel(ctx, svc, target) is the same form inside the node and group screens. Outside an
 // area act it offers the road (W-16): MQTT, the mesh through the owner's companion
-// radio, or auto; the companion is connected here when a road may take the mesh.
+// radio, or auto; the companion is connected here when a road may take the mesh. To one node it
+// also offers a relay (OTM-9e): which of your nodes sends it and by which route; a flood asks first.
 import { h } from '../dom.js';
 import { attachCombo } from '../command-combo.js';
 import { preflight } from '../../lib/jobs/checks.js';
 import { CompanionError } from '../../lib/mesh/companion.js';
-import { companionControl, roadChoice, roadLine } from './road-kit.js';
+import { companionControl, relayForSend, relayPicker, roadChoice, roadLine } from './road-kit.js';
+import { companion as connectedCompanion } from '../companion-session.js';
+import { autoRelay } from '../../lib/jobs/relay.js';
 import { meshAfterMins } from './settings-store.js';
 import { brokerText } from './key-register.js';
 import { areaName, nodeAreas } from '../../lib/discovery/areas.js';
@@ -46,21 +49,35 @@ export function sendPanel(ctx, svc, target, { onDone = null, initial = '' } = {}
   const meshOnly = target.devices.some((d) => svc.rules.deviceMeshOnly(d)) && !target.area;
   let road = meshOnly ? 'auto' : 'mqtt';
   const companionSlot = h('div', {});
-  const choice = target.area ? null : roadChoice(ctx, { initial: road, meshOnly, onChange: (r) => { road = r; drawRoad(); drawChecks(); } });
+  const choice = target.area ? null : roadChoice(ctx, { initial: road, meshOnly, relay: Boolean(one), onChange: (r) => { road = r; drawRoad(); drawChecks(); } });
+  // A relay carries a command to one node: the picker is filled once the device list is read.
+  const picker = one ? relayPicker(ctx, svc, { onChange: () => drawChecks() }) : null;
+  const relaySlot = h('div', {});
+  let everyDevice = [];
   const form = h('form', { class: 'send-form', novalidate: true },
     field(ctx.t('send.command'), input, ctx.t('send.commandHint')),
-    choice?.el, companionSlot, check, h('div', { class: 'row' }, sendButton, stop), results);
+    choice?.el, relaySlot, companionSlot, check, h('div', { class: 'row' }, sendButton, stop), results);
 
   const county = target.area ? areaName(svc.data.areas, target.area) : null;
   const verdict = () => preflight(svc.rules, { command: input.value, device: one, area: target.area || null,
     road: target.area ? 'mqtt' : road, meshAfterMins: meshAfterMins() });
   let control = null;
   function drawRoad() {
-    const show = !target.area && (road !== 'mqtt' || meshOnly);
+    const show = !target.area && road !== 'relay' && (road !== 'mqtt' || meshOnly);
     if (show && !control) control = companionControl(ctx);
     put(companionSlot, show ? control : null);
+    put(relaySlot, road === 'relay' ? picker?.el : null);
   }
   drawRoad();
+  if (picker) {
+    svc.stores.devices.list().then((list) => {
+      if (ctx.signal.aborted) return;
+      everyDevice = list;
+      picker.use(one, list);
+      choice.setRelay(picker.offered(), picker.why());
+      drawChecks();
+    }).catch(() => {});
+  }
 
   function drawChecks() {
     const p = verdict();
@@ -76,7 +93,17 @@ export function sendPanel(ctx, svc, target, { onDone = null, initial = '' } = {}
       const onMesh = p.road?.road === 'mesh';
       const many = road === 'mqtt' ? target.devices.filter((d) => d.ver && !svc.rules.admits(d.ver, p.command)) : [];
       if (!one && many.length) lines.push(h('p', { class: 'check check-caution' }, ctx.t('send.someRefuse', { n: many.length, names: many.map(nameOf).join(', ') })));
-      if (one && onMesh) {
+      // What auto would do with no companion: a relay, when one is known to reach the node without a flood.
+      const auto = one && road === 'auto' && onMesh && ['meshOnly', 'notHeard'].includes(p.road.why?.code) && !connectedCompanion()
+        ? autoRelay(svc.rules, everyDevice, one) : null;
+      if (one && p.road?.road === 'relay') {
+        lines.push(h('p', { class: 'check' }, picker.words() ? ctx.t('road.willRelay', { how: picker.words() }) : ctx.t('road.relayPick')));
+        lines.push(h('p', { class: 'check muted' }, ctx.t('road.relayLimits')));
+      } else if (auto) {
+        lines.push(h('p', { class: 'check' }, ctx.t('road.willRelayAuto', { relay: nameOf(auto.relay), route: ctx.t(`road.routeShort.${auto.route}`),
+          why: ctx.t(`road.why.${p.road.why.code}`, p.road.why.vars) })));
+        lines.push(h('p', { class: 'check muted' }, ctx.t('road.relayLimits')));
+      } else if (one && onMesh) {
         lines.push(h('p', { class: 'check' }, p.road.why
           ? ctx.t('road.willMesh', { why: ctx.t(`road.why.${p.road.why.code}`, p.road.why.vars) }) : ctx.t('road.willMeshPlain')));
         lines.push(h('p', { class: 'check muted' }, ctx.t('road.meshLimits')));
@@ -119,6 +146,8 @@ export function sendPanel(ctx, svc, target, { onDone = null, initial = '' } = {}
       });
       if (!ok) return;
     }
+    const relay = road === 'relay' && picker ? await relayForSend(picker, p.command) : null;
+    if (road === 'relay' && !relay) return;
     running = new AbortController();
     sendButton.disabled = true;
     stop.hidden = false;
@@ -132,6 +161,7 @@ export function sendPanel(ctx, svc, target, { onDone = null, initial = '' } = {}
         group: target.group?.id || null,
         area: target.area || null,
         road: target.area ? 'mqtt' : road,
+        relay,
         signal: running.signal,
         onProgress: (s) => bar.set(s.total ? s.elapsed / s.total : null, s.phase === 'spacing'
           ? ctx.t('send.waitSpacing', { secs: s.secs, i: s.index + 1, of: s.count })
@@ -165,7 +195,7 @@ export function resultList(ctx, svc, out, target) {
         h('span', { class: 'tag tag-unsent' }, ctx.t('send.notSent')),
         h('span', { class: 'res-text' }, o.reason ? ctx.t(`send.why.${o.reason.code}`, o.reason.vars) : ''));
     }
-    const x = explain(ctx, svc, o.result, devices.get(o.node), o.road);
+    const x = explain(ctx, svc, o.result, devices.get(o.node), o.road, o.info);
     const how = roadLine(ctx, o);
     return h('li', { class: `res res-${x.kind}` },
       h('span', { class: 'res-name' }, h('a', { href: `#/node/${o.node}` }, o.name)),

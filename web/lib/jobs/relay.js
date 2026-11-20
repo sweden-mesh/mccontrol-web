@@ -13,7 +13,7 @@
 //
 // A flood costs every node in reach airtime and the relay admits two an hour, so it is the
 // owner's word each time (`confirmed`), never auto's and never part of a send to several nodes.
-import { ROUTES } from '../protocol/mcc3.js';
+import { ALIVE_FLAG_RELAY, ROUTES } from '../protocol/mcc3.js';
 
 export const RELAY_ROUTES = Object.freeze(['neighbour', 'path', 'flood', 'flood-wide']);
 export const WIRE_ROUTE = Object.freeze({ neighbour: ROUTES.direct, path: ROUTES.direct, flood: ROUTES.flood, 'flood-wide': ROUTES['flood-wide'] });
@@ -35,6 +35,14 @@ function aliveFresh(alive, now) {
   return Number.isFinite(at) && now - at <= (2 * every + 60) * 1000;
 }
 
+// Does the node say it relays? Its alive's flag, or its own OK to `set mqtt.relay` since (jobs.js
+// keeps that as `relay`); null when its alive is not ours or says neither.
+export function relaying(alive) {
+  if (!alive || alive.state === 'not-yours') return null;
+  if (typeof alive.relay === 'boolean') return alive.relay;
+  return Number.isInteger(alive.flags) ? Boolean(alive.flags & ALIVE_FLAG_RELAY) : null;
+}
+
 // Why `relay` cannot carry a command to `target` now ({ code, vars }), or null: it is the
 // owner's (its alive opened), fresh, an Observer image of lou-20 or later, relaying, with its
 // whole key, and not the target itself.
@@ -45,7 +53,7 @@ export function relayRefusal(rules, relay, target, now = Date.now()) {
   const a = relay.alive;
   if (!relay.key || !a || a.state !== 'online' || !aliveFresh(a, now)) return { code: 'relayNotHeard', vars };
   if (!(a.flags & ALIVE_UPLINK) || rules.canRelay(a.version || relay.ver) !== true) return { code: 'relayCannot', vars };
-  if (a.relay !== true) return { code: 'relayOff', vars };
+  if (relaying(a) !== true) return { code: 'relayOff', vars };
   return null;
 }
 

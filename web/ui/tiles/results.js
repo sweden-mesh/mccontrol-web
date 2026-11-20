@@ -136,6 +136,7 @@ export const resultModal = Object.freeze({
       const e = all.find((x) => x.id === eventId);
       if (!e) { body.replaceChildren(h('p', {}, ctx.t('tile.noSuchResult'), ' ', h('a', { href: '#history' }, ctx.t('tile.openHistory')))); return; }
       const device = e.node ? await svc.stores.devices.get(e.node) : null;
+      const via = e.relay ? await svc.stores.devices.get(e.relay.node) : null;
       const kind = resultKind(e);
       const x = explainEvent(ctx, svc, e, device);
       const who = device ? nameOf(device) : e.node || areaName(svc.data.areas, e.region);
@@ -154,7 +155,10 @@ export const resultModal = Object.freeze({
           pair(ctx.t('tile.command'), h('code', {}, e.command)),
           pair(ctx.t('tile.code'), e.code === null ? null : `${e.code}${e.codeName ? ` ${e.codeName}` : ''}`),
           pair(ctx.t('tile.signature'), signature),
-          pair(ctx.t('tile.road'), ctx.t(e.road === 'mesh' ? 'tile.roadMesh' : 'tile.roadMqtt')),
+          pair(ctx.t('tile.road'), e.road === 'relay' ? ctx.t('tile.roadRelay', { relay: via ? nameOf(via) : e.relay?.node || '?' })
+            : ctx.t(e.road === 'mesh' ? 'tile.roadMesh' : 'tile.roadMqtt')),
+          pair(ctx.t('tile.route'), e.relay?.route ? ctx.t(`road.routeShort.${e.relay.route}`) : null),
+          pair(ctx.t('tile.relaySnr'), Number.isFinite(e.relay?.snr) ? `${e.relay.snr} dB` : null),
           pair(ctx.t('tile.topic'), e.topic ? h('code', {}, e.topic) : null)),
         h('p', { class: 'row wrap' }, open, e.node ? h('a', { class: 'tool', href: `#history/${e.node}` }, ctx.t('tile.history')) : null));
       const seen = await svc.stores.meta.get('resultsSeen');

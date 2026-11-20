@@ -1,29 +1,182 @@
-// The mesh road on the screens (W-16): the road choice (Auto / MQTT / Mesh), the companion
+// The roads on the screens (W-16, OTM-9e): the road choice (Auto / MQTT / Mesh / a relay), the relay
+// picker (which of your nodes sends it, by which route, with the flood confirmation), the companion
 // control (connect by Bluetooth, USB or the network through mccontrol-bridge, its state, what this
 // browser cannot do), and the words
 // for which road a result took. Used by the send panel (node and send screens) and settings.
 import { h } from '../dom.js';
-import { field, put, useStyles } from './node-kit.js';
+import { confirm, field, nameOf, put, useStyles } from './node-kit.js';
+import { isFlood, noRelayWhy, parseRelayState, pathHops, relayCandidates, routesFor } from '../../lib/jobs/relay.js';
+import { distanceKm } from '../standard/neighbours-data.js';
 import { connect, disconnect, onCompanion, state, support } from '../companion-session.js';
 import { bridgeAddress, companionKind, meshAfterMins } from './settings-store.js';
 
 let count = 0;
 
-// A fieldset of three radios. `meshOnly`: MQTT cannot reach the node, so it is not offered.
-export function roadChoice(ctx, { initial = 'mqtt', meshOnly = false, onChange }) {
+// A fieldset of radios. `meshOnly`: MQTT cannot reach the node, so it is not offered. `relay`:
+// the send is to one node, so a relay may carry it; the radio is off until setRelay(true) says a
+// node of yours can relay, and setRelay(false, why) says in one line why none can.
+export function roadChoice(ctx, { initial = 'mqtt', meshOnly = false, relay = false, onChange }) {
   const name = `road-${count += 1}`;
   const hintId = `${name}-hint`;
   const value = meshOnly && initial === 'mqtt' ? 'auto' : initial;
-  const radios = ['auto', 'mqtt', 'mesh'].map((r) => {
-    const input = h('input', { type: 'radio', name, value: r, checked: r === value, disabled: meshOnly && r === 'mqtt' });
+  const inputs = {};
+  const radios = ['auto', 'mqtt', 'mesh', relay ? 'relay' : null].filter(Boolean).map((r) => {
+    const input = h('input', { type: 'radio', name, value: r, checked: r === value, disabled: (meshOnly && r === 'mqtt') || r === 'relay' });
     input.addEventListener('change', () => { if (input.checked) onChange(r); }, { signal: ctx.signal });
+    inputs[r] = input;
     return h('label', {}, input, ' ', ctx.t(`road.${r}`));
   });
+  const relayWhy = h('p', { class: 'hint-line', hidden: true });
   const el = h('fieldset', { class: 'choice road-choice', 'aria-describedby': hintId },
     h('legend', {}, ctx.t('road.legend')), radios,
     h('p', { class: 'hint-line', id: hintId }, ctx.t('road.hint', { mins: meshAfterMins() }), ' ',
-      h('a', { href: '#/help/mesh' }, ctx.t('road.help'))));
-  return { el, value };
+      h('a', { href: '#/help/mesh' }, ctx.t('road.help'))), relayWhy);
+  function setRelay(offered, why = '') {
+    if (!inputs.relay) return;
+    inputs.relay.disabled = !offered;
+    relayWhy.textContent = offered ? '' : why;
+    relayWhy.hidden = offered || !why;
+  }
+  return { el, value, setRelay };
+}
+
+// Which of your nodes sends the command, and by which route (relay.js). use(device, all) fills it
+// for one target from the device list; choice() is { node, route } or null; the choice is kept on
+// the target. "Check neighbours" reads one relay's `neighbors` over MQTT (no airtime) and marks
+// whether it hears the target; "Read budget" asks the relay what is left of its hour. Neither
+// runs by itself. Relays of which nothing is known are listed nearest first, said as a guess.
+export function relayPicker(ctx, svc, { onChange = () => {} } = {}) {
+  useStyles();
+  const { t } = ctx;
+  const relaySel = h('select', {});
+  const routeSel = h('select', {});
+  const check = h('button', { type: 'button', class: 'tool' }, t('road.checkNeighbours'));
+  const budget = h('button', { type: 'button', class: 'tool' }, t('road.readBudget'));
+  const note = h('p', { class: 'hint-line', role: 'status' });
+  const el = h('div', { class: 'stack relay-picker' },
+    field(t('road.relayWhich'), relaySel), field(t('road.relayRoute'), routeSel, t('road.relayHint')),
+    h('div', { class: 'row wrap' }, check, budget), note);
+  let device = null;
+  let all = [];
+  let list = [];
+
+  const at = (d) => ({ lat: d?.fleet?.lat, lng: d?.fleet?.lng });
+  const current = () => list.find((c) => c.device.node === relaySel.value) || null;
+  const routeWords = (c, route) => t(`road.route.${route}`, { hops: pathHops(c.path) ?? 0 });
+  const known = (c) => (c.hears === true ? t('road.hears.yes') : c.path ? t('road.hears.path', { hops: pathHops(c.path) })
+    : c.hears === false ? t('road.hears.no') : c.km !== null ? t('road.hears.guess', { km: Math.round(c.km) }) : t('road.hears.unknown'));
+
+  function drawRoutes(keep = null) {
+    const c = current();
+    put(routeSel, c ? routesFor(c).map((r) => h('option', { value: r }, routeWords(c, r))) : []);
+    if (c && keep && routesFor(c).includes(keep)) routeSel.value = keep;
+    check.disabled = budget.disabled = !c;
+  }
+
+  function draw(keep = null) {
+    const found = relayCandidates(svc.rules, all, device).map((c) => ({ ...c, km: distanceKm(at(device), at(c.device)) }));
+    const blank = (c) => c.hears === null && !c.path;
+    const guessed = found.filter(blank).sort((a, b) => (a.km ?? Infinity) - (b.km ?? Infinity));
+    list = [...found.filter((c) => !blank(c) && c.hears !== false), ...guessed, ...found.filter((c) => c.hears === false)];
+    put(relaySel, list.map((c) => h('option', { value: c.device.node }, `${nameOf(c.device)} · ${known(c)}`)));
+    if (keep?.relay && list.some((c) => c.device.node === keep.relay)) relaySel.value = keep.relay;
+    drawRoutes(keep?.route);
+  }
+
+  const choice = () => (current() && routeSel.value ? { node: relaySel.value, route: routeSel.value } : null);
+  const remember = () => {
+    const c = choice();
+    if (device && c) svc.stores.devices.update(device.node, { relayChoice: { relay: c.node, route: c.route } }).then((d) => { device = d; }).catch(() => {});
+    onChange();
+  };
+  relaySel.addEventListener('change', () => { drawRoutes(); remember(); }, { signal: ctx.signal });
+  routeSel.addEventListener('change', remember, { signal: ctx.signal });
+
+  const failed = (err) => (err.code ? t(`send.why.${err.code}`, err.vars) : err.message);
+  async function ask(work) {
+    const c = current();
+    if (!c || !device) return;
+    check.disabled = budget.disabled = true;
+    note.textContent = t('road.asking', { relay: nameOf(c.device) });
+    try { note.textContent = await work(c); } catch (err) { note.textContent = failed(err); }
+    if (!ctx.signal.aborted) drawRoutes(routeSel.value);
+  }
+  check.addEventListener('click', () => ask(async (c) => {
+    const out = await svc.jobs.checkNeighbours({ relay: c.device.node, target: device.node });
+    const kept = choice();
+    device = (await svc.stores.devices.get(device.node)) || device;
+    draw({ relay: kept?.node, route: out.hears === true ? 'neighbour' : kept?.route });
+    remember();
+    const names = { relay: nameOf(c.device), target: nameOf(device) };
+    return t(out.hears === true ? 'road.hearsYes' : out.hears === false ? 'road.hearsNo' : out.result ? 'road.hearsUnknown' : 'road.relayQuiet', names);
+  }), { signal: ctx.signal });
+  budget.addEventListener('click', () => ask(async (c) => {
+    const out = await svc.jobs.send({ command: 'get mqtt.relay', nodes: [c.device.node], road: 'mqtt' });
+    const result = out.outcomes[0]?.result;
+    const s = result?.ok ? parseRelayState(result.reply) : null;
+    const relay = nameOf(c.device);
+    if (!result) return t('road.relayQuiet', { relay });
+    if (!s) return t('road.budgetUnknown', { relay });
+    if (!s.on) return t('road.budgetOff', { relay });
+    return s.left === null ? t('road.budgetUnknown', { relay }) : t('road.budget', { relay, left: s.left, floods: s.floodsLeft });
+  }), { signal: ctx.signal });
+
+  return {
+    el,
+    // The same node again keeps what was read and chosen here since (the caller's copy may be older).
+    use(d, devices) {
+      const same = Boolean(device && d && device.node === d.node);
+      if (!same) note.textContent = '';
+      device = same && String(device.updated) > String(d.updated) ? device : d;
+      all = devices;
+      draw((same && choice() ? { relay: relaySel.value, route: routeSel.value } : null) || device?.relayChoice || null);
+    },
+    offered: () => list.length > 0,
+    why() { const w = device ? noRelayWhy(svc.rules, all, device) : null; return w ? t(`road.relayNone.${w.code.slice(5)}`, w.vars) : ''; },
+    choice,
+    // "Gisebo, direct neighbour (no hops)", or '' while nothing is chosen.
+    words() { const c = current(); return c && routeSel.value ? t('road.relayBrief', { relay: nameOf(c.device), route: routeWords(c, routeSel.value) }) : ''; },
+    // A flood is asked for each time, with what it costs; true only from the dialog's own button.
+    confirmFlood(command) {
+      const c = current();
+      if (!c || !isFlood(routeSel.value)) return Promise.resolve(false);
+      return confirm(ctx, {
+        title: t('road.floodTitle'),
+        lines: [h('p', {}, h('code', {}, command), ' → ', nameOf(device)),
+          t(routeSel.value === 'flood' ? 'road.floodBody' : 'road.floodBodyWide', { relay: nameOf(c.device) }), t('road.floodBudget')],
+        confirmLabel: t('road.floodButton'), danger: true,
+      });
+    },
+  };
+}
+
+// One line for the NODE tile's command area: the relay and route chosen, as a button that opens
+// the picker in a dialog (as the companion's line opens its chooser). draw() after a change.
+export function relayBrief(ctx, picker) {
+  const button = h('button', { type: 'button', class: 'link-button companion-brief' });
+  const draw = () => { button.textContent = picker.words() || ctx.t('road.relayPick'); };
+  button.addEventListener('click', () => {
+    const id = `relay-${count += 1}`;
+    const done = h('button', { type: 'button', class: 'button' }, ctx.t('road.relayDone'));
+    const dialog = h('dialog', { class: 'dlg', 'aria-labelledby': id, closedby: 'any' },
+      h('h2', { id }, ctx.t('road.relay')), picker.el, h('div', { class: 'row-end' }, done));
+    done.addEventListener('click', () => dialog.close());
+    dialog.addEventListener('close', () => { dialog.remove(); draw(); }, { once: true });
+    document.body.append(dialog);
+    dialog.showModal();
+  }, { signal: ctx.signal });
+  draw();
+  return { el: button, draw };
+}
+
+// The relay's choice for a send, asking first when it is a flood: { node, route, confirmed }, or
+// null when nothing is chosen or the flood was not confirmed.
+export async function relayForSend(picker, command) {
+  const c = picker.choice();
+  if (!c) return null;
+  const flood = isFlood(c.route);
+  const confirmed = flood ? await picker.confirmFlood(command) : false;
+  return flood && !confirmed ? null : { ...c, confirmed };
 }
 
 // "Connected to LouHome by Bluetooth" with the buttons to connect or disconnect, and a sentence
@@ -169,6 +322,11 @@ export function companionBrief(ctx) {
 // The sentence for how an outcome travelled, or null for a plain MQTT send.
 export function roadLine(ctx, o) {
   const why = o.why ? ctx.t(`road.why.${o.why.code}`, o.why.vars) : '';
+  if (o.road === 'relay') {
+    const vars = { relay: o.info?.relayName || o.info?.relay || '', route: ctx.t(`road.routeShort.${o.info?.route}`), why };
+    return ctx.t(why ? 'road.viaRelayWhy' : 'road.viaRelay', vars)
+      + (Number.isFinite(o.info?.snr) ? ` ${ctx.t('road.relaySnr', { snr: o.info.snr })}` : '');
+  }
   if (o.road === 'mesh') {
     const path = !o.info ? '' : o.info.hops >= 0 ? ctx.t('road.pathDirect', { hops: o.info.hops }) : ctx.t('road.pathFlood');
     const line = why ? ctx.t('road.viaMeshWhy', { why, path }) : ctx.t('road.viaMesh', { path });
