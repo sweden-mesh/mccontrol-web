@@ -21,7 +21,7 @@ const K = mcc3.ownerKeys(owner, NODE);
 const hexKeys = (k) => Object.fromEntries(Object.entries(k).map(([n, v]) => [n, toHex(v, true)]));
 const fromHexKeys = (k) => Object.fromEntries(Object.entries(k).map(([n, v]) => [n, fromHex(v)]));
 
-test('the keys: public keys, S from both sides, K_cmd, K_mesh, K_alive', () => {
+test('the keys: public keys, S from both sides, K_cmd, K_mesh, K_alive, K_fwd', () => {
   for (const name of ['command', 'node', 'other_node', 'other_owner']) {
     assert.equal(keyFromSeed(fromHex(SEEDS[name])).publicKeyHex, PUB[name], name);
   }
@@ -47,6 +47,14 @@ test('the constants are the spec\'s', () => {
   assert.equal(mcc3.MESH_MAX_COMMAND, c.mesh_max_command);
   assert.equal(mcc3.MESH_MAX_REPLY, c.mesh_max_reply);
   assert.equal(mcc3.MESH_SUBTYPE, c.mesh_subtype);
+  assert.deepEqual([...mcc3.MESH_FLAGS], c.mesh_flags);
+  assert.equal(mcc3.FLAG_ZERO_HOP, c.flag_zero_hop);
+  assert.equal(mcc3.ALIVE_FLAG_RELAY, c.alive_flag_relay);
+  assert.deepEqual({ size: mcc3.FORWARD_SIZE, result_size: mcc3.FORWARD_RESULT_SIZE, path: mcc3.FORWARD_PATH,
+    body: mcc3.FORWARD_BODY, min_body: mcc3.FORWARD_MIN_BODY, body_subtypes: [mcc3.MESH_V1_SUBTYPE, mcc3.MESH_SUBTYPE],
+    result_plaintext: mcc3.FORWARD_RESULT_PLAIN, result_path: mcc3.FORWARD_RESULT_PATH,
+    max_response: mcc3.FORWARD_MAX_RESPONSE, routes: { ...mcc3.ROUTES }, statuses: [...mcc3.FORWARD_STATUSES],
+    sent: { ...mcc3.SENT }, snr_none: mcc3.SNR_NONE, path_none: mcc3.PATH_NONE, max_ttl_secs: mcc3.FORWARD_MAX_TTL }, c.forward);
   assert.deepEqual({ ...mcc3.KIND }, c.kind);
   assert.deepEqual({ mqtt: mcc3.ROAD_MQTT, mesh: mcc3.ROAD_MESH }, c.road);
   assert.equal(mcc3.SIG_LABEL, c.sig_label);
@@ -83,14 +91,14 @@ for (const v of V.results) {
 
 for (const v of V.mesh_requests) {
   test(`mesh request ${v.name}`, () => {
-    const req = mcc3.sealMeshRequest(owner, NODE, v.counter, v.expiry, v.command, { companionTag: v.companion_tag });
+    const req = mcc3.sealMeshRequest(owner, NODE, v.counter, v.expiry, v.command, { companionTag: v.companion_tag, flags: v.flags });
     assert.equal(toHex(req, true), v.request);
     assert.equal(req.length, mcc3.MESH_REQUEST_LEN);
     assert.equal(toHex(req.subarray(4), true), v.app_sends);
     assert.equal(toHex(mcc3.meshNonce(v.counter), true), v.nonce);
-    assert.equal(toHex(mcc3.signedBytes(NODE, mcc3.ROAD_MESH, 0, v.counter, v.expiry, null, utf8(v.command)), true), v.signed);
+    assert.equal(toHex(mcc3.signedBytes(NODE, mcc3.ROAD_MESH, v.flags, v.counter, v.expiry, null, utf8(v.command)), true), v.signed);
     assert.deepEqual(mcc3.openMeshRequest(node, CMD_KEY, req, { lastCounter: v.counter - 1 }),
-      { tag: v.companion_tag, counter: v.counter, expiry: v.expiry, command: v.command });
+      { tag: v.companion_tag, flags: v.flags, counter: v.counter, expiry: v.expiry, command: v.command });
   });
 }
 
@@ -102,6 +110,58 @@ for (const v of V.mesh_responses) {
       { tag: v.companion_tag, counter: v.counter, code: v.code, clock: v.clock, reply: v.reply });
   });
 }
+
+// The node of the vectors is the relay; its K_fwd seals the forward and its result.
+for (const v of V.forwards) {
+  test(`forward ${v.name}`, () => {
+    const payload = mcc3.sealForward(K, NODE, v.counter, v.expiry, fromHex(v.rid), v.target, v.route, fromHex(v.body),
+      { pathLen: v.path_len, path: fromHex(v.path), nonce: v.nonce, pathField: v.path_field ? fromHex(v.path_field) : null });
+    assert.equal(payload, v.payload);
+    assert.equal(unb64url(payload).length, v.bytes);
+    assert.equal(mcc3.commandTopic(NODE), v.topic);
+    assert.equal(mcc3.replyTopic(fromHex(v.rid)), v.reply_topic);
+    const o = mcc3.openForward(node, CMD_KEY, payload);
+    assert.deepEqual({ counter: o.counter, expiry: o.expiry, rid: toHex(o.rid, true), target: o.target, route: o.route,
+      path_len: o.pathLen, path: toHex(o.path, true), body: toHex(o.body, true) }, v.opened);
+  });
+}
+
+for (const v of V.forward_results) {
+  test(`forward result ${v.name}`, () => {
+    const payload = mcc3.sealForwardResult(K, v.counter, v.status, v.clock,
+      { sent: v.sent, snr: v.snr, pathLen: v.path_len, path: fromHex(v.path), response: fromHex(v.response), nonce: v.nonce });
+    assert.equal(payload, v.payload);
+    assert.equal(unb64url(payload).length, v.bytes);
+    const o = mcc3.openForwardResult(K, payload);
+    assert.deepEqual({ ...o, path: toHex(o.path, true), response: toHex(o.response, true) },
+      { counter: v.counter, status: v.status, name: v.status_name, clock: v.clock, sent: v.sent, snr: v.snr,
+        pathLen: v.path_len, path: v.path, response: v.response });
+  });
+}
+
+test('F1 carries V3z after its tag, and F3 gives V4 back to the owner', () => {
+  assert.equal(V.forwards[0].body, V.mesh_requests[2].app_sends);
+  const r = mcc3.openForwardResult(K, V.forward_results[0].payload);
+  const v4 = V.mesh_responses[0];
+  assert.deepEqual(mcc3.openMeshResponse(K, new Uint8Array([0, 0, 0, 0, ...r.response])),
+    { tag: 0, counter: v4.counter, code: v4.code, clock: v4.clock, reply: v4.reply });
+});
+
+test('a sender builds no forward a relay would refuse', () => {
+  const f = V.forwards[0];
+  const seal = (over = {}, opts = {}) => mcc3.sealForward(K, NODE, 9, 1, fromHex(f.rid), over.target || f.target,
+    over.route ?? 0, over.body || fromHex(f.body), opts);
+  assert.throws(() => seal({ route: 3 }), mcc3.Mcc3Error);
+  assert.throws(() => seal({ target: NODE }), mcc3.Mcc3Error);
+  assert.throws(() => seal({ body: fromHex(f.body).subarray(0, 131) }), mcc3.Mcc3Error);
+  assert.throws(() => seal({ body: Uint8Array.of(0xc3, ...new Uint8Array(131)) }), mcc3.Mcc3Error);
+  assert.throws(() => seal({ body: Uint8Array.of(0xc1, ...new Uint8Array(72)) }), mcc3.Mcc3Error);
+  assert.throws(() => seal({}, { pathLen: 58, path: new Uint8Array(58) }), mcc3.Mcc3Error);
+  assert.throws(() => seal({}, { pathLen: 0xc1, path: new Uint8Array(4) }), mcc3.Mcc3Error);
+  assert.throws(() => seal({}, { pathLen: 2, path: new Uint8Array(1) }), mcc3.Mcc3Error);
+  assert.throws(() => mcc3.sealMeshRequest(owner, NODE, 7, 1, 'ver', { flags: 1 }), mcc3.Mcc3Error);
+  assert.throws(() => mcc3.sealMeshRequest(owner, NODE, 7, 1, 'ver', { flags: 3 }), mcc3.Mcc3Error);
+});
 
 for (const v of V.alive) {
   test(`alive ${v.name}`, () => {
@@ -120,11 +180,13 @@ for (const v of V.refusals) {
       if (v.opened_by === 'node') {
         const nodeHandle = keyFromSeed(fromHex(v.node_seed));
         if (v.kind === 'command') mcc3.openCommand(nodeHandle, v.command_key, v.input);
+        else if (v.kind === 'forward') mcc3.openForward(nodeHandle, v.command_key, v.input);
         else mcc3.openMeshRequest(nodeHandle, v.command_key, fromHex(v.input), { lastCounter: v.last_counter ?? null });
       } else {
         const keys = fromHexKeys(v.keys);
         if (v.kind === 'mesh_response') mcc3.openMeshResponse(keys, fromHex(v.input));
         else if (v.kind === 'result') mcc3.openResult(keys, v.input);
+        else if (v.kind === 'forward_result') mcc3.openForwardResult(keys, v.input);
         else mcc3.openAlive(keys, v.input);
       }
     } catch (e) {

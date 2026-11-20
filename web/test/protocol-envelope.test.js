@@ -3,6 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as C from '../lib/protocol/constants.js';
+import * as M3 from '../lib/protocol/mcc3.js';
 import { buildV1, buildV2, isTransmit, v2Key, v2Nonce } from '../lib/protocol/envelope.js';
 import { codeHelp, codeName, parseAny, parseR3, parseResult } from '../lib/protocol/results.js';
 import { makeToken, username } from '../lib/protocol/token.js';
@@ -26,6 +27,14 @@ test('the constants are the ones Python exports', () => {
     v2_command_pads: [...C.V2_COMMAND_PADS], r3_pads: [...C.R3_PADS], tag_len: C.TAG_LEN,
     dir_command: C.DIR_COMMAND, dir_result: C.DIR_RESULT, register_topic: C.REGISTER_TOPIC,
     register_version: C.REGISTER_VERSION, token: { ...C.TOKEN }, mesh: { ...C.MESH },
+    mcc3_forward: {
+      kind: M3.KIND.forward, result_kind: M3.KIND.forward_result, hkdf_info: M3.INFO.fwd, flag_zero_hop: M3.FLAG_ZERO_HOP,
+      alive_flag_relay: M3.ALIVE_FLAG_RELAY, size: M3.FORWARD_SIZE, result_size: M3.FORWARD_RESULT_SIZE, path: M3.FORWARD_PATH,
+      body: M3.FORWARD_BODY, min_body: M3.FORWARD_MIN_BODY, body_subtypes: [M3.MESH_V1_SUBTYPE, M3.MESH_SUBTYPE],
+      result_plaintext: M3.FORWARD_RESULT_PLAIN, result_path: M3.FORWARD_RESULT_PATH, max_response: M3.FORWARD_MAX_RESPONSE,
+      routes: { ...M3.ROUTES }, statuses: [...M3.FORWARD_STATUSES], sent: { ...M3.SENT }, snr_none: M3.SNR_NONE,
+      path_none: M3.PATH_NONE, max_ttl_secs: M3.FORWARD_MAX_TTL,
+    },
   };
   // keys that start with _ are for the reader (the source, the mesh road's layout in words)
   const exported = Object.fromEntries(Object.entries(p).filter(([k]) => !k.startsWith('_')));

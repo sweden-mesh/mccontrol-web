@@ -50,6 +50,11 @@
    "tag": "lou-19",
    "number": 19,
    "admitted": null
+  },
+  {
+   "tag": "lou-20",
+   "number": 20,
+   "admitted": null
   }
  ],
  "ar10_families": [
@@ -75,11 +80,16 @@
  ],
  "arrived": {
   "mqtt.cmd ping": 12,
-  "ota update": 19
+  "ota update": 19,
+  "get mqtt.relay": 20,
+  "set mqtt.relay off": 20,
+  "set mqtt.relay own": 20
  },
  "v2_from": 13,
  "utf8_from": 17,
  "mesh_from": 19,
+ "relay_from": 20,
+ "relay_rule": "a node relays when it is not mesh only and its revision is relay_from or later, or its alive message opened with your key; alive flags bit 4 (0x10) says relaying is on",
  "mesh_only_rule": "a version containing -lou- whose features have rc and which does not contain -observer (lower case); a device's own mesh_only (true/false) wins when set",
  "private_subtype": {
   "old": 4,
