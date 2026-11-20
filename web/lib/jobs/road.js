@@ -1,4 +1,5 @@
-// Which road a command to one node takes: MQTT, the mesh through the owner's companion, or
+// Which road a command to one node takes: MQTT, the mesh through the owner's companion, a
+// relay (another node of the owner's that is on MQTT and transmits the request; relay.js), or
 // auto. A port of mccontrol/actions.py's road and mqtt_heard_at.
 //
 //   auto takes the mesh for a mesh-only node, for a command only the mesh admits, and for a
@@ -6,12 +7,12 @@
 //   auto opens its road after 15); otherwise MQTT. The send itself takes the mesh after all when
 //   the broker cannot be reached, and resends over MQTT after a mesh-closed answer (jobs.js).
 //
-// A choice is { road: 'mqtt' | 'mesh', why: { code, vars } | null }; the screens say `why`
+// A choice is { road: 'mqtt' | 'mesh' | 'relay', why: { code, vars } | null }; the screens say `why`
 // through t(`road.why.${code}`, vars).
 import { squash } from '../protocol/text.js';
 import { JobError } from './checks.js';
 
-export const ROADS = Object.freeze(['auto', 'mqtt', 'mesh']);
+export const ROADS = Object.freeze(['auto', 'mqtt', 'mesh', 'relay']);
 export const MESH_AFTER_MINS = 15;
 
 const ms = (iso) => {
@@ -33,9 +34,10 @@ export function mqttHeardAt(device, seen = null) {
 
 // The road the node view's selector starts on: the node's own last choice (W-26c), else MQTT for a
 // node that has it, else (a node without MQTT) the mesh while a companion is connected and auto
-// otherwise (W-26b, operator 2026-11-18: an MQTT node would only answer mesh-closed).
-export function startRoad({ remembered = null, companion = false, meshOnly = false } = {}) {
-  if (ROADS.includes(remembered) && !(meshOnly && remembered === 'mqtt')) return remembered;
+// otherwise (W-26b, operator 2026-11-18: an MQTT node would only answer mesh-closed). A remembered
+// relay road holds only while a node of the owner's can relay (`relay`).
+export function startRoad({ remembered = null, companion = false, meshOnly = false, relay = false } = {}) {
+  if (ROADS.includes(remembered) && !(meshOnly && remembered === 'mqtt') && !(remembered === 'relay' && !relay)) return remembered;
   if (!meshOnly) return 'mqtt';
   return companion ? 'mesh' : 'auto';
 }
@@ -45,8 +47,10 @@ export function chooseRoad(rules, { device = null, command = '', via = 'mqtt', m
   if (!ROADS.includes(want)) throw new JobError('badRoad', {}, `the road is one of ${ROADS.join(', ')}`);
   if (!device) {
     if (want === 'mesh') throw new JobError('meshBroadcast', {}, 'the mesh road goes to one node at a time');
+    if (want === 'relay') throw new JobError('relayOne', {}, 'a relay carries a command to one node at a time');
     return { road: 'mqtt', why: null };
   }
+  if (want === 'relay') return { road: 'relay', why: null };
   if (rules.deviceMeshOnly(device)) {
     if (want === 'mqtt') throw new JobError('meshOnlyNode', { name: device.name || device.node }, 'mesh only: no Wi-Fi, no MQTT');
     return { road: 'mesh', why: { code: 'meshOnly', vars: {} } };

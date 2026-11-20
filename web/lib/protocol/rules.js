@@ -190,6 +190,14 @@ export function rulesFrom({ denylist, cautions, commands, firmware, facts }) {
     return rev >= firmware.mesh_from && has(versionText, 'rc');
   }
 
+  // Can the image relay (firmware.json's relay_rule)? true from lou-20 with the plane and the
+  // Observer uplink, false when the version says otherwise, null unknown.
+  function canRelay(versionText) {
+    const rev = revision(versionText);
+    if (rev === null) return null;
+    return rev >= firmware.relay_from && !meshOnly(versionText);
+  }
+
   // The plane without the Observer bridge: no Wi-Fi, no MQTT.
   function meshOnly(versionText) {
     const text = (versionText || '').toLowerCase();
@@ -248,7 +256,7 @@ export function rulesFrom({ denylist, cautions, commands, firmware, facts }) {
   return Object.freeze({
     refusal, broadcastRefusal, caution, isRead, missingValue, build,
     revision, features, has, entryFor, admits, lacks, needs, speaksV2, admitsUtf8, privateSubtype,
-    meshAllowed, needsUplink, meshRefusal, speaksMesh, meshOnly, deviceMeshOnly,
+    meshAllowed, needsUplink, meshRefusal, speaksMesh, meshOnly, deviceMeshOnly, canRelay,
     parseFacts, reader,
   });
 }

@@ -15,24 +15,35 @@
 //   const jobs = createJobs({ ring, stores, rules, brokers, results, configOf });   // results: lib/data/results.json
 //   await jobs.send({ command, nodes: ['4AC61A7F'] | group: 'canary' | area: 'se-jkp', road, onProgress, signal })
 //
-// `road` (W-16) is 'mqtt' (the default), 'mesh' or 'auto' (road.js): the mesh goes through the
+// `road` (W-16) is 'mqtt' (the default), 'mesh', 'relay' or 'auto' (road.js): the mesh goes through the
 // companion `companion()` returns (lib/mesh/companion.js), one node at a time, and an outcome
 // says which road it took. Silence over the mesh is silence, never a refusal.
+//
+// 'relay' (relay.js) has another node of the owner's transmit the mesh request and hand the
+// answer back over MQTT: `relay: { node, route, confirmed }`, to ONE node, by the owner's own
+// send. A flood needs `confirmed: true`. Auto takes a relay only for a node without MQTT or
+// silent on it, with no companion connected and a way that is no flood. A group, several nodes,
+// an area, a set, a refresh and an update never go through a relay.
 //
 // Every job holds the key (ring.hold()) from its first signature to its last, so an auto-lock
 // in between lets it finish, and touches the idle clock when it ends. A locked key is a
 // JobError('locked') before anything is signed. Every answer, refusal and silence lands in the
 // history store as it comes; reads are kept on the device; `ver` and `get name` update it.
 import { configFor, discover as realDiscover, send as realSend, DISCOVERY_COMMAND } from '../protocol/transport.js';
-import { newer, scanAlive as realScanAlive, sendMcc3 as realSendMcc3 } from '../protocol/plane.js';
-import { deriveKeys } from '../protocol/mcc3.js';
+import { forwardMcc3 as realForwardMcc3, newer, scanAlive as realScanAlive, sendMcc3 as realSendMcc3 } from '../protocol/plane.js';
+import { FLAG_ZERO_HOP, commandTopic as mcc3Topic, deriveKeys } from '../protocol/mcc3.js';
+import { meshTopic } from '../protocol/mesh.js';
+import { DEFAULT_TTL_SECS } from '../protocol/constants.js';
 import { fromHex, toHex } from '../bytes.js';
 import { actSpacing, areaOf, oldRegion, scheme, shuffled } from './scheme.js';
 import { commandTopic } from '../protocol/topics.js';
 import { codeName } from '../protocol/results.js';
 import { blocker, fillSteps, JobError, meshBlocker } from './checks.js';
 import { MESH_AFTER_MINS, chooseRoad, mqttHeardAt } from './road.js';
-import { sendOverMesh as realMeshSend } from '../mesh/send.js';
+import { meshAnswer, meshBody, sendOverMesh as realMeshSend } from '../mesh/send.js';
+import {
+  FORWARD_TTL_SECS, RELAY_ROUTES, RELAY_WAIT_SECS, WIRE_ROUTE, autoRelay, hearsTarget, isFlood, relayRefusal,
+} from './relay.js';
 
 export { JobError } from './checks.js';
 
@@ -54,7 +65,7 @@ function aliveRecord(fields, state, at) {
   const rec = { state, at: new Date(at).toISOString() };
   if (fields) {
     for (const k of ['boot', 'sequence', 'uptime', 'clock', 'last_counter', 'interval', 'flags', 'mesh', 'fingerprint',
-      'version', 'region', 'name']) rec[k] = fields[k];
+      'version', 'region', 'name', 'relay']) rec[k] = fields[k];
     rec.old_scheme = Boolean(fields.flags & 1);
   }
   return rec;
@@ -64,7 +75,7 @@ export const valueOf = (reply) => String(reply || '').replace(/^>\s*/, '').trim(
 
 export function createJobs({
   ring, stores, rules, brokers, results, transport = { send: realSend, discover: realDiscover }, connect,
-  plane = { send: realSendMcc3, scan: realScanAlive }, random = Math.random,
+  plane = { send: realSendMcc3, scan: realScanAlive, forward: realForwardMcc3 }, random = Math.random,
   waitSecs = null, sleep = sleepFor, configExtra = {}, configOf = (region) => configFor(brokers, region),
   companion = () => null, meshSend = realMeshSend, meshAfterMins = () => MESH_AFTER_MINS, mqttSeen = null,
   now = () => Date.now(),
@@ -94,7 +105,7 @@ export function createJobs({
     try { await ring.saveSecrets?.(map); } catch { /* kept for this job only */ }
   }
 
-  // K_cmd, K_mesh, K_alive for the node with `key`, from the cached S (a new one is stored).
+  // K_cmd, K_mesh, K_alive, K_fwd for the node with `key`, from the cached S (a new one is stored).
   async function keysFor(handle, key) {
     const secrets = await loadSecrets();
     if (!secrets[key]) {
@@ -121,9 +132,9 @@ export function createJobs({
 
   // Store what came back from `device` for `command`: a history event, the device's last
   // result and last heard, a kept read, and its version or name.
-  async function land(device, command, topic, result, batch, note = '', road = 'mqtt') {
+  async function land(device, command, topic, result, batch, note = '', road = 'mqtt', relay = null) {
     const event = await stores.history.append({
-      batch, node: device.node, region: null, command, topic, note, road,
+      batch, node: device.node, region: null, command, topic, note, road, relay,
       code: result ? result.code : null,
       codeName: result && result.code !== null ? codeName(results, result.code) : null,
       reply: result ? result.reply : null,
@@ -135,13 +146,16 @@ export function createJobs({
     };
     if (result && result.verified !== false) {
       changes.lastHeard = event.at;      // a refusal too proves it is there
-      changes[road === 'mesh' ? 'lastHeardMesh' : 'lastHeardMqtt'] = event.at;   // the auto road asks which way
+      changes[road === 'mqtt' ? 'lastHeardMqtt' : 'lastHeardMesh'] = event.at;   // the auto road asks which way
     }
     await stores.devices.update(device.node, changes);
     if (result && result.ok) {
       if (rules.isRead(command)) await stores.devices.rememberRead(device.node, command, result.reply || 'OK', result.verified);
       const value = valueOf(result.reply);
       if (command === 'ver' && value) await stores.devices.update(device.node, { ver: value.slice(0, 60) });
+      // The node's own word on its relaying, until its next alive says it again.
+      const relaying = /^set mqtt\.relay (off|own)$/.exec(command);
+      if (relaying && device.alive) await stores.devices.update(device.node, { alive: { ...device.alive, relay: relaying[1] === 'own' } });
       if (command === 'get name' && value && !device.name) {
         try { await stores.devices.update(device.node, { name: value.slice(0, 40) }); } catch { /* the name is taken */ }
       }
@@ -218,6 +232,66 @@ export function createJobs({
     return { device, result: out.result, event, v2: false, road: 'mesh', why, info: out.info };
   }
 
+  // The same request through a relay (relay.js): sealed for the target exactly as the companion
+  // road builds it, wrapped in a forward to the relay on `mcc/cmd/<RELAY KEY>`, the relay's
+  // result awaited on this session's RID and the target's answer read with the target's keys.
+  // Both counters (the target's, the forward's) are stored before anything is sent. A relay that
+  // heard no answer is silence, never a refusal: the node may have run the command.
+  async function sendRelay(handle, device, command, opts) {
+    const { batch, signal, onProgress, index = 0, count = 1, why = null, relay = null, fallback = false } = opts;
+    const block = blocker(rules, { command, device, road: 'relay' }) || meshBlocker(rules, command, device);
+    if (block) throw new JobError(block.code, block.vars, block.vars.detail || block.code);
+    const via = relay?.node ? await stores.devices.get(relay.node) : null;
+    const not = relayRefusal(rules, via, device, now());
+    if (not) throw new JobError(not.code, not.vars, 'this node cannot relay now');
+    const route = relay.route;
+    if (!RELAY_ROUTES.includes(route)) throw new JobError('relayRoute', {}, `a route is one of ${RELAY_ROUTES.join(', ')}`);
+    if (isFlood(route) && relay.confirmed !== true) throw new JobError('relayFloodConfirm', {}, 'a flood through a relay is confirmed each time');
+    const stored = route === 'path' ? device.relayPaths?.[via.node] : null;
+    if (route === 'path' && !stored) throw new JobError('relayNoPath', { name: label(via) }, 'no path is stored for this relay');
+    const sealed = scheme(rules, device) === 'mcc3';
+    const key = wholeKey(device);
+    const relayKey = wholeKey(via);
+    const keys = sealed ? await keysFor(handle, key) : null;
+    const relayKeys = await keysFor(handle, relayKey);
+    const secs = Math.floor(now() / 1000);
+    const counter = sealed ? await stores.devices.nextCounter(device.node) : secs;
+    const topic = sealed ? mcc3Topic(key) : meshTopic(oldRegion(device), key, rules.deviceMeshOnly(device));
+    // Zero hops back only where the relay sends with none and the target knows the flag (0xC2).
+    const flags = sealed && route === 'neighbour' ? FLAG_ZERO_HOP : 0;
+    const body = meshBody({ handle, key, topic, counter, command, ttl: brokers.ttl_secs ?? DEFAULT_TTL_SECS, nowSecs: secs, keys, flags });
+    const forwardCounter = await stores.devices.nextForwardCounter(via.node);
+    onProgress?.({ phase: 'sending', road: 'relay', node: device.node, name: label(device), index, count });
+    const out = await plane.forward({
+      config: config(''), keys: relayKeys, relayKeyHex: relayKey, targetKeyHex: key, counter: forwardCounter,
+      route: WIRE_ROUTE[route], body, pathLen: stored ? stored.pathLen : 0, path: stored ? fromHex(stored.path) : new Uint8Array(0),
+      waitSecs: waitSecs ?? RELAY_WAIT_SECS, ttl: FORWARD_TTL_SECS, now: secs, signal, connect,
+      progress: (elapsed, total) => {
+        onProgress?.({ phase: 'waiting', road: 'relay', node: device.node, name: label(device), index, count, elapsed, total, answered: 0 });
+        return Boolean(signal?.aborted);
+      },
+    });
+    const r = out.result;
+    const result = r?.name === 'answered' ? meshAnswer(keys, r.response, device.node, command, counter) : null;
+    const info = { relay: via.node, relayName: label(via), route, status: r ? (r.name || `unknown-${r.status}`) : null,
+      sent: r ? r.sent : null, snr: r && r.snr !== null ? r.snr / 4 : null };
+    if (r && r.pathLen !== null) {
+      const fresh = (await stores.devices.get(device.node)) || device;
+      await stores.devices.update(device.node, { relayPaths: { ...(fresh.relayPaths || {}),
+        [via.node]: { pathLen: r.pathLen, path: toHex(r.path, true), at: new Date(now()).toISOString() } } });
+    }
+    if (r?.name === 'off' && via.alive) await stores.devices.update(via.node, { alive: { ...via.alive, relay: false } });
+    const kept = { node: info.relay, route, status: info.status, sent: info.sent, snr: info.snr };
+    if (fallback && result?.code === 19) {
+      await land(device, command, out.topic, result, batch, 'mesh closed: sent over MQTT', 'relay', kept);
+      const fresh = (await stores.devices.get(device.node)) || device;
+      const again = await sendMqtt(handle, fresh, command, opts);
+      return { ...again, why: { code: 'meshClosed', vars: {} } };
+    }
+    const event = await land(device, command, out.topic, result, batch, why ? `relay: ${why.code}` : '', 'relay', kept);
+    return { device, result, event, v2: false, road: 'relay', why, info };
+  }
+
   // When Beacon last saw the node's status, or null; never throws.
   async function seen(device) {
     if (!mqttSeen) return null;
@@ -228,9 +302,27 @@ export function createJobs({
   async function sendOne(handle, device, command, opts) {
     const via = opts.road || 'mqtt';
     if (via === 'mqtt' && !rules.deviceMeshOnly(device)) return sendMqtt(handle, device, command, opts);
+    // A relay is the owner's choice for this one send: `relayOk` comes from send() alone, for one node.
+    if (via === 'relay') {
+      if (!opts.relayOk) throw new JobError('relayOne', {}, 'a relay carries one command to one node, by hand');
+      return sendRelay(handle, device, command, opts);
+    }
     const heardAt = via === 'auto' ? mqttHeardAt(device, await seen(device)) : null;
     const choice = chooseRoad(rules, { device, command, via, meshAfterMins: meshAfterMins(), heardAt, now: now() });
-    if (choice.road === 'mesh') return sendMesh(handle, device, command, { ...opts, why: choice.why, fallback: via === 'auto' });
+    if (choice.road === 'mesh') {
+      // Auto with no companion: a relay, for a node without MQTT or silent on it, by a way that
+      // is no flood (autoRelay offers nothing else). Otherwise the mesh road as before.
+      const radio = companion();
+      const silent = choice.why?.code === 'meshOnly' || choice.why?.code === 'notHeard';
+      if (via === 'auto' && opts.relayOk && silent && (!radio || radio.closed)) {
+        const pick = autoRelay(rules, await stores.devices.list(), device, now());
+        if (pick) {
+          return sendRelay(handle, device, command, { ...opts, why: choice.why, fallback: true,
+            relay: { node: pick.relay.node, route: pick.route } });
+        }
+      }
+      return sendMesh(handle, device, command, { ...opts, why: choice.why, fallback: via === 'auto' });
+    }
     if (via !== 'auto') return sendMqtt(handle, device, command, opts);
     try {
       return await sendMqtt(handle, device, command, opts);
@@ -265,6 +357,9 @@ export function createJobs({
   // The same check for every command before any is signed; a blocker for an area or for
   // a lone node stops the job, while in a group or a multi-node send it marks that member.
   function vet(commands, target, road = 'mqtt') {
+    if (road === 'relay' && (target.area || target.group || target.devices.length !== 1)) {
+      throw new JobError('relayOne', {}, 'a relay carries a command to one node at a time');
+    }
     for (const command of commands) {
       if (road !== 'mqtt' && !target.area) continue;           // per node, by the road it takes
       const deny = target.area ? blocker(rules, { command, area: target.area, road })
@@ -312,7 +407,7 @@ export function createJobs({
   // Send one command. Resolves to { batch, command, target, outcomes: [{ node, name, sent,
   // result, reason?, event? }], answered, asked }. `reason` ({ code, vars }) is why a member
   // was not sent to; `result` null with sent true is silence.
-  async function send({ command, nodes, group, area, road = 'mqtt', onProgress, signal } = {}) {
+  async function send({ command, nodes, group, area, road = 'mqtt', relay = null, onProgress, signal } = {}) {
     const text = String(command || '').split(/\s+/).filter(Boolean).join(' ');
     const target = await targets({ nodes, group, area });
     vet([text], target, road);
@@ -338,7 +433,8 @@ export function createJobs({
         }
         onProgress?.({ phase: 'sending', node: device.node, name: label(device), index, count: target.devices.length });
         try {
-          const one = await sendOne(handle, device, text, { batch, keys, signal, onProgress, index, count: target.devices.length, road });
+          const one = await sendOne(handle, device, text, { batch, keys, signal, onProgress, index, count: target.devices.length, road,
+            relay, relayOk: !many });
           outcomes.push({ node: device.node, name: label(device), sent: true, result: one.result, event: one.event, v2: one.v2,
             road: one.road, why: one.why || null, info: one.info || null });
         } catch (e) {
@@ -462,6 +558,25 @@ export function createJobs({
       await land(await stores.devices.get(device.node), 'ver', out.topic, out.result, batchId(), 'mesh-only check', 'mesh');
       return { answered: true, result: out.result, device: await stores.devices.get(device.node), info: out.info };
     });
+  }
+
+  // "Check neighbours": ONE `neighbors` read to a relay over MQTT (no airtime: the table is built
+  // from the adverts it heard), and whether the target's key is in it. The finding is kept on the
+  // target with its time; a reply that proves nothing either way changes nothing.
+  // { result, hears: true | false | null }
+  async function checkNeighbours({ relay, target, signal, onProgress } = {}) {
+    const via = await stores.devices.get(relay);
+    const device = await stores.devices.get(target);
+    if (!via || !device) throw new JobError('noNode', { node: via ? target : relay }, 'no such node');
+    const out = await send({ command: 'neighbors', nodes: [via.node], road: 'mqtt', signal, onProgress });
+    const result = out.outcomes[0]?.result || null;
+    const found = result?.ok && result.verified !== false ? hearsTarget(result.reply, device.key || device.node) : null;
+    if (found) {
+      const fresh = (await stores.devices.get(device.node)) || device;
+      await stores.devices.update(device.node, { relayHears: { ...(fresh.relayHears || {}),
+        [via.node]: { hears: found.hears, snr: found.snr, at: new Date(now()).toISOString() } } });
+    }
+    return { result, hears: found ? found.hears : null };
   }
 
   // Remember a discovered node. A taken name gets -2, -3 ... A node found by its alive has a
@@ -593,5 +708,5 @@ export function createJobs({
     });
   }
 
-  return Object.freeze({ send, runSet, discover, discoverAlive, adopt, refresh, update, checkMeshNode, DISCOVERY_COMMAND });
+  return Object.freeze({ send, runSet, discover, discoverAlive, adopt, refresh, update, checkMeshNode, checkNeighbours, DISCOVERY_COMMAND });
 }

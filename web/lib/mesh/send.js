@@ -34,9 +34,7 @@ export async function sendOverMesh({
   const key = nodeKey(keyHex);
   if (!companion || companion.closed) throw new CompanionError('no companion is connected', 'closed');
   const count = counter ?? Math.floor(now() / 1000);
-  const body = keys
-    ? sealMeshRequest(handle, key, count, Math.floor(now() / 1000) + ttl, command, { keys }).subarray(4)
-    : meshBuild(handle, topic, count, command, { ttl, now: Math.floor(now() / 1000) });
+  const body = meshBody({ handle, key, topic, counter: count, command, ttl, nowSecs: Math.floor(now() / 1000), keys });
   const info = {};
   let c = await companion.contact(key);
   if (c === null) {
@@ -61,10 +59,20 @@ export async function sendOverMesh({
     data = await companion.response(sent.tag, Math.min(TICK_MS, (total - elapsed) * 1000), signal);
   }
   const result = data === null ? null
-    : keys ? openMcc3(keys, data, key.slice(0, 8), command, count)
-      : parseMeshResponse(data, { node: key.slice(0, 8), command, counter: count });
+    : meshAnswer(keys, data, key.slice(0, 8), command, count);
   return { topic, body, result, info, counter: count };
 }
+
+// The request as the companion is handed it after the node's key, which is also what a relay
+// forwards: lou-20's 0xC2 with `keys` (132 bytes; `flags` is signed), else the 0xC1 request.
+export const meshBody = ({ handle, key, topic, counter, command, ttl = DEFAULT_TTL_SECS, nowSecs, keys = null, flags = 0 }) => (keys
+  ? sealMeshRequest(handle, key, counter, nowSecs + ttl, command, { keys, flags }).subarray(4)
+  : meshBuild(handle, topic, counter, command, { ttl, now: nowSecs }));
+
+// The node's answer after its tag as a Result, from a companion or out of a relay's result;
+// null when it does not open, is too short, or answers another counter.
+export const meshAnswer = (keys, data, node, command, counter) => (keys ? openMcc3(keys, data, node, command, counter)
+  : parseMeshResponse(data, { node, command, counter }));
 
 // A sealed 0xC2 response as the companion hands it (after the tag) as a Result, or null when it
 // does not open under K_cmd or answers another counter.

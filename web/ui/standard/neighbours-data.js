@@ -5,15 +5,9 @@
 //   Beacon's /nodes/<id>/neighbors: name, key, position and when observers last saw the link
 // RSSI is in neither: the dialog says so instead of inventing one.
 
-// One reply -> [{ prefix, secsAgo, snr }]; [] for "-none-" or anything else.
-export function parseNeighbors(reply) {
-  const out = [];
-  for (const line of String(reply || '').replace(/^>\s*/, '').split(/[\n,]+/)) {
-    const m = line.trim().match(/^([0-9A-Fa-f]{8}):(-?\d+):(-?\d+)$/);
-    if (m) out.push({ prefix: m[1].toUpperCase(), secsAgo: Number(m[2]), snr: Number(m[3]) / 4 });
-  }
-  return out;
-}
+import { parseNeighbors } from '../../lib/jobs/relay.js';
+
+export { parseNeighbors };
 
 // Great-circle distance in km, or null without both positions.
 export function distanceKm(a, b) {

@@ -12,37 +12,10 @@ import { nodeKeys, openMeshRequest, sealMeshResponse } from '../lib/protocol/mcc
 const u32 = (n) => { const b = new Uint8Array(4); new DataView(b.buffer).setUint32(0, n, true); return b; };
 const later = (fn) => setTimeout(fn, 0);
 
-// options:
-//   ownerKey       the command key the node holds (64 hex); a request it does not verify is silence
-//   region         the region the node rebuilds its topic with ('mesh' for a mesh-only node)
-//   contacts       { KEYHEX: hops } already on the companion (hops -1: no path)
-//   answer(cmd, counter) -> { code, reply } | null      the node's answer; null: silence
-//   oldCompanion   CMD_GET_CONTACT_BY_KEY unsupported (err 1): the list is read instead
-//   full           the contact table is full (add refused, err 3)
-//   floodSent      the companion reports the request went as a flood
-//   clock          the node's clock (unset by default)
-//   mcc3           { node: the node's handle } -- a lou-20 node: it also opens 0xC2 requests sealed
-//                  to it for `ownerKey`, and answers sealed
-export function fakeCompanion({
-  ownerKey, region = 'JKG', contacts = {}, answer = () => ({ code: 0, reply: 'OK' }), oldCompanion = false,
-  full = false, floodSent = false, clock = 1715770351, selfName = 'LouHome', mcc3 = null,
-} = {}) {
-  const opened = [];
-  const written = [];
-  const book = new Map(Object.entries(contacts).map(([k, hops]) => [k.toUpperCase(), hops]));
-  let frameFn = () => {};
-  let closeFn = () => {};
-  let open = true;
-  let tagSeq = 0x6553f100;
-  const emit = (bytes) => later(() => { if (open) frameFn(bytes); });
-
-  const contactFrame = (key, hops, code = RESP.CONTACT) => {
-    const name = new Uint8Array(32); name.set(utf8('node').subarray(0, 31));
-    return concat(Uint8Array.of(code), fromHex(key), Uint8Array.of(2, 0, hops < 0 ? 0xff : hops), new Uint8Array(64), name,
-      u32(0), u32(0), u32(0), u32(0));
-  };
-
-  function node(key, body, tag) {
+// The node behind a radio: (key, body, tag) -> the bytes it answers after the tag, or null for
+// silence. `body` is a mesh request from its sub-type byte on, as a companion or a relay sends it.
+export function meshNode({ ownerKey, region = 'JKG', answer = () => ({ code: 0, reply: 'OK' }), clock = 1715770351, mcc3 = null, opened = [] }) {
+  return function node(key, body, tag) {
     if (mcc3 && body[0] === 0xc2) {
       let req;
       try { req = openMeshRequest(mcc3.node, ownerKey, concat(tag, body)); } catch { return null; }
@@ -62,7 +35,39 @@ export function fakeCompanion({
     if (!ok) return null;                         // sig-invalid: silent
     const a = answer(command, counter);
     return a ? meshResponse(clock, counter, a.code, a.reply || '') : null;
-  }
+  };
+}
+
+// options:
+//   ownerKey       the command key the node holds (64 hex); a request it does not verify is silence
+//   region         the region the node rebuilds its topic with ('mesh' for a mesh-only node)
+//   contacts       { KEYHEX: hops } already on the companion (hops -1: no path)
+//   answer(cmd, counter) -> { code, reply } | null      the node's answer; null: silence
+//   oldCompanion   CMD_GET_CONTACT_BY_KEY unsupported (err 1): the list is read instead
+//   full           the contact table is full (add refused, err 3)
+//   floodSent      the companion reports the request went as a flood
+//   clock          the node's clock (unset by default)
+//   mcc3           { node: the node's handle } -- a lou-20 node: it also opens 0xC2 requests sealed
+//                  to it for `ownerKey`, and answers sealed
+export function fakeCompanion({
+  ownerKey, region = 'JKG', contacts = {}, answer = () => ({ code: 0, reply: 'OK' }), oldCompanion = false,
+  full = false, floodSent = false, clock = 1715770351, selfName = 'LouHome', mcc3 = null,
+} = {}) {
+  const opened = [];
+  const written = [];
+  const node = meshNode({ ownerKey, region, answer, clock, mcc3, opened });
+  const book = new Map(Object.entries(contacts).map(([k, hops]) => [k.toUpperCase(), hops]));
+  let frameFn = () => {};
+  let closeFn = () => {};
+  let open = true;
+  let tagSeq = 0x6553f100;
+  const emit = (bytes) => later(() => { if (open) frameFn(bytes); });
+
+  const contactFrame = (key, hops, code = RESP.CONTACT) => {
+    const name = new Uint8Array(32); name.set(utf8('node').subarray(0, 31));
+    return concat(Uint8Array.of(code), fromHex(key), Uint8Array.of(2, 0, hops < 0 ? 0xff : hops), new Uint8Array(64), name,
+      u32(0), u32(0), u32(0), u32(0));
+  };
 
   const link = {
     kind: 'fake', label: 'fake companion', written,

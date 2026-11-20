@@ -118,6 +118,16 @@ export function openStores(db, owner, { now = () => Date.now(), defaultSets = {}
       return counter;
     },
 
+    // The counter for the next forward through this node as a relay, stored before it is sent
+    // and kept apart from its command counter: max(now in seconds, last + 1).
+    async nextForwardCounter(node, nowSecs = Math.floor(now() / 1000)) {
+      const d = await devices.get(node);
+      if (!d) throw new Error('No such node.');
+      const forwardCounter = Math.max(nowSecs, (Number(d.forwardCounter) || 0) + 1);
+      await devices.update(node, { forwardCounter });
+      return forwardCounter;
+    },
+
     // A forgotten node leaves its groups too.
     async remove(node) {
       const id = String(node || '').toUpperCase();
@@ -208,12 +218,23 @@ export function openStores(db, owner, { now = () => Date.now(), defaultSets = {}
 
   // -- history ---------------------------------------------------------------------------------
 
-  const FIELDS = ['at', 'batch', 'node', 'region', 'command', 'topic', 'code', 'codeName', 'reply', 'verified', 'note', 'road'];
+  const ROADS = ['mqtt', 'mesh', 'relay'];
+  // What an event keeps of a send through a relay: which relay (8 hex), the route asked for, the
+  // relay's status in words (null: the relay said nothing), how it sent (0 nothing, 1 direct,
+  // 2 flood) and how well it heard the answer (dB). null for anything else.
+  const relayShape = (r) => {
+    if (!r || typeof r !== 'object' || !NODE.test(String(r.node || '').toUpperCase())) return null;
+    const word = (v) => (typeof v === 'string' && /^[\w-]{1,24}$/.test(v) ? v : null);
+    const num = (v) => (Number.isFinite(v) ? v : null);
+    return { node: String(r.node).toUpperCase(), route: word(r.route), status: word(r.status), sent: num(r.sent), snr: num(r.snr) };
+  };
+  const FIELDS = ['at', 'batch', 'node', 'region', 'command', 'topic', 'code', 'codeName', 'reply', 'verified', 'note', 'road', 'relay'];
   const shape = (event) => {
     const out = { v: SCHEMA };
     for (const f of FIELDS) out[f] = event[f] ?? null;
     out.note = out.note || '';
-    out.road = out.road === 'mesh' ? 'mesh' : 'mqtt';
+    out.road = ROADS.includes(out.road) ? out.road : 'mqtt';
+    out.relay = out.road === 'relay' ? relayShape(out.relay) : null;
     if (out.node) out.node = String(out.node).toUpperCase();
     return out;
   };
@@ -229,7 +250,8 @@ export function openStores(db, owner, { now = () => Date.now(), defaultSets = {}
     if (r.node != null && !NODE.test(String(r.node).toUpperCase())) return null;
     if (r.code != null && !(Number.isInteger(r.code) && r.code >= 0)) return null;
     if (![true, false, null, undefined].includes(r.verified)) return null;
-    if (![null, undefined, 'mqtt', 'mesh'].includes(r.road)) return null;
+    if (![null, undefined, ...ROADS].includes(r.road)) return null;
+    if (r.relay != null && relayShape(r.relay) === null) return null;
     if (!(str(r.reply, 4000) && str(r.note, 400) && str(r.region, 8) && str(r.topic, 200)
       && str(r.codeName, 60) && str(r.batch, 64))) return null;
     return r;

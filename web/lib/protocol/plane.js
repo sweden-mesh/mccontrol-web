@@ -12,7 +12,7 @@
 // only, which the page's wss:// is; a plain ws:// test broker is refused here.
 //
 // `connect` replaces createMqttClient (tests pass a fake broker). Nothing here is sent without a
-// call to sendMcc3; scanAlive only subscribes and reads.
+// call to sendMcc3 or forwardMcc3; scanAlive only subscribes and reads.
 import { throwawayKey } from '../key/handle.js';
 import { makeResult } from './results.js';
 import { DEFAULT_TTL_SECS, NODE_HEX_LEN } from './constants.js';
@@ -22,7 +22,7 @@ import { SUBACK_FAILURE } from './mqtt-codec.js';
 import { makeToken, username as tokenUsername } from './token.js';
 import {
   ALIVE_FILTER, Mcc3Error, Refused, TOPIC_ROOT, commandTopic, deriveKeys, newRid, nodeFromTopic, openAlive,
-  openResult, replyTopic, sealCommand,
+  openForwardResult, openResult, replyTopic, sealCommand, sealForward,
 } from './mcc3.js';
 import { fromHex, toHex } from '../bytes.js';
 import { nodeKey } from './topics.js';
@@ -83,6 +83,39 @@ export async function sendMcc3({
     await client.subscribe([{ topic: reply, qos: 1 }]);
     await client.publish(topic, payload, { qos: 1 });
     await waitFor(waitSecs, () => result !== null, () => (result ? [node] : []), progress, { signal });
+  } finally {
+    await client.close();
+  }
+  return { topic, payload, result };
+}
+
+// Have the relay with `relayKeyHex` transmit `body` (a mesh request from its sub-type byte on) to
+// the target by `route` (0 direct along `path`, 1 flood, 2 flood-wide), and wait for its sealed
+// result on this session's RID. `keys` are the RELAY's: a result opens only under its K_fwd, and
+// the one awaited echoes `counter`. Resolves to { topic, payload, result } -- result (mcc3.js's
+// openForwardResult) null is a relay that said nothing: older firmware, offline, or not ours.
+export async function forwardMcc3({
+  config, keys, relayKeyHex, targetKeyHex, counter, route, body, pathLen = 0, path = new Uint8Array(0),
+  waitSecs = 135, ttl = 150, progress, signal, connect, now = nowSecs(),
+}) {
+  const key = nodeKey(relayKeyHex || '');
+  if (!key) throw new Mcc3Error('a relay is named by its whole public key (64 hex)');
+  const { rid } = session();
+  const payload = sealForward(keys, key, counter, now + ttl, rid, targetKeyHex, route, body, { pathLen, path });
+  const topic = commandTopic(key);
+  const reply = replyTopic(rid);
+  let result = null;
+  const onMessage = (msgTopic, bytes) => {
+    if (msgTopic !== reply) return;
+    let r;
+    try { r = openForwardResult(keys, bytes); } catch { return; }      // a command's result, another relay's, or altered
+    if (r.counter === counter) result = r;
+  };
+  const client = await connectPlane(config, { connect, onMessage, now });
+  try {
+    await client.subscribe([{ topic: reply, qos: 1 }]);
+    await client.publish(topic, payload, { qos: 1 });
+    await waitFor(waitSecs, () => result !== null, () => (result ? [key.slice(0, NODE_HEX_LEN)] : []), progress, { signal });
   } finally {
     await client.close();
   }

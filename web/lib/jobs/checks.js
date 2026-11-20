@@ -25,7 +25,7 @@ const bytes = (text) => new TextEncoder().encode(text).length;
 
 // Why every road `road` may take would refuse `text` to `device` (api/jobs.py's _refusal): over
 // the mesh the repair allowance travels and a mesh-only node refuses what needs an uplink; auto
-// refuses only what both roads refuse.
+// refuses only what both roads refuse. A relay carries the mesh road's request, so its rules.
 const meshMax = (rules, device) => (scheme(rules, device) === 'mcc3' ? MESH_MAX_COMMAND : MESH.max_command);
 
 function roadRefusal(rules, text, device, road) {
@@ -34,7 +34,7 @@ function roadRefusal(rules, text, device, road) {
   const max = meshMax(rules, device);
   let onMesh = rules.meshRefusal(text, only);
   if (onMesh === null && bytes(text) > max) onMesh = `over the mesh a command is 1..${max} bytes`;
-  return road === 'mesh' || only ? onMesh : (onMesh && rules.refusal(text));
+  return road === 'mesh' || road === 'relay' || only ? onMesh : (onMesh && rules.refusal(text));
 }
 
 // What the mesh road needs of the node before anything is signed (actions.send_mesh): a
@@ -50,12 +50,13 @@ export function meshBlocker(rules, text, device) {
 }
 
 // Why `command` cannot go to `device` (or, with `area`, to each of the owner's nodes in that
-// county, one sealed command each: there is no broadcast) by `road` ('mqtt', 'mesh' or 'auto'),
-// or null. An area act refuses a command that transmits and the mesh road.
+// county, one sealed command each: there is no broadcast) by `road` ('mqtt', 'mesh', 'relay' or
+// 'auto'), or null. An area act refuses a command that transmits, the mesh road and a relay.
 export function blocker(rules, { command, device = null, area = null, road = 'mqtt' }) {
   const text = squash(command);
   if (!text) return { code: 'empty', vars: {} };
   if (area && road === 'mesh') return { code: 'meshBroadcast', vars: {} };
+  if (area && road === 'relay') return { code: 'relayOne', vars: {} };
   const denied = roadRefusal(rules, text, area ? null : device, area ? 'mqtt' : road);
   if (denied) return { code: 'denied', vars: { command: text, detail: denied } };
   if (area) return isTransmit(text) ? { code: 'broadcastTransmit', vars: { command: text } } : null;
@@ -67,7 +68,7 @@ export function blocker(rules, { command, device = null, area = null, road = 'mq
   }
   if (plane === 'old' && !only && !oldRegion(device)) return { code: 'noRegion', vars: { name: device.name || device.node } };
   if (only && road === 'mqtt') return { code: 'meshOnlyNode', vars: { name: device.name || device.node } };
-  if (road === 'mesh' || only) {
+  if (road === 'mesh' || road === 'relay' || only) {
     const mesh = meshBlocker(rules, text, device);
     if (mesh) return mesh;
   }
@@ -91,7 +92,7 @@ export function preflight(rules, { command, device = null, area = null, road = '
   if (!area && device && text) {
     try { choice = chooseRoad(rules, { device, command: text, via: road, meshAfterMins, now }); } catch { choice = null; }
   }
-  const onMesh = choice?.road === 'mesh';
+  const onMesh = choice?.road === 'mesh' || choice?.road === 'relay';
   return Object.freeze({
     command: text,
     block,
