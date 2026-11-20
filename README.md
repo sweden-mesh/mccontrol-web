@@ -69,6 +69,27 @@ mcc3; mccontrol-spec's wire format has the bytes):
   over the old scheme, comes back on lou-20, and moves to mcc3 by itself at its first alive.
   lou-21 removes the old scheme; the page drops it after that.
 
+## Through a relay
+
+From lou-20 one of your own nodes that is on MQTT can send a command by radio to a node that is
+not: a mesh-only node, or one whose Wi-Fi has failed. You need no companion. The road selector
+has **Through a relay** when the command goes to one node and a node of yours can relay: an
+Observer image of lou-20 or later whose alive is fresh and says relaying is on.
+
+- **You choose the relay and the route.** Direct neighbour (one transmission each way, no
+  hops), direct along a path an earlier answer taught, or a flood. "Check neighbours" asks a
+  relay over MQTT which nodes it hears, which costs no airtime, and marks the relay that hears
+  the node directly. "Read budget" asks what is left of the relay's hour.
+- **A flood asks first, every time.** It costs every node in reach airtime, and a relay allows
+  10 commands an hour, 2 of them floods.
+- **Auto is careful.** It takes a relay only for a node without MQTT or silent on it for the 15
+  minutes, only when no companion is connected, and only by a way that is no flood. A group,
+  several nodes, a county, a set and the automatic work never go through a relay.
+- **No answer is not a refusal.** The relay waits two minutes; the node may have run the
+  command. History keeps the relay, the route and how well the relay heard the answer.
+- **The relay cannot read it.** The request is sealed and signed for the node, the answer sealed
+  to you. A node's details have the switch (`set mqtt.relay off|own`); relaying is on by default.
+
 ## Install it as an app
 
 Setup, Display has **Install as an app** (Chrome, Edge; Safari and others from their own menu).
