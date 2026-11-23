@@ -79,6 +79,9 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
       for (const width of [360, 1280]) {
         const { page, problems } = await open(storage, width);
         await new Promise((ok) => setTimeout(ok, 1500));
+        const names = await page.evaluate(() => document.body.innerText.match(/DEMO-[\p{L}]+/gu) || []);
+        if (new Set(names).size < 8) problems.push(`the fleet is not on the page (${new Set(names).size} demo nodes named)`);
+        if (await page.evaluate(() => document.documentElement.hasAttribute('data-gate'))) problems.push('the unlock gate is still up');
         const left = await leftBehind(page);
         if (left.dbs.length) problems.push(`IndexedDB databases: ${left.dbs.join(', ')}`);
         if (left.extra.length) problems.push(`localStorage keys: ${left.extra.join(', ')}`);

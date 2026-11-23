@@ -205,7 +205,17 @@ async function start() {
   migratePrefs();
   // The page's one keyring, before the board: the tiles then know whether there is a key. A
   // browser that refuses IndexedDB still gets the board, with "no key".
-  try { await startKeySession(); if (!isDemo()) startAutoRegistration(); } catch (err) { console.warn('key store unavailable:', err); }
+  try {
+    if (isDemo()) {
+      // The demo (W-39): an invented key in memory, unlocked by the demo, and an invented fleet.
+      const demo = await import('./demo/start.js');
+      await startKeySession(await demo.demoKeyOptions());
+      await demo.startDemo();
+    } else {
+      await startKeySession();
+      startAutoRegistration();
+    }
+  } catch (err) { console.warn('key store unavailable:', err); }
   useFrame($('modal'), { ctxFor: base, closeLabel: 'Close' });
   await relabel();
   document.documentElement.setAttribute('data-started', '');
