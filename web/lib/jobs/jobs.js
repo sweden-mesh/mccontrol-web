@@ -40,7 +40,7 @@ import { commandTopic } from '../protocol/topics.js';
 import { codeName } from '../protocol/results.js';
 import { blocker, fillSteps, JobError, meshBlocker } from './checks.js';
 import { MESH_AFTER_MINS, chooseRoad, mqttHeardAt } from './road.js';
-import { meshAnswer, meshBody, sendOverMesh as realMeshSend } from '../mesh/send.js';
+import { MESH_WAIT_SECS, meshAnswer, meshBody, sendOverMesh as realMeshSend } from '../mesh/send.js';
 import {
   FORWARD_TTL_SECS, RELAY_ROUTES, RELAY_WAIT_SECS, WIRE_ROUTE, autoRelay, hearsTarget, isFlood, relayRefusal,
 } from './relay.js';
@@ -81,6 +81,8 @@ export function createJobs({
   now = () => Date.now(), readOnly = false,
 }) {
   const wait = () => waitSecs ?? brokers.wait_secs ?? 20;
+  // A sealed request over the mesh: a lou-20 node answers a flooded one 15-30 s after it arrives.
+  const meshWait = () => waitSecs ?? Math.max(brokers.wait_secs ?? 20, MESH_WAIT_SECS);
   // `configOf(region)`: the page passes settings-store's brokerConfig, so a region this device
   // sends to its own broker is honoured; the default is the exported table alone.
   const config = (region) => ({ ...configOf(region), ...configExtra });
@@ -218,7 +220,7 @@ export function createJobs({
     const counter = sealed ? await stores.devices.nextCounter(device.node) : null;
     const out = await meshSend({
       companion: radio, handle, keyHex: device.key, region: oldRegion(device), meshOnly: rules.deviceMeshOnly(device), keys, counter,
-      name: label(device), command, ttl: brokers.ttl_secs ?? undefined, waitSecs: wait(), signal,
+      name: label(device), command, ttl: brokers.ttl_secs ?? undefined, waitSecs: sealed ? meshWait() : wait(), signal,
       progress: (elapsed, total) => {
         onProgress?.({ phase: 'waiting', road: 'mesh', node: device.node, name: label(device), index, count, elapsed, total, answered: 0 });
         return Boolean(signal?.aborted);

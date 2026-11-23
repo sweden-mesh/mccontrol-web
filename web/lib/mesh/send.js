@@ -24,6 +24,10 @@ import { DEFAULT_TTL_SECS, MESH } from '../protocol/constants.js';
 import { CompanionError } from './companion.js';
 
 const TICK_MS = 200;
+// A lou-20 node answers a flooded request 15-30 s after it arrives, once the request's copies
+// have died down around it, and the flood travels both ways: a shorter wait reads a command
+// that ran as silence (bench at Gisebo, 2026-11-23: answered in 27 s, missed at 30).
+export const MESH_WAIT_SECS = 90;
 
 export async function sendOverMesh({
   companion, handle, keyHex, region, meshOnly = false, name = '', command, counter = null,
