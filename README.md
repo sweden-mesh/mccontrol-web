@@ -14,6 +14,14 @@ key, identity or radio (the deny list keeps those to the serial cable).
 
 ![The standard layout: the node list and one node's overview](docs/screenshots/standard-dark-1600.png)
 
+## Try it without a node or a key
+
+[mccontrol.meshcoresverige.se/?demo=1](https://mccontrol.meshcoresverige.se/?demo=1) opens the same page
+against an invented fleet: nine made-up nodes with a week of history, statuses, charts and a map, to look
+around in. The unlock screen links to it ("Try the demo"). Nothing is stored and nothing is sent: the demo
+holds an invented key in the page's memory, opens no connection to a command server, and asks no other host
+about nodes. A banner says so on every screen, and "Leave the demo" goes back to the ordinary page.
+
 ## Two layouts
 
 **Standard** (the default): a list of your nodes and one node's detail, in dark or light, with a

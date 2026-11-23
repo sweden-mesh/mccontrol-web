@@ -459,6 +459,41 @@ the offline copy.
 `vendor/VENDOR.md` lists each package, version, licence and tarball hash, and how it was
 copied (`scripts/vendor-web.sh`). The MQTT client is our own (no library); the reasons are there.
 
+## The demo (W-39)
+
+`?demo=1` in the address runs the real app against a simulated world, for someone with no flashed node and
+no key. It is decided once, when the page starts (`ui/demo/mode.js`, imported first by `ui/app.js`); the way
+in and the way out are new page loads. No screen has a demo branch of its own beyond the few named here.
+
+What a demo page replaces, before any other module runs:
+
+| The real page's | In the demo | Where |
+|---|---|---|
+| key store (IndexedDB `mccontrol-key`) | `memoryStorage()`; the invented key goes in through the keyring as an imported key | `ui/screens/key-session.js`, `ui/demo/start.js` |
+| data (IndexedDB `mccontrol-data`) | `memoryDb()`, seeded with the fleet | `ui/screens/node-services.js`, `lib/demo/world.js` |
+| `WebSocket` | a socket that never connects (v1) | `ui/demo/mode.js` |
+| `fetch` | own files and the basemap pass; Beacon and release-list paths are answered from the world; any other host is refused | `ui/demo/mode.js`, `lib/demo/beacon.js` |
+| `localStorage` | memory, except the display settings (theme, layout, colours, language) | `ui/demo/mode.js` |
+
+Rules the demo keeps, each pinned by a test:
+
+- **Nothing real is read or written.** No IndexedDB database is opened, no WebSocket, no request to another
+  host (`test/smoke/demo.mjs` fails on any of them; `test/demo-mode.test.js`, `test/demo-beacon.test.js`).
+- **Nothing in it is real.** The owner key and the node keys are SHA-256 of fixed phrases; the names carry
+  `DEMO-`; the positions are picked by hand (`test/demo-world.test.js`). The history uses only commands and
+  result codes from `lib/data/`.
+- **It cannot be mistaken for the real page.** A banner on every screen, a `Demo` tag in every modal's title
+  bar, `Demo ·` first in the title (`ui/demo/banner.js`).
+- **The key's doors are shut.** Once the invented key is in, the keyring only signs: making, importing,
+  backing up, showing or changing a key answers "not in the demo", and locking leaves the demo, since nobody
+  holds its passphrase (`closeDemoRing` in `key-session.js`, an allow-list; `test/demo-screens.test.js`).
+- **v1 is read-only, with two gates.** The controls that send are off with the reason beside them
+  (`ui/demo/readonly.js`), and every job that signs, publishes or reads the plane refuses on its own
+  (`createJobs`'s `readOnly`, in `withKey`). Discovery and the daily `ver` do not run, and no companion can be
+  connected.
+
+`node web/test/smoke/demo.mjs` is the demo's smoke run: both layouts at 360 and 1280 px.
+
 ## Deploy and releases
 
 `scripts/web-dist.mjs --out DIR --version V --commit SHA` makes the deployable copy: `web/`
