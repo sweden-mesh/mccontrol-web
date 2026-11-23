@@ -17,9 +17,11 @@ key, identity or radio (the deny list keeps those to the serial cable).
 ## Try it without a node or a key
 
 [mccontrol.meshcoresverige.se/?demo=1](https://mccontrol.meshcoresverige.se/?demo=1) opens the same page
-against an invented fleet: nine made-up nodes with a week of history, statuses, charts and a map, to look
-around in. The unlock screen links to it ("Try the demo"). Nothing is stored and nothing is sent: the demo
-holds an invented key in the page's memory, opens no connection to a command server, and asks no other host
+against an invented fleet: nine made-up nodes with a week of history, statuses, charts and a map. The unlock
+screen links to it ("Try the demo"). You can send commands: the nodes are simulated in the page, speak the
+real protocol and answer as a repeater would, with the deny list, the rate limit, a restart that goes quiet
+for a while, and one node reached through another as a relay. Nothing is stored and nothing leaves the page:
+the demo holds an invented key in memory, its command server is inside the page, and it asks no other host
 about nodes. A banner says so on every screen, and "Leave the demo" goes back to the ordinary page.
 
 ## Two layouts

@@ -7,7 +7,8 @@
 // this origin. installDemo() makes that so for the whole page before anything else runs:
 //
 //   - WebSocket is replaced, so no module can open a socket to a real host (jobs, Setup's connection
-//     test, registration, the bridge road). Until the in-page command server exists it never connects.
+//     test, registration, the bridge road): it leads to the in-page command server and its simulated
+//     nodes, or, read-only, never connects.
 //   - localStorage is replaced by a stand-in that keeps everything in memory, except the display
 //     settings (theme, layout, colours, language), which are this device's and are shared on purpose.
 //   - fetch answers Beacon and the release list from the demo's world and refuses every other host
@@ -28,8 +29,9 @@ export function demoAsked(search) {
 
 const demo = demoAsked(globalThis.location?.search);
 export const isDemo = () => demo;
-// v1 (W-39e): the demo is read-only, nothing can be sent. v2 turns the simulated nodes on.
-export const DEMO_SENDS = false;
+// v1 (W-39e): the demo was read-only. v2 (W-39l): the simulated nodes answer, so sending is on; set
+// this to false and the demo is read-only again, with both of v1's gates.
+export const DEMO_SENDS = true;
 export const demoReadOnly = () => demo && !DEMO_SENDS;
 
 // The address of this page in the other mode, hash dropped: a new start either way.
@@ -84,8 +86,44 @@ export function demoFetch(real, answer, origin) {
   };
 }
 
+// The demo's command server (W-39h): a socket to the in-page broker (lib/demo/broker.js) with the
+// simulated nodes behind it (lib/demo/nodes.js). The broker needs the rules, which load after this
+// module has replaced the page's doors, so the socket waits for it: ui/demo/start.js hands it over
+// with provideDemoPlane(). Nothing here is a network socket.
+let planeReady = null;
+let givePlane = null;
+const plane = () => (planeReady ||= new Promise((ok) => { givePlane = ok; }));
+export function provideDemoPlane(p) { plane(); givePlane(p); }
+
+export class DemoSocket {
+  #inner = null;
+  #binaryType = 'blob';
+  #closed = false;
+  constructor(url, protocols) {
+    this.url = url;
+    this.readyState = 0;
+    plane().then((p) => {
+      if (this.#closed) return;
+      const inner = this.#inner = new p.broker.WebSocket(url, protocols);
+      inner.binaryType = this.#binaryType;
+      inner.onopen = (ev) => { this.readyState = 1; this.onopen?.(ev); };
+      inner.onmessage = (ev) => this.onmessage?.(ev);
+      inner.onclose = (ev) => { this.readyState = 3; this.onclose?.(ev); };
+    });
+  }
+  get binaryType() { return this.#binaryType; }
+  set binaryType(v) { this.#binaryType = v; if (this.#inner) this.#inner.binaryType = v; }
+  send(bytes) { if (!this.#inner) throw new Error('socket not open'); this.#inner.send(bytes); }
+  close() {
+    if (this.#inner) { this.#inner.close(); return; }
+    this.#closed = true;
+    this.readyState = 3;
+    setTimeout(() => this.onclose?.({ code: 1000 }), 0);
+  }
+}
+
 // Replace the page's doors. `scope` is globalThis; `Socket` what stands in for WebSocket.
-export function installDemo({ scope = globalThis, Socket = NoSocket, answer = demoAnswer } = {}) {
+export function installDemo({ scope = globalThis, Socket = DEMO_SENDS ? DemoSocket : NoSocket, answer = demoAnswer } = {}) {
   let real = null;
   try { real = scope.localStorage || null; } catch { real = null; }
   Object.defineProperty(scope, 'localStorage', { value: demoStorage(real), configurable: true });

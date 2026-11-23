@@ -1067,5 +1067,6 @@
   "demo.short": "not in the demo",
   "send.why.demo": "the demo does not send",
   "demo.sendOff": "Sending is off in the demo.",
-  "demo.noCompanion": "A companion radio is not in the demo."
+  "demo.noCompanion": "A companion radio is not in the demo.",
+  "demo.simServer": "simulated"
 }

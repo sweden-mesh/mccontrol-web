@@ -1067,5 +1067,6 @@
   "demo.short": "finns inte i demon",
   "send.why.demo": "demon skickar inget",
   "demo.sendOff": "Demon skickar inget.",
-  "demo.noCompanion": "En companion-radio finns inte i demon."
+  "demo.noCompanion": "En companion-radio finns inte i demon.",
+  "demo.simServer": "simulerad"
 }

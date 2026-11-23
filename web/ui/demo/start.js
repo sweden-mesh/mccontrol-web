@@ -4,7 +4,8 @@
 import { memoryStorage } from '../../lib/key/storage.js';
 import { demoWorld, seedDemo } from '../../lib/demo/world.js';
 import { keyring, closeDemoRing } from '../screens/key-session.js';
-import { demoAddress } from './mode.js';
+import { demoAddress, demoReadOnly, provideDemoPlane } from './mode.js';
+import { demoPlane } from '../../lib/demo/nodes.js';
 import { services } from '../screens/node-services.js';
 
 let world = null;
@@ -25,6 +26,8 @@ export async function startDemo({ t = (k) => k } = {}) {
   await ring.exportBackup(w.owner.passphrase);   // only its side effect: the key counts as backed up
   const s = await services(handle.publicKeyHex);
   if (!(await s.stores.devices.list()).length) await seedDemo(s.stores, w, { results: s.data.results });
+  // The simulated nodes behind the page's socket (v2); read-only, nobody asks for them.
+  if (!demoReadOnly()) provideDemoPlane(demoPlane(w, { rules: s.rules }));
   closeDemoRing(() => { globalThis.location.assign(demoAddress(false)); }, () => t('demo.notHere'));   // worded when asked: the strings load after the key
   return w;
 }

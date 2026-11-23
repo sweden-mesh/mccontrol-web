@@ -2,7 +2,9 @@
 // socket reach nothing real.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { demoAsked, demoAddress, demoStorage, installDemo, isDemo, NoSocket, SHARED_KEYS } from '../ui/demo/mode.js';
+import { demoAsked, demoAddress, demoStorage, installDemo, isDemo, NoSocket, DemoSocket, provideDemoPlane, DEMO_SENDS, SHARED_KEYS } from '../ui/demo/mode.js';
+import { createFakeBroker } from '../lib/demo/broker.js';
+import { createMqttClient } from '../lib/protocol/mqtt-client.js';
 import { CHOICES, RETIRED } from '../ui/prefs.js';
 
 test('only ?demo=1 turns the demo on, and a test run is never one', () => {
@@ -54,6 +56,8 @@ test('installDemo replaces the page\'s storage and socket', () => {
   const real = fakeReal();
   const scope = { localStorage: real, WebSocket: class Real {} };
   installDemo({ scope });
+  assert.equal(scope.WebSocket, DEMO_SENDS ? DemoSocket : NoSocket, 'never the browser\'s');
+  installDemo({ scope, Socket: NoSocket });
   assert.equal(scope.WebSocket, NoSocket);
   scope.localStorage.setItem('mccontrol.companion', 'usb');
   assert.equal(real.m.size, 0);
@@ -66,4 +70,19 @@ test('the stand-in socket never opens and reports a closed connection', async ()
   assert.equal(code, 1006);
   s.send(new Uint8Array(2));
   s.close();
+});
+
+test('the demo socket waits for the in-page command server, then is an ordinary connection to it', async () => {
+  const got = [];
+  const c = createMqttClient({ url: 'wss://demo.invalid/', WebSocket: DemoSocket, onMessage: (topic) => got.push(topic) });
+  const connecting = c.connect();
+  const broker = createFakeBroker();
+  broker.retain('mcc/alive/AA', 'x');
+  provideDemoPlane({ broker });
+  await connecting;
+  await c.subscribe([{ topic: 'mcc/alive/+', qos: 1 }]);
+  await new Promise((ok) => setTimeout(ok, 20));
+  assert.deepEqual(got, ['mcc/alive/AA']);
+  await c.close();
+  assert.equal(broker.connects.length, 1);
 });

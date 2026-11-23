@@ -107,17 +107,38 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
         if (key.buttons.some((b) => /back ?up|säkerhetskop|passphrase|lösenfras|private|privata|replace|byt|lock|lås/i.test(b))) problems.push(`the key screen offers: ${key.buttons.join(', ')}`);
         await page.screenshot({ path: join(out, `demo-${look}-${width}-key.png`) });
         await page.evaluate(() => { location.hash = ''; });
-        // v1: no control that sends is live, on a node's screen or in the send form.
-        const first = await page.evaluate(() => document.body.innerText.match(/DEMO-Vattentornet/) && [...document.querySelectorAll('a[href^="#node/"], [data-node]')].map((e) => e.getAttribute('href') || `#node/${e.dataset.node}`)[0]);
-        let sendOff = 0;
-        for (const hash of [first, '#send'].filter(Boolean)) {
-          await page.evaluate((x) => { location.hash = x; }, hash);
-          await new Promise((ok) => setTimeout(ok, 700));
-          const live = await page.evaluate(() => [...document.querySelectorAll('.cmd-line .cmd-send, .send-form .row > button.button, .companion-brief, .mesh-check')].filter((b) => !b.disabled).map((b) => b.textContent.trim()));
-          if (live.length) problems.push(`${hash}: live send controls: ${live.join(', ')}`);
-          sendOff += await page.evaluate(() => document.querySelectorAll('[data-demo-off]').length);
+        // v2: a command to a simulated node comes back and lands in the history; read-only (v1), no
+        // control that sends is live.
+        const readOnly = await page.evaluate(async () => (await import('./ui/demo/mode.js')).demoReadOnly());
+        if (readOnly) {
+          let sendOff = 0;
+          for (const hash of ['#send']) {
+            await page.evaluate((x) => { location.hash = x; }, hash);
+            await new Promise((ok) => setTimeout(ok, 700));
+            const live = await page.evaluate(() => [...document.querySelectorAll('.cmd-line .cmd-send, .send-form .row > button.button, .companion-brief, .mesh-check')].filter((b) => !b.disabled).map((b) => b.textContent.trim()));
+            if (live.length) problems.push(`${hash}: live send controls: ${live.join(', ')}`);
+            sendOff += await page.evaluate(() => document.querySelectorAll('[data-demo-off]').length);
+          }
+          if (!sendOff) problems.push('no send control was found to switch off (the selectors no longer match)');
+        } else {
+          const sent = await page.evaluate(async () => {
+            const { services } = await import('./ui/screens/node-services.js');
+            const { currentHandle } = await import('./ui/screens/key-session.js');
+            const svc = await services(currentHandle().publicKeyHex);
+            const node = (await svc.stores.devices.list()).find((d) => d.name === 'DEMO-Vattentornet');
+            const before = (await svc.stores.history.list()).length;
+            const out = await svc.jobs.send({ command: 'get radio', nodes: [node.node] });
+            const o = out.outcomes[0];
+            return { code: o.result?.code ?? null, reply: o.result?.reply ?? null, verified: o.result?.verified ?? null, why: o.reason?.code ?? null,
+              added: (await svc.stores.history.list()).length - before };
+          });
+          if (sent.code !== 0 || sent.reply !== '869.618,62.5,8,8' || sent.verified !== true) problems.push(`the simulated node did not answer: ${JSON.stringify(sent)}`);
+          if (sent.added < 1) problems.push('the answer did not land in the history');
+          await page.evaluate(() => { location.hash = '#history'; });
+          await new Promise((ok) => setTimeout(ok, 600));
+          if (!(await page.evaluate(() => /get radio/.test(document.querySelector('dialog[open]')?.innerText || '')))) problems.push('the history screen does not show the command');
+          await page.screenshot({ path: join(out, `demo-${look}-${width}-history.png`) });
         }
-        if (!sendOff) problems.push('no send control was found to switch off (the selectors no longer match)');
         await page.evaluate(() => { location.hash = ''; });
         const foot = await page.evaluate(() => document.body.innerText);
         if (/unreachable|kan inte nås|not registered/i.test(foot)) problems.push('the status still speaks of an unreachable command server');

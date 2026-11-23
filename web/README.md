@@ -471,7 +471,7 @@ What a demo page replaces, before any other module runs:
 |---|---|---|
 | key store (IndexedDB `mccontrol-key`) | `memoryStorage()`; the invented key goes in through the keyring as an imported key | `ui/screens/key-session.js`, `ui/demo/start.js` |
 | data (IndexedDB `mccontrol-data`) | `memoryDb()`, seeded with the fleet | `ui/screens/node-services.js`, `lib/demo/world.js` |
-| `WebSocket` | a socket that never connects (v1) | `ui/demo/mode.js` |
+| `WebSocket` | a socket to the in-page command server and its simulated nodes | `ui/demo/mode.js` (`DemoSocket`), `lib/demo/broker.js`, `lib/demo/nodes.js` |
 | `fetch` | own files and the basemap pass; Beacon and release-list paths are answered from the world; any other host is refused | `ui/demo/mode.js`, `lib/demo/beacon.js` |
 | `localStorage` | memory, except the display settings (theme, layout, colours, language) | `ui/demo/mode.js` |
 
@@ -487,12 +487,24 @@ Rules the demo keeps, each pinned by a test:
 - **The key's doors are shut.** Once the invented key is in, the keyring only signs: making, importing,
   backing up, showing or changing a key answers "not in the demo", and locking leaves the demo, since nobody
   holds its passphrase (`closeDemoRing` in `key-session.js`, an allow-list; `test/demo-screens.test.js`).
-- **v1 is read-only, with two gates.** The controls that send are off with the reason beside them
-  (`ui/demo/readonly.js`), and every job that signs, publishes or reads the plane refuses on its own
-  (`createJobs`'s `readOnly`, in `withKey`). Discovery and the daily `ver` do not run, and no companion can be
-  connected.
+- **The nodes are simulated, with the real bytes.** `lib/demo/nodes.js` puts the fleet's lou-20 nodes on the
+  in-page broker: each holds its own invented key and the demo owner's key as its command key, keeps a sealed
+  retained alive, and takes a command in the firmware's order (the seal opens, the signature holds, the
+  counter is above the last, not expired, the deny list, 10 commands an hour) before it answers sealed on the
+  reply topic, after 1 to 4 s. `lib/demo/answers.js` holds what they answer, in the firmware's formats; a
+  `set` changes the node for the session, `reboot` makes it silent for 20 s. The node that relays takes a
+  forward for the mesh-only node behind it, with the relay's own budget. The offline node and the one on
+  older firmware never answer. `test/demo-nodes.test.js` drives all of it through the real jobs and plane;
+  `test/demo-answers.test.js` fails when the spec's command table gains a command the demo cannot answer.
+- **The companion is not in the demo.** No radio can be connected (`ui/companion-session.js`); the mesh-only
+  node is reached through the relay.
+- **Read-only is one switch away.** `DEMO_SENDS = false` in `ui/demo/mode.js` gives the demo of v1: the socket
+  never connects, the controls that send are off with the reason beside them (`ui/demo/readonly.js`), every
+  job that signs, publishes or reads the plane refuses on its own (`createJobs`'s `readOnly`, in `withKey`),
+  and discovery and the daily `ver` do not run. Both gates are tested (`test/demo-screens.test.js`).
 
-`node web/test/smoke/demo.mjs` is the demo's smoke run: both layouts at 360 and 1280 px.
+`node web/test/smoke/demo.mjs` is the demo's smoke run: both layouts at 360 and 1280 px, a command sent to a
+simulated node and found in the history.
 
 ## Deploy and releases
 

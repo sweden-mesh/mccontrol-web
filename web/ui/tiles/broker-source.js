@@ -17,7 +17,7 @@ import { openClient } from '../../lib/protocol/transport.js';
 import { currentHandle, keyStatus, onKeyStatus } from '../screens/key-session.js';
 import { pageBrokers } from '../screens/key-register.js';
 import { brokerReport, onSources, provideSource } from './sources.js';
-import { demoReadOnly } from '../demo/mode.js';
+import { isDemo, demoReadOnly } from '../demo/mode.js';
 
 export function createBrokerCheck({ connect, brokersFor, clock = () => Date.now() }) {
   const listeners = new Set();
@@ -77,8 +77,8 @@ async function signIn(config, handle) {
 let page = null;
 export function useBrokerCheck() {
   if (page) return page;
-  if (demoReadOnly()) {   // no command server in the read-only demo (W-39e): say so, try nothing
-    const still = Object.freeze({ state: 'unknown', word: 'demo.noServer', hosts: [], at: null, detail: null });
+  if (isDemo()) {   // the demo's command server is in the page (W-39h), or, read-only, there is none: say so, test nothing
+    const still = Object.freeze({ state: demoReadOnly() ? 'unknown' : 'ok', word: demoReadOnly() ? 'demo.noServer' : 'demo.simServer', hosts: [], at: null, detail: null });
     page = { state: () => still, on: () => () => {}, checkNow: async () => still, follow: () => null, report() {} };
     provideSource('broker', { state: page.state, on: page.on });
     return page;
