@@ -111,6 +111,22 @@ for (const v of V.mesh_responses) {
   });
 }
 
+// MeshCore hands a datagram over zero-filled to the 16-byte block edge (bench 2026-11-23: a
+// 55-byte response arrived as 60), so the opener finds the length by the tag.
+test('a mesh response opens with the mesh zero fill after it, an altered one does not', () => {
+  const v = V.mesh_responses[0];
+  const resp = mcc3.sealMeshResponse(K, v.companion_tag, v.counter, v.code, v.clock, v.reply, { nonce: v.nonce });
+  for (let fill = 0; fill < 16; fill++) {
+    const filled = new Uint8Array(resp.length + fill);
+    filled.set(resp);
+    assert.equal(mcc3.openMeshResponse(K, filled).reply, v.reply, `fill ${fill}`);
+  }
+  const bad = new Uint8Array(resp.length + 5);
+  bad.set(resp);
+  bad[20] ^= 1;
+  assert.throws(() => mcc3.openMeshResponse(K, bad), mcc3.Refused);
+});
+
 // The node of the vectors is the relay; its K_fwd seals the forward and its result.
 for (const v of V.forwards) {
   test(`forward ${v.name}`, () => {

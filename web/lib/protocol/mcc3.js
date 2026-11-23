@@ -327,14 +327,28 @@ export function sealMeshResponse(keys, companionTag, counter, code, clock, reply
 }
 
 // { tag, counter, code, clock, reply }, or Refused.
+// MeshCore carries a datagram in whole 16-byte cipher blocks and hands it over zero-filled to
+// the block edge, so up to 15 zero bytes may follow the response's tag: each shorter length is
+// tried, and the tag says which one is the response.
+export const MESH_BLOCK = 16;
 export function openMeshResponse(keys, response) {
-  if (response.length < 4 + 1 + NONCE_LEN + 9 + TAG_LEN || response[4] !== KIND.result) throw new Refused('bad-fields');
+  const least = 4 + 1 + NONCE_LEN + 9 + TAG_LEN;
+  if (response.length < least || response[4] !== KIND.result) throw new Refused('bad-fields');
   const header = response.subarray(4, 17);
-  const plain = openAead(keys.cmd, header.subarray(1), header, response.subarray(17));
-  return {
-    tag: readU32(response, 0), counter: readU32(plain, 0), code: plain[4], clock: readU32(plain, 5),
-    reply: lenient.decode(plain.subarray(9)),
-  };
+  let end = response.length;
+  for (let i = 0; i < MESH_BLOCK; i++) {
+    let plain;
+    try { plain = openAead(keys.cmd, header.subarray(1), header, response.subarray(17, end)); } catch (e) {
+      if (!(e instanceof Refused) || response[end - 1] !== 0 || end - 1 < least) throw e;
+      end -= 1;
+      continue;
+    }
+    return {
+      tag: readU32(response, 0), counter: readU32(plain, 0), code: plain[4], clock: readU32(plain, 5),
+      reply: lenient.decode(plain.subarray(9)),
+    };
+  }
+  throw new Refused('sig-invalid');
 }
 
 // -- a forward through a relay (mcc/cmd/<RELAY KEY>) and its result (mcc/r/<RID>) ------------
