@@ -209,7 +209,7 @@ async function start() {
     if (isDemo()) {
       // The demo (W-39): an invented key in memory, unlocked by the demo, and an invented fleet.
       const demo = await import('./demo/start.js');
-      await startKeySession(await demo.demoKeyOptions());
+      await startKeySession(demo.demoKeyOptions());
       await demo.startDemo();
     } else {
       await startKeySession();

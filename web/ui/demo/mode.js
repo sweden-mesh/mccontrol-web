@@ -10,9 +10,13 @@
 //     test, registration, the bridge road). Until the in-page command server exists it never connects.
 //   - localStorage is replaced by a stand-in that keeps everything in memory, except the display
 //     settings (theme, layout, colours, language), which are this device's and are shared on purpose.
+//   - fetch answers Beacon and the release list from the demo's world and refuses every other host
+//     but the page's own and the basemap's.
 //   - The key session and the services take memory stores (key-session.js, node-services.js ask isDemo()).
 //
 // No DOM here beyond `location` and the globals it replaces, so the tests run it with fakes.
+import { demoAnswer } from '../../lib/demo/beacon.js';
+
 export const DEMO_PARAM = 'demo';
 // The display settings: ui/prefs.js CHOICES and what it retired (ui/boot.js reads them before paint).
 export const SHARED_KEYS = Object.freeze(['theme', 'lang', 'layout', 'scheme', 'colorblind', 'phosphor', 'cvd', 'motion']
@@ -65,12 +69,28 @@ export class NoSocket extends EventTarget {
   close() {}
 }
 
+// The page's fetch in the demo: its own files and the basemap go through; Beacon and the release list
+// are answered from the demo's world (lib/demo/beacon.js); a request to any other host is refused.
+export function demoFetch(real, answer, origin) {
+  return async (input, init) => {
+    const url = typeof input === 'string' || input instanceof URL ? String(input) : input.url;
+    const a = answer(url, { origin });
+    if (a === 'pass') return real(input, init);
+    if (!a) throw new TypeError(`The demo reaches no other host (${url.slice(0, 80)})`);
+    return new Response(JSON.stringify(a.json), { status: a.status, headers: { 'Content-Type': 'application/json' } });
+  };
+}
+
 // Replace the page's doors. `scope` is globalThis; `Socket` what stands in for WebSocket.
-export function installDemo({ scope = globalThis, Socket = NoSocket } = {}) {
+export function installDemo({ scope = globalThis, Socket = NoSocket, answer = demoAnswer } = {}) {
   let real = null;
   try { real = scope.localStorage || null; } catch { real = null; }
   Object.defineProperty(scope, 'localStorage', { value: demoStorage(real), configurable: true });
   Object.defineProperty(scope, 'WebSocket', { value: Socket, configurable: true, writable: true });
+  if (typeof scope.fetch === 'function') {
+    const real = scope.fetch.bind(scope);
+    Object.defineProperty(scope, 'fetch', { value: demoFetch(real, answer, scope.location?.origin), configurable: true, writable: true });
+  }
   return scope;
 }
 
