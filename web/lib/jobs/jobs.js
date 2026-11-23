@@ -78,7 +78,7 @@ export function createJobs({
   plane = { send: realSendMcc3, scan: realScanAlive, forward: realForwardMcc3 }, random = Math.random,
   waitSecs = null, sleep = sleepFor, configExtra = {}, configOf = (region) => configFor(brokers, region),
   companion = () => null, meshSend = realMeshSend, meshAfterMins = () => MESH_AFTER_MINS, mqttSeen = null,
-  now = () => Date.now(),
+  now = () => Date.now(), readOnly = false,
 }) {
   const wait = () => waitSecs ?? brokers.wait_secs ?? 20;
   // `configOf(region)`: the page passes settings-store's brokerConfig, so a region this device
@@ -86,6 +86,9 @@ export function createJobs({
   const config = (region) => ({ ...configOf(region), ...configExtra });
 
   async function withKey(work) {
+    // The demo's own gate (W-39e): read-only, whatever a screen lets through. Every job that signs,
+    // publishes or reads the plane comes through here.
+    if (readOnly) throw new JobError('demo', {}, 'The demo does not send.');
     const handle = ring.handle();
     if (!handle) throw new JobError('locked', {}, 'The key is locked.');
     const release = ring.hold();

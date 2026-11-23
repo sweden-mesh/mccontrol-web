@@ -39,6 +39,7 @@ import { createRefresh } from '../lib/refresh/index.js';
 import { beaconBase, beaconClient } from '../lib/stats/beacon.js';
 import { keyStatus, onKeyStatus } from './screens/key-session.js';
 import { services } from './screens/node-services.js';
+import { demoReadOnly } from './demo/mode.js';
 import { companion } from './companion-session.js';
 
 const EMPTY = Object.freeze({ owner: null, unlocked: false, discovery: null, refresh: null, changed: 'key' });
@@ -130,6 +131,7 @@ async function follow(status) {
 }
 
 export async function startAutomation({ t, notify, deps = {} } = {}) {
+  if (demoReadOnly()) return;   // the read-only demo looks nothing up and sends nothing by itself (W-39e)
   say = { t: t || say.t, notify: notify || say.notify };
   table = deps.table || await load('areas');
   if (deps.make) make = deps.make;

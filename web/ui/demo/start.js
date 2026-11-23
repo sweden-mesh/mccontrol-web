@@ -25,6 +25,6 @@ export async function startDemo({ t = (k) => k } = {}) {
   await ring.exportBackup(w.owner.passphrase);   // only its side effect: the key counts as backed up
   const s = await services(handle.publicKeyHex);
   if (!(await s.stores.devices.list()).length) await seedDemo(s.stores, w, { results: s.data.results });
-  closeDemoRing(() => { globalThis.location.assign(demoAddress(false)); }, t('demo.notHere'));
+  closeDemoRing(() => { globalThis.location.assign(demoAddress(false)); }, () => t('demo.notHere'));   // worded when asked: the strings load after the key
   return w;
 }

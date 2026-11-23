@@ -50,7 +50,7 @@ export async function open(storage, width, { path = '/?demo=1' } = {}) {
   const cdp = await page.createCDPSession();
   await cdp.send('Network.enable');
   cdp.on('Network.webSocketCreated', (e) => problems.push(`a WebSocket was opened: ${e.url}`));
-  page.on('console', (m) => { if (m.type() === 'error') problems.push(`console: ${m.text().slice(0, 200)}`); });
+  page.on('console', (m) => { if (m.type() === 'error' || /key store unavailable|are off:/.test(m.text())) problems.push(`console: ${m.text().slice(0, 200)}`); });
   page.on('pageerror', (e) => problems.push(`page error: ${e.message}`));
   await page.evaluateOnNewDocument(() => document.addEventListener('securitypolicyviolation', (e) => console.error(`CSP: ${e.violatedDirective} ${e.blockedURI}`)));
   await page.goto(`${origin}${path}`, { waitUntil: 'load' });
@@ -107,6 +107,20 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
         if (key.buttons.some((b) => /back ?up|säkerhetskop|passphrase|lösenfras|private|privata|replace|byt|lock|lås/i.test(b))) problems.push(`the key screen offers: ${key.buttons.join(', ')}`);
         await page.screenshot({ path: join(out, `demo-${look}-${width}-key.png`) });
         await page.evaluate(() => { location.hash = ''; });
+        // v1: no control that sends is live, on a node's screen or in the send form.
+        const first = await page.evaluate(() => document.body.innerText.match(/DEMO-Vattentornet/) && [...document.querySelectorAll('a[href^="#node/"], [data-node]')].map((e) => e.getAttribute('href') || `#node/${e.dataset.node}`)[0]);
+        let sendOff = 0;
+        for (const hash of [first, '#send'].filter(Boolean)) {
+          await page.evaluate((x) => { location.hash = x; }, hash);
+          await new Promise((ok) => setTimeout(ok, 700));
+          const live = await page.evaluate(() => [...document.querySelectorAll('.cmd-line .cmd-send, .send-form .row > button.button, .companion-brief, .mesh-check')].filter((b) => !b.disabled).map((b) => b.textContent.trim()));
+          if (live.length) problems.push(`${hash}: live send controls: ${live.join(', ')}`);
+          sendOff += await page.evaluate(() => document.querySelectorAll('[data-demo-off]').length);
+        }
+        if (!sendOff) problems.push('no send control was found to switch off (the selectors no longer match)');
+        await page.evaluate(() => { location.hash = ''; });
+        const foot = await page.evaluate(() => document.body.innerText);
+        if (/unreachable|kan inte nås|not registered/i.test(foot)) problems.push('the status still speaks of an unreachable command server');
         await page.screenshot({ path: join(out, `demo-${look}-${width}.png`) });
         report(`demo ${look} ${width}px`, problems);
         await page.close();

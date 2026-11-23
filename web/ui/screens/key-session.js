@@ -33,7 +33,7 @@ export function closeDemoRing(leave, message) {
   const closed = {};
   for (const [name, v] of Object.entries(real)) {
     closed[name] = typeof v !== 'function' ? v : name === 'lock' ? leave
-      : DEMO_OPEN.includes(name) ? v : async () => { throw new Error(message); };
+      : DEMO_OPEN.includes(name) ? v : async () => { throw new Error(typeof message === 'function' ? message() : message); };
   }
   ring = Object.freeze(closed);
   return ring;

@@ -85,7 +85,7 @@ function footer(ctx, signal) {
     const k = keyStatus();
     const reg = source('registration')?.state() || { state: 'unknown' };
     const ref = source('refresh')?.state() || { state: 'unknown' };
-    const regWord = reg.state === 'ok' ? ctx.t('tile.registered') : reg.state === 'running' ? ctx.t('tile.running')
+    const regWord = reg.word ? ctx.t(reg.word) : reg.state === 'ok' ? ctx.t('tile.registered') : reg.state === 'running' ? ctx.t('tile.running')
       : reg.state === 'alert' ? ctx.t('tile.notRegistered') : reg.state === 'warn' ? ctx.t('tile.partly') : ctx.t('tile.notKnown');
     list.replaceChildren(
       item('broker', b.state, brokerWord(ctx, b), [b.hosts?.join(', '), b.detail].filter(Boolean).join(' · ') || null),

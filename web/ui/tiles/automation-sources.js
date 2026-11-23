@@ -4,6 +4,7 @@
 // undo removes nodes. Registration by itself (ui/screens/key-register.js) is the 'registration'
 // line. No DOM.
 import { automationState, onAutomation, lookNow, refreshNow, undoDiscovery } from '../automation.js';
+import { isDemo } from '../demo/mode.js';
 import { onRegistration, registerNow, registration } from '../screens/key-register.js';
 import { dataChanged, provideSource } from './sources.js';
 
@@ -48,7 +49,8 @@ export function registrationLine(r) {
 }
 
 export function useAutomation() {
-  provideSource('registration', { state: () => registrationLine(registration()), on: (fn) => onRegistration(() => fn()), run: () => registerNow() });
+  if (isDemo()) provideSource('registration', { state: () => ({ state: 'unknown', word: 'demo.short', last: null, next: null, detail: null }), on: () => () => {} });
+  else provideSource('registration', { state: () => registrationLine(registration()), on: (fn) => onRegistration(() => fn()), run: () => registerNow() });
   onAutomation((s) => {
     if (s.changed === 'nodes' || s.changed === 'refresh') dataChanged('devices');
     for (const fn of listeners) fn();

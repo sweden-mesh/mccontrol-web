@@ -32,6 +32,7 @@ export const REFRESH_EVERY = 15 * 60000;
 
 // The command server's word: never "not known yet" (W-28a).
 export function brokerWord(ctx, st) {
+  if (st.word) return ctx.t(st.word);   // the demo's own word (W-39e)
   if (st.state === 'ok') return ctx.t('tile.connected');
   if (st.state === 'alert') return ctx.t('tile.unreachable');
   if (st.state === 'running') return ctx.t('tile.connecting');
@@ -92,7 +93,7 @@ export function render(ctx) {
     const unlocked = ctx.key.state().status === 'unlocked';
     const why = st.state === 'alert' && st.detail ? brokerProblem(ctx.t, st.detail.replace(/^[^:]+: /, ''))?.text || st.detail : null;
     return line('broker', st.state, why ? `${word} (${why})` : word,
-      unlocked && st.state !== 'running' ? act(ctx.t('tile.test'), testBroker) : null,
+      unlocked && st.state !== 'running' && !st.word ? act(ctx.t('tile.test'), testBroker) : null,
       [hosts, st.detail ? brokerText(ctx.t, st.detail) : null].filter(Boolean).join(' · ') || null);
   }
 
@@ -119,7 +120,7 @@ export function render(ctx) {
     const src = source('registration');
     if (!src) return line('registration', 'unknown', ctx.t('tile.notKnown'), h('a', { href: '#setup/key', class: 'status-act' }, ctx.t('tile.register')));
     const st = src.state();
-    const word = st.state === 'ok' ? ctx.t('tile.registered') : st.state === 'running' ? ctx.t('tile.running')
+    const word = st.word ? ctx.t(st.word) : st.state === 'ok' ? ctx.t('tile.registered') : st.state === 'running' ? ctx.t('tile.running')
       : st.state === 'alert' ? ctx.t('tile.notRegistered') : st.state === 'warn' ? ctx.t('tile.partly') : ctx.t('tile.notKnown');
     const unlocked = ctx.key.state().status === 'unlocked';
     return line('registration', st.state === 'running' ? 'unknown' : st.state, word,

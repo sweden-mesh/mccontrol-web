@@ -1062,5 +1062,10 @@
   "demo.try": "Prova demon",
   "demo.tryAfter": "En påhittad flotta att se sig omkring i. Inget sparas eller skickas.",
   "demo.notHere": "Finns inte i demon: nyckeln är påhittad och finns bara på den här sidan.",
-  "demo.keyNote": "Den här nyckeln är påhittad och finns bara på den här sidan. Att skapa, importera, säkerhetskopiera, visa eller byta nyckel finns inte i demon."
+  "demo.keyNote": "Den här nyckeln är påhittad och finns bara på den här sidan. Att skapa, importera, säkerhetskopiera, visa eller byta nyckel finns inte i demon.",
+  "demo.noServer": "finns inte i demon",
+  "demo.short": "finns inte i demon",
+  "send.why.demo": "demon skickar inget",
+  "demo.sendOff": "Demon skickar inget.",
+  "demo.noCompanion": "En companion-radio finns inte i demon."
 }

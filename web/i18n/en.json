@@ -1062,5 +1062,10 @@
   "demo.try": "Try the demo",
   "demo.tryAfter": "An invented fleet to look around in. Nothing is stored or sent.",
   "demo.notHere": "Not in the demo: its key is invented and lives in this page only.",
-  "demo.keyNote": "This key is invented and lives in this page only. Making, importing, backing up, showing or changing a key is not in the demo."
+  "demo.keyNote": "This key is invented and lives in this page only. Making, importing, backing up, showing or changing a key is not in the demo.",
+  "demo.noServer": "not in the demo",
+  "demo.short": "not in the demo",
+  "send.why.demo": "the demo does not send",
+  "demo.sendOff": "Sending is off in the demo.",
+  "demo.noCompanion": "A companion radio is not in the demo."
 }

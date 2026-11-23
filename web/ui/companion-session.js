@@ -9,6 +9,7 @@
 //   state()          { status: 'none' | 'connecting' | 'connected' | 'error', kind, name, error, phase }
 //                    phase 'reconnecting': a USB companion restarted and its port is being reopened (W-25b)
 import { openCompanion } from '../lib/mesh/companion.js';
+import { isDemo } from './demo/mode.js';
 import { bluetoothAvailable, connectBluetooth } from '../lib/mesh/ble.js';
 import { connectSerial, serialAvailable } from '../lib/mesh/serial.js';
 import { connectNetwork, networkAvailable } from '../lib/mesh/tcp.js';
@@ -40,6 +41,7 @@ export function onCompanion(fn) {
 }
 
 export async function connect(kind, { address = '', token = '' } = {}) {
+  if (isDemo()) throw new Error('A companion radio is not in the demo.');
   if (current.status === 'connecting') return current;
   await disconnect();
   set({ status: 'connecting', kind, name: '', error: '', errorKey: '', phase: '' });

@@ -12,7 +12,7 @@
 import { loadAll } from '../../lib/data/load.js';
 import { rulesFrom } from '../../lib/protocol/rules.js';
 import { indexedDb, memoryDb } from '../../lib/store/db.js';
-import { isDemo } from '../demo/mode.js';
+import { isDemo, demoReadOnly } from '../demo/mode.js';
 import { openStores } from '../../lib/store/index.js';
 import { createJobs } from '../../lib/jobs/jobs.js';
 import { latestRelease, releaseSource } from '../../lib/jobs/releases.js';
@@ -42,7 +42,7 @@ export async function services(owner) {
     const jobs = createJobs({ ring: { handle: () => ring.handle(), hold: () => ring.hold(), touch: () => ring.touch(),
       loadSecrets: () => ring.loadSecrets?.() ?? {}, saveSecrets: (m) => ring.saveSecrets?.(m) },
       stores, rules, brokers: data.brokers, results: data.results, configOf: (region) => brokerConfig(data.brokers, region),
-      companion, meshAfterMins: () => meshAfterMins(),
+      companion: isDemo() ? () => null : companion, meshAfterMins: () => meshAfterMins(), readOnly: demoReadOnly(),
       mqttSeen: async (d) => {
         const oid = d.observerId || (await beacon.findNode(d.key || d.node)).observerId;
         const at = oid ? Number((await beacon.observer(oid))?.lastStatusAt) : NaN;

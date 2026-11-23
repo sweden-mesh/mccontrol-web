@@ -28,6 +28,9 @@ export function demoAsked(search) {
 
 const demo = demoAsked(globalThis.location?.search);
 export const isDemo = () => demo;
+// v1 (W-39e): the demo is read-only, nothing can be sent. v2 turns the simulated nodes on.
+export const DEMO_SENDS = false;
+export const demoReadOnly = () => demo && !DEMO_SENDS;
 
 // The address of this page in the other mode, hash dropped: a new start either way.
 export function demoAddress(on, href = globalThis.location?.href) {

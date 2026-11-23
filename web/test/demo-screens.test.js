@@ -36,3 +36,56 @@ test('both languages have every demo string', () => {
   assert.ok(keys.length >= 8);
   for (const k of keys) { assert.ok(sv[k], `sv ${k}`); assert.notEqual(sv[k], en[k] === 'Demo' ? null : en[k], k); }
 });
+
+// -- the read-only demo's second gate (W-39e) -----------------------------------------------------
+import { createJobs } from '../lib/jobs/jobs.js';
+import { memoryDb } from '../lib/store/db.js';
+import { openStores } from '../lib/store/index.js';
+import { rulesFrom } from '../lib/protocol/rules.js';
+import { seedDemo } from '../lib/demo/world.js';
+import { keyFromSeed } from '../lib/key/handle.js';
+import { fromHex } from '../lib/bytes.js';
+
+const json = (name) => JSON.parse(readFileSync(new URL(`../lib/data/${name}.json`, import.meta.url), 'utf8'));
+const data = Object.fromEntries(['commands', 'cautions', 'denylist', 'facts', 'firmware', 'help', 'protocol', 'results', 'brokers', 'areas'].map((n) => [n, json(n)]));
+
+async function demoJobs(readOnly) {
+  const w = demoWorld();
+  const handle = keyFromSeed(fromHex(w.owner.seedHex));
+  const stores = openStores(memoryDb(), w.owner.key);
+  await seedDemo(stores, w, { results: data.results });
+  const touched = [];
+  const never = (name) => async () => { touched.push(name); throw new Error(`${name} was reached`); };
+  const jobs = createJobs({ ring: { handle: () => handle, hold: () => () => {}, touch() {} }, stores, rules: rulesFrom(data), brokers: data.brokers,
+    results: data.results, readOnly, transport: { send: never('transport.send'), discover: never('transport.discover') },
+    plane: { send: never('plane.send'), scan: never('plane.scan'), forward: never('plane.forward') }, meshSend: never('mesh') });
+  return { jobs, w, touched };
+}
+
+test('read-only: every job that would sign, publish or read the plane refuses before it reaches a road', async () => {
+  const { jobs, w, touched } = await demoJobs(true);
+  const node = w.nodes[1].node;
+  const attempts = {
+    send: () => jobs.send({ command: 'ver', nodes: [node] }),
+    runSet: () => jobs.runSet({ steps: ['ver'], nodes: [node] }),
+    discover: () => jobs.discover({ region: 'JKG' }),
+    discoverAlive: () => jobs.discoverAlive({}),
+    refresh: () => jobs.refresh({ nodes: [node] }),
+    update: () => jobs.update({ node, target: 'v1.18.0-lou-20' }),
+    checkMeshNode: () => jobs.checkMeshNode({ candidate: { key: w.nodes[4].key, name: 'x' } }),
+    checkNeighbours: () => jobs.checkNeighbours({ relay: w.nodes[0].node, target: w.nodes[4].node }),
+  };
+  assert.deepEqual(Object.keys(attempts).sort(), Object.keys(jobs).filter((k) => typeof jobs[k] === 'function' && k !== 'adopt').sort(), 'every job is tried');
+  for (const [name, run] of Object.entries(attempts)) {
+    let caught = null;
+    try { const out = await run(); caught = out?.outcomes?.find?.((o) => o.reason?.code === 'demo') ? { code: 'demo' } : (out?.refused || out); } catch (e) { caught = e; }
+    assert.equal(caught?.code ?? caught?.reason?.code ?? JSON.stringify(caught), 'demo', name);
+  }
+  assert.deepEqual(touched, [], 'no road was reached');
+});
+
+test('the same jobs, not read-only, do reach a road (so the gate above is what stopped them)', async () => {
+  const { jobs, w, touched } = await demoJobs(false);
+  await jobs.send({ command: 'ver', nodes: [w.nodes[1].node] }).catch(() => {});
+  assert.ok(touched.length > 0);
+});

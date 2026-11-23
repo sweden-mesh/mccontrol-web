@@ -15,7 +15,7 @@
 //
 // start() draws a visible message in <main> when it fails (W-20k); ui/boot.js does the same for
 // a module that fails before this one runs.
-import { isDemo } from './demo/mode.js';   // first: a demo page replaces its doors before any other module runs (W-39)
+import { isDemo, demoReadOnly } from './demo/mode.js';   // first: a demo page replaces its doors before any other module runs (W-39)
 import { pickLanguage, translator, loadStrings } from '../i18n/i18n.js';
 import { h } from './dom.js';
 import { currentPrefs, setPref, onPrefsChange, migratePrefs } from './prefs.js';
@@ -186,7 +186,7 @@ async function start() {
     drawKeyBar($('keys'), t);
     drawFooter();
     drawLayout();
-    if (isDemo()) { const banner = await import('./demo/banner.js'); banner.drawBanner(t); if (!titleKept) { titleKept = true; banner.keepTitle((key) => t(key)); } }
+    if (isDemo()) { const banner = await import('./demo/banner.js'); banner.drawBanner(t, { sending: !demoReadOnly() }); if (!titleKept) { titleKept = true; banner.keepTitle((key) => t(key)); if (demoReadOnly()) (await import('./demo/readonly.js')).closeSendControls((key) => t(key)); } }
     if (currentModal()) route({ force: true });
   };
 
