@@ -1060,7 +1060,7 @@
   "demo.leave": "Leave the demo",
   "demo.tryLead": "No node flashed and no key yet?",
   "demo.try": "Try the demo",
-  "demo.tryAfter": "An invented fleet to look around in. Nothing is stored or sent.",
+  "demo.tryAfter": "An invented fleet to look around in and send commands to. Nothing leaves this page.",
   "demo.notHere": "Not in the demo: its key is invented and lives in this page only.",
   "demo.keyNote": "This key is invented and lives in this page only. Making, importing, backing up, showing or changing a key is not in the demo.",
   "demo.noServer": "not in the demo",

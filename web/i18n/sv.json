@@ -1060,7 +1060,7 @@
   "demo.leave": "Lämna demon",
   "demo.tryLead": "Ingen nod flashad och ingen nyckel än?",
   "demo.try": "Prova demon",
-  "demo.tryAfter": "En påhittad flotta att se sig omkring i. Inget sparas eller skickas.",
+  "demo.tryAfter": "En påhittad flotta att se sig omkring i och skicka kommandon till. Inget lämnar den här sidan.",
   "demo.notHere": "Finns inte i demon: nyckeln är påhittad och finns bara på den här sidan.",
   "demo.keyNote": "Den här nyckeln är påhittad och finns bara på den här sidan. Att skapa, importera, säkerhetskopiera, visa eller byta nyckel finns inte i demon.",
   "demo.noServer": "finns inte i demon",
