@@ -5,7 +5,7 @@
 // its command topic as lou-20 does, plays the radio and the target behind it, and answers with a
 // sealed forward result. Nothing here reaches a network.
 import { readFileSync } from 'node:fs';
-import { createFakeBroker, matches } from './protocol-fake-broker.js';
+import { createFakeBroker, matches } from '../lib/demo/broker.js';
 import { createMqttClient } from '../lib/protocol/mqtt-client.js';
 import * as mcc3 from '../lib/protocol/mcc3.js';
 import { keyFromSeed } from '../lib/key/handle.js';

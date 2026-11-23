@@ -1,8 +1,10 @@
-// A fake WebSocket and an in-memory MQTT 3.1.1 broker behind it, speaking real bytes, so the
-// client and transport are tested end to end without a network. The broker side parses what
-// the client writes with its own small reader (not the client's codec), so a codec bug cannot
-// hide behind itself.
-import { concat, fromUtf8, utf8 } from '../lib/bytes.js';
+// An in-memory MQTT 3.1.1 broker behind a WebSocket-shaped class, speaking real bytes. Two users:
+// the tests (the client and transport end to end without a network), and the demo (W-39h), where it
+// is the page's command server: the mqtt client is given `broker.WebSocket` in place of the
+// browser's, so every screen talks to it exactly as to a real one and nothing leaves the page.
+// The broker side parses what the client writes with its own small reader (not the client's
+// codec), so a codec bug cannot hide behind itself. No DOM, no network.
+import { concat, fromUtf8, utf8 } from '../bytes.js';
 
 const u16 = (n) => Uint8Array.of((n >> 8) & 0xff, n & 0xff);
 const lenBytes = (n) => {
@@ -33,7 +35,7 @@ function readClientPacket(first, body) {
     }
     case 3: {
       const qos = (first >> 1) & 3; const topic = s(); const pid = qos ? id() : null;
-      return { type: 'publish', topic, qos, id: pid, dup: (first & 8) === 8, payload: body.slice(at) };
+      return { type: 'publish', topic, qos, id: pid, dup: (first & 8) === 8, retain: (first & 1) === 1, payload: body.slice(at) };
     }
     case 4: return { type: 'puback', id: id() };
     case 8: {
@@ -68,11 +70,15 @@ export const matches = (filter, topic) => {
 //   onPublish(broker, packet) -> called for every client publish (a node may answer)
 //   chunk: 'whole' | 'bytes' | 'merge' -- how outgoing bytes are framed
 //   ackPublish, answerPing: default true
+// Retained messages: a client publish with the retain flag, or broker.retain(topic, payload), is
+// kept per topic (an empty payload clears it) and handed to every later subscriber whose filter
+// matches, as a real broker does.
 export function createFakeBroker(options = {}) {
   const broker = {
     sockets: [], received: [], connects: [], opts: { chunk: 'whole', ackPublish: true, answerPing: true, ...options },
     subs: new Map(),                    // socket -> Map(filter -> qos)
     queue: new Map(),                   // socket -> pending bytes when merging
+    retained: new Map(),                // topic -> payload bytes
   };
 
   broker.write = (sock, bytes) => {
@@ -103,6 +109,12 @@ export function createFakeBroker(options = {}) {
     }
   };
 
+  broker.retain = (topic, payload) => {
+    const body = typeof payload === 'string' ? utf8(payload) : payload;
+    if (body && body.length) broker.retained.set(topic, body); else broker.retained.delete(topic);
+    broker.publish(topic, body || new Uint8Array(0));
+  };
+
   broker.handle = (sock, p) => {
     broker.received.push(p);
     switch (p.type) {
@@ -119,6 +131,10 @@ export function createFakeBroker(options = {}) {
         p.topics.forEach(({ topic }, i) => { if (granted[i] !== 0x80) mine.set(topic, granted[i]); });
         broker.subs.set(sock, mine);
         broker.write(sock, pkt(0x90, concat(u16(p.id), Uint8Array.from(granted))));
+        p.topics.forEach(({ topic }, i) => {
+          if (granted[i] === 0x80) return;
+          for (const [t, body] of broker.retained) if (matches(topic, t)) broker.write(sock, serverPublish(t, body, Math.min(granted[i], 1), granted[i] ? 7 : 0));
+        });
         return;
       }
       case 'unsubscribe': {
@@ -129,6 +145,7 @@ export function createFakeBroker(options = {}) {
       }
       case 'publish':
         if (p.qos === 1 && broker.opts.ackPublish) broker.write(sock, pkt(0x40, u16(p.id)));
+        if (p.retain) { if (p.payload.length) broker.retained.set(p.topic, p.payload); else broker.retained.delete(p.topic); }
         broker.publish(p.topic, p.payload, { from: sock });
         if (broker.opts.onPublish) broker.opts.onPublish(broker, p);
         return;

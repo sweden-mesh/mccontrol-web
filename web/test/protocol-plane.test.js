@@ -103,7 +103,7 @@ test('alive: ours opens, someone else\'s does not, the will is offline, a stale 
 });
 
 test('alive: a refused subscription is said', async () => {
-  const { createFakeBroker } = await import('./protocol-fake-broker.js');
+  const { createFakeBroker } = await import('../lib/demo/broker.js');
   const refusing = createFakeBroker({ grant: () => 0x80 });
   await assert.rejects(scanAlive({ config, handle: owner, secrets: {}, waitSecs: 0.3, connect: connectVia(refusing) }), /refused the subscription/);
 });

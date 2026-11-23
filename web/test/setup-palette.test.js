@@ -8,7 +8,7 @@ import { createMqttClient } from '../lib/protocol/mqtt-client.js';
 import { configFor, register } from '../lib/protocol/transport.js';
 import { registerAckTopic } from '../lib/protocol/topics.js';
 import { fromUtf8 } from '../lib/bytes.js';
-import { createFakeBroker } from './protocol-fake-broker.js';
+import { createFakeBroker } from '../lib/demo/broker.js';
 import { data, ownerHandle } from './protocol-helpers.js';
 import { commandOf, commandHelp, helpKey } from '../ui/modals/command-help.js';
 import {

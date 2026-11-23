@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createMqttClient } from '../lib/protocol/mqtt-client.js';
 import { fromUtf8 } from '../lib/bytes.js';
-import { createFakeBroker, serverPublish } from './protocol-fake-broker.js';
+import { createFakeBroker, serverPublish } from '../lib/demo/broker.js';
 
 const tick = (ms = 5) => new Promise((r) => { setTimeout(r, ms); });
 

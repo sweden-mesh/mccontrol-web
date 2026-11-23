@@ -10,7 +10,7 @@ import { DIR_COMMAND, DIR_RESULT, R3_PADS } from '../lib/protocol/constants.js';
 import { commandTopic, registerAckTopic } from '../lib/protocol/topics.js';
 import { b64url, unb64url } from '../lib/protocol/text.js';
 import { fromHex, fromUtf8, toHex, utf8 } from '../lib/bytes.js';
-import { createFakeBroker } from './protocol-fake-broker.js';
+import { createFakeBroker } from '../lib/demo/broker.js';
 import { V, data, nodeHandle, ownerHandle } from './protocol-helpers.js';
 
 const owner = ownerHandle();
