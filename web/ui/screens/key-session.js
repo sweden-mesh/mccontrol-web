@@ -10,7 +10,8 @@
 //   onKeyStatus(fn)    fn(status) after every lock, unlock or change of the stored key; returns unsubscribe
 //   unlockHash(route)  "#/unlock/to/<route>": unlock, then come back here
 import { createKeyring } from '../../lib/key/keyring.js';
-import { indexedDbStorage } from '../../lib/key/storage.js';
+import { indexedDbStorage, memoryStorage } from '../../lib/key/storage.js';
+import { isDemo } from '../demo/mode.js';
 import { provideKeySource } from '../key-state.js';
 import { provideKeyring } from './node-services.js';
 
@@ -69,7 +70,8 @@ const shellListeners = new Set();
 export async function startKeySession(options = {}) {
   if (ring) return ring;
   ring = createKeyring({
-    storage: options.storage || indexedDbStorage(globalThis.indexedDB),
+    // In the demo (W-39) the key lives in this page's memory: the real key store is never opened.
+    storage: options.storage || (isDemo() ? memoryStorage() : indexedDbStorage(globalThis.indexedDB)),
     credentials: options.credentials ?? globalThis.navigator?.credentials ?? null,
     storageManager: options.storageManager ?? globalThis.navigator?.storage ?? null,
     ...(options.clock ? { clock: options.clock } : {}),
@@ -77,7 +79,7 @@ export async function startKeySession(options = {}) {
   });
   ring.subscribe(() => { refresh(); });
   await refresh();
-  if (typeof globalThis.BroadcastChannel === 'function' && globalThis.document) {
+  if (typeof globalThis.BroadcastChannel === 'function' && globalThis.document && !isDemo()) {
     channel = new BroadcastChannel('mccontrol-key');
     channel.addEventListener('message', () => { ring.reconcile().catch(() => {}); });
   }

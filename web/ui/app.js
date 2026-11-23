@@ -15,6 +15,7 @@
 //
 // start() draws a visible message in <main> when it fails (W-20k); ui/boot.js does the same for
 // a module that fails before this one runs.
+import { isDemo } from './demo/mode.js';   // first: a demo page replaces its doors before any other module runs (W-39)
 import { pickLanguage, translator, loadStrings } from '../i18n/i18n.js';
 import { h } from './dom.js';
 import { currentPrefs, setPref, onPrefsChange, migratePrefs } from './prefs.js';
@@ -204,7 +205,7 @@ async function start() {
   migratePrefs();
   // The page's one keyring, before the board: the tiles then know whether there is a key. A
   // browser that refuses IndexedDB still gets the board, with "no key".
-  try { await startKeySession(); startAutoRegistration(); } catch (err) { console.warn('key store unavailable:', err); }
+  try { await startKeySession(); if (!isDemo()) startAutoRegistration(); } catch (err) { console.warn('key store unavailable:', err); }
   useFrame($('modal'), { ctxFor: base, closeLabel: 'Close' });
   await relabel();
   document.documentElement.setAttribute('data-started', '');
@@ -247,6 +248,7 @@ async function start() {
 
   version = await readVersion();
   drawFooter();
+  if (isDemo()) return;   // no offline copy and no update prompt from a demo page
   startUpdates({
     version: version.version,
     onWaiting: (apply) => {

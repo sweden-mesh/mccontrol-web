@@ -11,7 +11,8 @@
 // Beacon when the node's status was last seen.
 import { loadAll } from '../../lib/data/load.js';
 import { rulesFrom } from '../../lib/protocol/rules.js';
-import { indexedDb } from '../../lib/store/db.js';
+import { indexedDb, memoryDb } from '../../lib/store/db.js';
+import { isDemo } from '../demo/mode.js';
 import { openStores } from '../../lib/store/index.js';
 import { createJobs } from '../../lib/jobs/jobs.js';
 import { latestRelease, releaseSource } from '../../lib/jobs/releases.js';
@@ -29,7 +30,7 @@ const perOwner = new Map();
 
 async function load() {
   const data = await loadAll();
-  return { data, rules: rulesFrom(data), db: indexedDb(globalThis.indexedDB), beacon: beaconClient({ base: await beaconBase() }) };
+  return { data, rules: rulesFrom(data), db: isDemo() ? memoryDb() : indexedDb(globalThis.indexedDB), beacon: beaconClient({ base: await beaconBase() }) };
 }
 
 // { data, rules, stores, jobs, releases(), fleet(nodes) } for the key `owner` (its public key).
