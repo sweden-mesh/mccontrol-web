@@ -19,7 +19,7 @@ import * as mcc3 from '../protocol/mcc3.js';
 import { keyFromSeed } from '../key/handle.js';
 import { fromHex, fromUtf8 } from '../bytes.js';
 
-export const RATE_PER_HOUR = 30;
+export const RATE_PER_HOUR = 50;
 // The firmware counts airtime (5 % of 15 minutes, then 1 %); here that is about so many sends.
 export const FORWARDS_PER_HOUR = 60;
 export const FLOOD_GAP_MS = 60000;

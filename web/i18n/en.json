@@ -501,7 +501,7 @@
   "road.willMqtt": "Goes over MQTT.",
   "road.willMesh": "Goes over the mesh through your companion ({why}).",
   "road.willMeshPlain": "Goes over the mesh through your companion.",
-  "road.meshLimits": "Over the mesh: one node at a time, at most 57 bytes (59 to lou-19). A node answers a flooded command 15 to 30 seconds after it arrives, and at most 30 commands an hour.",
+  "road.meshLimits": "Over the mesh: one node at a time, at most 57 bytes (59 to lou-19). A node answers a flooded command 15 to 30 seconds after it arrives, and at most 50 commands an hour.",
   "road.groupMesh": "Over the mesh each node is asked in turn.",
   "road.why.meshOnly": "the node is mesh only",
   "road.why.meshCommand": "only the mesh road admits this command",

@@ -10,7 +10,7 @@
 // A node Beacon does not know has its fleet cleared (nothing stale); when Beacon cannot be
 // reached the old values stay, with their age.
 //
-// The daily `ver` is a signed command, so it spends one of the node's 30 commands an hour (10 before lou-20). It is
+// The daily `ver` is a signed command, so it spends one of the node's 50 commands an hour (10 before lou-20). It is
 // sent only when the key is unlocked, over MQTT (never over the mesh: that would transmit), to a
 // node that is not mesh-only, that was heard on MQTT in the last HEARD_WITHIN_MS (Beacon's status
 // or an answer), whose last `ver` answer or try is a day old, and that has had fewer than
