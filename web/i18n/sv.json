@@ -1053,5 +1053,14 @@
   "install.manual": "Den här webbläsaren installerar från sin egen meny: i Safari Dela och sedan Lägg till på hemskärmen (iPhone, iPad) eller Lägg till i Dock (Mac); i Chrome eller Edge installationsmärket i adressfältet.",
   "install.accepted": "Installerad.",
   "install.dismissed": "Inte installerad. Knappen kommer tillbaka nästa gång sidan öppnas.",
-  "install.version": "Version {version}, commit {commit}. Varje fil kontrolleras mot versionens integrity.json innan kopian för användning utan nät sparas."
+  "install.version": "Version {version}, commit {commit}. Varje fil kontrolleras mot versionens integrity.json innan kopian för användning utan nät sparas.",
+  "demo.label": "Demo",
+  "demo.banner": "Påhittade noder. Inget skickas.",
+  "demo.bannerSending": "Simulerade noder. Inget når en riktig repeater.",
+  "demo.leave": "Lämna demon",
+  "demo.tryLead": "Ingen nod flashad och ingen nyckel än?",
+  "demo.try": "Prova demon",
+  "demo.tryAfter": "En påhittad flotta att se sig omkring i. Inget sparas eller skickas.",
+  "demo.notHere": "Finns inte i demon: nyckeln är påhittad och finns bara på den här sidan.",
+  "demo.keyNote": "Den här nyckeln är påhittad och finns bara på den här sidan. Att skapa, importera, säkerhetskopiera, visa eller byta nyckel finns inte i demon."
 }

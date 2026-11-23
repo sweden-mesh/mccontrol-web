@@ -165,6 +165,7 @@ async function start() {
     for (const id of ['statusline', 'main', 'footer']) $(id).inert = on;
   };
 
+  let titleKept = false;
   const relabel = async () => {
     lang = languageFor(currentPrefs());
     t = translator(await loadStrings(lang));
@@ -185,6 +186,7 @@ async function start() {
     drawKeyBar($('keys'), t);
     drawFooter();
     drawLayout();
+    if (isDemo()) { const banner = await import('./demo/banner.js'); banner.drawBanner(t); if (!titleKept) { titleKept = true; banner.keepTitle((key) => t(key)); } }
     if (currentModal()) route({ force: true });
   };
 
@@ -210,7 +212,7 @@ async function start() {
       // The demo (W-39): an invented key in memory, unlocked by the demo, and an invented fleet.
       const demo = await import('./demo/start.js');
       await startKeySession(demo.demoKeyOptions());
-      await demo.startDemo();
+      await demo.startDemo({ t: (key, vars) => t(key, vars) });
     } else {
       await startKeySession();
       startAutoRegistration();

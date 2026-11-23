@@ -7,6 +7,7 @@ import { h } from '../dom.js';
 import { download } from './node-kit.js';
 import { copyButton, errorLine, groupedHex, passField, qrSvg, showPassphrases, useStyles } from './key-kit.js';
 import { currentHandle, keyring, keyStatus, onKeyStatus } from './key-session.js';
+import { isDemo } from '../demo/mode.js';
 import { passProblem, MIN } from './unlock.js';
 import { registerNow, registration, onRegistration, registrationText } from './key-register.js';
 import { AUTO_LOCK_CHOICES } from '../../lib/key/keyring.js';
@@ -95,6 +96,7 @@ export function render(ctx) {
       body.replaceChildren(h('p', {}, t('keyscreen.none')), h('p', {}, h('a', { class: 'button', href: '#/unlock' }, t('keyscreen.toStart'))));
       return;
     }
+    if (isDemo()) { body.replaceChildren(h('p', { class: 'demo-note' }, t('demo.keyNote')), publicBlock(s)); return; }
     body.replaceChildren(publicBlock(s), registerBlock(), lockBlock(s), backupBlock(s), passBlock(s), fingerprintBlock(s), replaceBlock(),
       h('p', {}, h('a', { href: '#help/signing' }, t('keyscreen.helpLink'))));
   };

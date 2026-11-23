@@ -23,6 +23,21 @@ let status = EMPTY;
 const listeners = new Set();
 
 export const keyring = () => ring;
+
+// The demo (W-39d), once its own invented key is in: only the doors that use the key stay open.
+// Everything that makes, changes, shows or copies a key answers "not in the demo", and locking
+// leaves the demo, since nobody holds its passphrase.
+export const DEMO_OPEN = Object.freeze(['handle', 'hold', 'touch', 'status', 'subscribe', 'reconcile', 'loadSecrets', 'saveSecrets']);
+export function closeDemoRing(leave, message) {
+  const real = ring;
+  const closed = {};
+  for (const [name, v] of Object.entries(real)) {
+    closed[name] = typeof v !== 'function' ? v : name === 'lock' ? leave
+      : DEMO_OPEN.includes(name) ? v : async () => { throw new Error(message); };
+  }
+  ring = Object.freeze(closed);
+  return ring;
+}
 export const keyStatus = () => status;
 export const currentHandle = () => ring?.handle() ?? null;
 

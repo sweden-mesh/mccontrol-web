@@ -1053,5 +1053,14 @@
   "install.manual": "This browser installs from its own menu: in Safari, Share and then Add to Home Screen (iPhone, iPad) or Add to Dock (Mac); in Chrome or Edge, the install mark in the address bar.",
   "install.accepted": "Installed.",
   "install.dismissed": "Not installed. The button comes back the next time the page opens.",
-  "install.version": "Release {version}, commit {commit}. Every file is checked against the release's integrity.json before the offline copy keeps it."
+  "install.version": "Release {version}, commit {commit}. Every file is checked against the release's integrity.json before the offline copy keeps it.",
+  "demo.label": "Demo",
+  "demo.banner": "Invented nodes. Nothing is sent.",
+  "demo.bannerSending": "Simulated nodes. Nothing reaches a real repeater.",
+  "demo.leave": "Leave the demo",
+  "demo.tryLead": "No node flashed and no key yet?",
+  "demo.try": "Try the demo",
+  "demo.tryAfter": "An invented fleet to look around in. Nothing is stored or sent.",
+  "demo.notHere": "Not in the demo: its key is invented and lives in this page only.",
+  "demo.keyNote": "This key is invented and lives in this page only. Making, importing, backing up, showing or changing a key is not in the demo."
 }

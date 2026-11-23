@@ -27,6 +27,7 @@
 //
 // The shell (ui/app.js) calls routeModal() on every hash change; nobody else needs to.
 import { h } from './dom.js';
+import { isDemo } from './demo/mode.js';
 import { modalHash } from './routes.js';
 
 const modals = new Map();
@@ -140,7 +141,7 @@ export function routeModal(target, { force = false } = {}) {
   const help = def.barHelp ? h('button', { type: 'button', class: 'tool modal-help', 'aria-label': ctx.t('nav.help'), title: ctx.t('nav.help') }, '?') : null;
   help?.addEventListener('click', () => { location.hash = '#help'; });
   heading?.classList.toggle('modal-bar-title', Boolean(def.barTitle));
-  frame.bar.replaceChildren(...[def.barTitle ? heading : null, help, frame.closeButton].filter(Boolean));
+  frame.bar.replaceChildren(...[isDemo() ? h('span', { class: 'demo-tag' }, ctx.t('demo.label')) : null, def.barTitle ? heading : null, help, frame.closeButton].filter(Boolean));
   if (heading) {
     heading.id ||= `modal-title-${name}`;
     frame.dialog.setAttribute('aria-labelledby', heading.id);

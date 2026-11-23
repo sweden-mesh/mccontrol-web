@@ -8,6 +8,7 @@
 import { h } from '../dom.js';
 import { errorLine, passField, showPassphrases, useStyles } from './key-kit.js';
 import { keyring, keyStatus, onKeyStatus } from './key-session.js';
+import { demoAddress } from '../demo/mode.js';
 import { layoutChoice } from '../appearance.js';
 
 export const route = 'unlock';
@@ -94,6 +95,10 @@ export function render(ctx) {
     if (focus) { heading.tabIndex = -1; heading.focus(); }
     if (!ctx.signal.aborted) document.title = `${heading.textContent} · mccontrol`;
   };
+  // The way into the demo (W-39d): a new page load with ?demo=1, from the gate with no key or a locked one.
+  const demoEntry = () => h('p', { class: 'demo-entry' }, t('demo.tryLead'), ' ',
+    h('a', { href: demoAddress(true) }, t('demo.try')), '. ', h('span', { class: 'muted' }, t('demo.tryAfter')));
+
   function startStep() {
     const forms = h('div', {});
     const makeBtn = h('button', { type: 'button', class: 'tool choice-button', 'aria-pressed': 'false', 'aria-controls': 'unlock-form' }, t('unlock.make'));
@@ -114,6 +119,7 @@ export function render(ctx) {
       target.replace ? null : layoutChoice({ t }),
       h('div', { class: 'choice-row' }, makeBtn, importBtn),
       forms,
+      target.replace ? null : demoEntry(),
     ].filter(Boolean);
   }
 
@@ -253,6 +259,7 @@ export function render(ctx) {
       });
       line.append(fp);
     }
+    out.push(demoEntry());
     out.push(h('details', { class: 'block' },
       h('summary', {}, t('unlock.forgot')),
       h('p', {}, t('unlock.forgotBody')),

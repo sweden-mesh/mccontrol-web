@@ -3,7 +3,8 @@
 // the key session and startDemo() once it runs; neither is reached outside a demo page.
 import { memoryStorage } from '../../lib/key/storage.js';
 import { demoWorld, seedDemo } from '../../lib/demo/world.js';
-import { keyring } from '../screens/key-session.js';
+import { keyring, closeDemoRing } from '../screens/key-session.js';
+import { demoAddress } from './mode.js';
 import { services } from '../screens/node-services.js';
 
 let world = null;
@@ -16,7 +17,7 @@ export const demoKeyOptions = () => ({ storage: memoryStorage(), credentials: nu
 // The demo key goes in through the keyring's own door, as an imported key (the bare seed, as the
 // terminal tool keeps one), which leaves it unlocked; auto-lock off, and marked as backed up so
 // nothing asks the visitor to save a copy of a key that is not theirs.
-export async function startDemo() {
+export async function startDemo({ t = (k) => k } = {}) {
   const w = currentWorld();
   const ring = keyring();
   const handle = await ring.importKey(w.owner.seedHex, w.owner.passphrase);
@@ -24,5 +25,6 @@ export async function startDemo() {
   await ring.exportBackup(w.owner.passphrase);   // only its side effect: the key counts as backed up
   const s = await services(handle.publicKeyHex);
   if (!(await s.stores.devices.list()).length) await seedDemo(s.stores, w, { results: s.data.results });
+  closeDemoRing(() => { globalThis.location.assign(demoAddress(false)); }, t('demo.notHere'));
   return w;
 }

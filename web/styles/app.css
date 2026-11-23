@@ -52,6 +52,21 @@ p { max-width: 70ch; }
 /* An alert line: inverse in Amber and Green (one hue), the danger colour in Dark and Light. */
 .alert { background: var(--alert-bg); color: var(--alert-fg); font-weight: 600; }
 
+/* The demo's banner (W-39d): above the status line on every screen, never over a control. */
+.demo-banner {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px;
+  padding: 6px var(--gutter); border-bottom: 1px solid var(--line);
+  background: var(--surface); color: var(--fg); font-size: var(--tile-text);
+}
+.demo-banner strong, .demo-tag {
+  font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+  padding: 1px 6px; border: 1px solid var(--warn); border-radius: var(--radius-xs); color: var(--warn);
+}
+.demo-banner a { margin-left: auto; color: var(--accent); min-height: var(--row); display: inline-flex; align-items: center; }
+.demo-tag { font-size: .75rem; margin-right: 8px; white-space: nowrap; }
+.demo-entry { margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+.demo-note { padding: 8px 12px; border: 1px solid var(--warn); border-radius: var(--radius-sm); }
+
 /* The status line: the name, then broker, key, area and the clock, each a glyph and a word. */
 .statusline {
   display: flex; align-items: center; gap: 16px; flex-wrap: wrap;

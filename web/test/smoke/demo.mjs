@@ -86,6 +86,27 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
         if (left.dbs.length) problems.push(`IndexedDB databases: ${left.dbs.join(', ')}`);
         if (left.extra.length) problems.push(`localStorage keys: ${left.extra.join(', ')}`);
         if (await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)) problems.push('the page scrolls sideways');
+        // The banner: on the page, above the status line, with the way out; "Demo" in the title.
+        const banner = await page.evaluate(() => {
+          const b = document.getElementById('demo-banner'), st = document.getElementById('statusline');
+          if (!b) return null;
+          const r = b.getBoundingClientRect();
+          return { text: b.innerText, href: b.querySelector('a')?.getAttribute('href'), above: [st, document.getElementById('main')].every((e) => { const o = e.getBoundingClientRect(); return o.height === 0 || r.bottom <= o.top + 1 || o.bottom <= r.top + 1; }), visible: r.height > 0 && r.top >= 0 && r.top < 4, title: document.title };
+        });
+        if (!banner) problems.push('no demo banner');
+        else {
+          if (!banner.visible || !banner.above) problems.push('the banner is not at the top, clear of the status line and the page');
+          if (banner.href !== '/') problems.push(`the way out goes to ${banner.href}`);
+          if (!/^Demo · /.test(banner.title)) problems.push(`the title is "${banner.title}"`);
+        }
+        // A modal over the page still says Demo; the key screen shows the note and no key actions.
+        await page.evaluate(() => { location.hash = '#setup/key'; });
+        await page.waitForSelector('dialog[open] .demo-tag', { timeout: 5000 }).catch(() => problems.push('a modal without the Demo tag'));
+        const key = await page.evaluate(() => ({ note: Boolean(document.querySelector('dialog[open] .demo-note')), buttons: [...document.querySelectorAll('dialog[open] .key-screen button')].map((b) => b.textContent.trim()) }));
+        if (!key.note) problems.push('the key screen has no demo note');
+        if (key.buttons.some((b) => /back ?up|säkerhetskop|passphrase|lösenfras|private|privata|replace|byt|lock|lås/i.test(b))) problems.push(`the key screen offers: ${key.buttons.join(', ')}`);
+        await page.screenshot({ path: join(out, `demo-${look}-${width}-key.png`) });
+        await page.evaluate(() => { location.hash = ''; });
         await page.screenshot({ path: join(out, `demo-${look}-${width}.png`) });
         report(`demo ${look} ${width}px`, problems);
         await page.close();
@@ -100,6 +121,10 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
       await page.waitForSelector('html[data-started]', { timeout: 15000 }).catch(() => problems.push('the page did not start'));
       const dbs = await page.evaluate(async () => (await indexedDB.databases()).map((d) => d.name));
       if (!dbs.includes('mccontrol-key')) problems.push(`the ordinary page did not open its key store (${dbs.join(', ') || 'none'})`);
+      // The way in: one link on the gate, to this page with ?demo=1; and no banner here.
+      const entry = await page.evaluate(() => ({ href: document.querySelector('dialog[open] .demo-entry a')?.getAttribute('href'), banner: Boolean(document.getElementById('demo-banner')) }));
+      if (entry.href !== '/?demo=1') problems.push(`the gate's demo link goes to ${entry.href}`);
+      if (entry.banner) problems.push('the ordinary page shows the demo banner');
       report('ordinary page', problems);
       await page.close();
     }
