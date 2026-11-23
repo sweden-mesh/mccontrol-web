@@ -121,14 +121,16 @@ export function hearsTarget(reply, targetKey) {
   return whole ? { hears: false, snr: null } : null;
 }
 
-// `get mqtt.relay`: { on: true, left, floodsLeft } from "> own, forwarded 3, answered 2, refused 0,
-// 7 of 10 left this hour (2 of 2 floods)", { on: false } from "> off", null for anything else.
+// `get mqtt.relay`: { on: true, phase, left, floods } from "> own, forwarded 3, answered 2, refused 0,
+// burst, 39.9 s airtime left, floods today 1 of 100" (left in seconds of airtime, floods sent today),
+// { on: false } from "> off", null for anything else.
 export function parseRelayState(reply) {
   const text = String(reply || '').replace(/^>\s*/, '').trim();
   if (/^off\b/i.test(text)) return { on: false };
   if (!/^own\b/i.test(text)) return null;
-  const m = text.match(/(\d+)\s+of\s+\d+\s+left[^(]*\((\d+)\s+of\s+\d+\s+floods?\)/i);
-  return m ? { on: true, left: Number(m[1]), floodsLeft: Number(m[2]) } : { on: true, left: null, floodsLeft: null };
+  const m = text.match(/\b(idle|burst|cooldown),\s*(\d+(?:\.\d+)?)\s*s\s+airtime\s+left,\s*floods\s+today\s+(\d+)\s+of\s+\d+/i);
+  return m ? { on: true, phase: m[1].toLowerCase(), left: Number(m[2]), floods: Number(m[3]) }
+    : { on: true, phase: null, left: null, floods: null };
 }
 
 // "direct, N hops" of a stored path: the hash count of MeshCore's path length byte.

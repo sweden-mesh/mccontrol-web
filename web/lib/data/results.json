@@ -80,7 +80,7 @@
    "4": "The relay has already seen a newer request. Nothing was sent. Send again.",
    "5": "The relay refused the request, the route or the path. Nothing was sent.",
    "6": "The relay is waiting for the answer to another command. Nothing was sent. Try again in two minutes.",
-   "7": "The relay has used its hour's budget: 10 commands, of which 2 floods. Nothing was sent.",
+   "7": "The relay has used its airtime for now, or the flood came too soon after its last one. Nothing was sent. Try again in a few minutes: get mqtt.relay on the relay shows what is left.",
    "8": "The relay has no time yet. Nothing was sent. Try again in a minute.",
    "9": "The relay could not send right now. Nothing was sent. Try again."
   },
@@ -92,7 +92,7 @@
    "4": "Reläet har redan sett en nyare begäran. Inget skickades. Skicka igen.",
    "5": "Reläet nekade begäran, vägen eller sökvägen. Inget skickades.",
    "6": "Reläet väntar på svaret på ett annat kommando. Inget skickades. Försök igen om två minuter.",
-   "7": "Reläet har använt timmens budget: 10 kommandon, varav 2 flood. Inget skickades.",
+   "7": "Reläet har använt sin sändningstid för stunden, eller så kom flooden för tätt efter den förra. Inget skickades. Försök igen om några minuter: get mqtt.relay på reläet visar vad som är kvar.",
    "8": "Reläet har ingen tid ännu. Inget skickades. Försök igen om en minut.",
    "9": "Reläet kunde inte sända just nu. Inget skickades. Försök igen."
   }

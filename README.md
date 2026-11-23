@@ -89,9 +89,9 @@ Observer image of lou-20 or later whose alive is fresh and says relaying is on.
 - **You choose the relay and the route.** Direct neighbour (one transmission each way, no
   hops), direct along a path an earlier answer taught, or a flood. "Check neighbours" asks a
   relay over MQTT which nodes it hears, which costs no airtime, and marks the relay that hears
-  the node directly. "Read budget" asks what is left of the relay's hour.
+  the node directly. "Read budget" asks what is left of the relay's airtime.
 - **A flood asks first, every time.** It costs every node in reach airtime, and a relay allows
-  10 commands an hour, 2 of them floods.
+  one a minute for 15 minutes, then one in five minutes, and 100 a day.
 - **Auto is careful.** It takes a relay only for a node without MQTT or silent on it for the 15
   minutes, only when no companion is connected, and only by a way that is no flood. A group,
   several nodes, a county, a set and the automatic work never go through a relay.

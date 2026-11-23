@@ -224,6 +224,14 @@
    "read": true
   },
   {
+   "text": "get sensors",
+   "group": "reads",
+   "kind": "none",
+   "choices": [],
+   "examples": [],
+   "read": true
+  },
+  {
    "text": "get",
    "group": "reads",
    "kind": "text",

@@ -369,9 +369,12 @@ test('the neighbours reply: there, not there, or not known', () => {
   assert.equal(hearsTarget('4AC61A7F:12:22\nsomething else', key), null, 'a line it cannot read: not a whole list');
   assert.equal(hearsTarget(`${p}:12:22`, 'nonsense'), null);
   assert.equal(parseNeighbors(`${p}:12:22`)[0].prefix, T);
-  assert.deepEqual(parseRelayState('> own, forwarded 3, answered 2, refused 0, 7 of 10 left this hour (1 of 2 floods)'), { on: true, left: 7, floodsLeft: 1 });
+  assert.deepEqual(parseRelayState('> own, forwarded 3, answered 2, refused 0, burst, 39.9 s airtime left, floods today 1 of 100'),
+    { on: true, phase: 'burst', left: 39.9, floods: 1 });
+  assert.deepEqual(parseRelayState('> own, forwarded 0, answered 0, refused 0, idle, 45.0 s airtime left, floods today 0 of 100'),
+    { on: true, phase: 'idle', left: 45, floods: 0 });
   assert.deepEqual(parseRelayState('> off'), { on: false });
-  assert.deepEqual(parseRelayState('> own'), { on: true, left: null, floodsLeft: null });
+  assert.deepEqual(parseRelayState('> own'), { on: true, phase: null, left: null, floods: null });
   assert.equal(parseRelayState('Err - unknown'), null);
 });
 

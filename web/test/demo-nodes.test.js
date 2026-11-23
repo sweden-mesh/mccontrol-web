@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { demoPlane, RATE_PER_HOUR, FLOODS_PER_HOUR } from '../lib/demo/nodes.js';
+import { demoPlane, RATE_PER_HOUR } from '../lib/demo/nodes.js';
 import { demoWorld, seedDemo } from '../lib/demo/world.js';
 import { createJobs } from '../lib/jobs/jobs.js';
 import { createMqttClient } from '../lib/protocol/mqtt-client.js';
@@ -144,8 +144,8 @@ test('through the relay to the mesh-only node: answered; off when the relay is s
   assert.equal(out.outcomes[0].result.reply, T.fw);
   assert.equal(out.outcomes[0].info.status, 'answered');
   let status = 'answered';
-  for (let i = 0; i < FLOODS_PER_HOUR + 1; i += 1) status = (await jobs.send({ command: 'get name', nodes: [T.node], road: 'relay', relay: via('flood', { confirmed: true }) })).outcomes[0].info?.status;
-  assert.equal(status, 'rate-limited', 'the third flood in an hour');
+  for (let i = 0; i < 2; i += 1) status = (await jobs.send({ command: 'get name', nodes: [T.node], road: 'relay', relay: via('flood', { confirmed: true }) })).outcomes[0].info?.status;
+  assert.equal(status, 'rate-limited', 'a second flood within the minute');
   plane.nodes.get(R.key).state.settings['mqtt.relay'] = 'off';
   const off = await jobs.send({ command: 'ver', nodes: [T.node], road: 'relay', relay: via('neighbour') });
   assert.equal(off.outcomes[0].info?.status ?? off.outcomes[0].reason?.code, 'off');

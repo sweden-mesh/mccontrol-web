@@ -82,6 +82,7 @@
   "mqtt.cmd ping": 12,
   "ota update": 19,
   "get mqtt.relay": 20,
+  "get sensors": 20,
   "set mqtt.relay off": 20,
   "set mqtt.relay own": 20
  },

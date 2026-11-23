@@ -20,8 +20,9 @@ import { keyFromSeed } from '../key/handle.js';
 import { fromHex, fromUtf8 } from '../bytes.js';
 
 export const RATE_PER_HOUR = 10;
-export const FORWARDS_PER_HOUR = 10;
-export const FLOODS_PER_HOUR = 2;
+// The firmware counts airtime (5 % of 15 minutes, then 1 %); here that is about so many sends.
+export const FORWARDS_PER_HOUR = 60;
+export const FLOOD_GAP_MS = 60000;
 const HOUR = 3600000;
 const UPLINK = 0x02;
 // lib/data/results.json's codes, by name.
@@ -96,7 +97,7 @@ export function demoPlane(world, { rules, now = () => Date.now(), delay = demoDe
     x.lastForward = f.counter;
     const flood = f.route !== mcc3.ROUTES.direct;
     x.forwards = within(x.forwards, at); x.floods = within(x.floods, at);
-    if (x.forwards.length >= FORWARDS_PER_HOUR || (flood && x.floods.length >= FLOODS_PER_HOUR)) return say(FWD['rate-limited']), true;
+    if (x.forwards.length >= FORWARDS_PER_HOUR || (flood && x.floods.some((t) => at - t < FLOOD_GAP_MS))) return say(FWD['rate-limited']), true;
     x.forwards.push(at); if (flood) x.floods.push(at);
     const sent = flood ? mcc3.SENT.flood : mcc3.SENT.direct;
     const target = nodes.get(String(f.target).toUpperCase());

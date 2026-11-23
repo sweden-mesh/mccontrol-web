@@ -42,6 +42,7 @@ const READS = {
   clock: (s, c) => clockLine(c.now),
   region: (s) => `home ${s.regions.home}, default ${s.regions.default}: ${s.regions.list.join(' ')}`,
   neighbors: (s, c) => (c.neighbours.length ? c.neighbours.slice(0, 8).map((m) => `${m.key.slice(0, 8)}:${m.secsAgo}:${m.snr4}`).join('\n') : '-none-'),
+  'get sensors': (s) => `batt=${3700 + (s.stats.rx % 400)}mV mcu=${18 + (s.stats.tx % 9)}.5C`,
   'get stats': (s, c) => `rx ${s.stats.rx} tx ${s.stats.tx} floods ${s.stats.floods} direct ${s.stats.direct} up ${Math.floor((c.now - s.started) / 1000)}s`,
   'get name': (s) => s.name,
   'get mqtt.presets': () => 'meshat, analyzer-eu, analyzer-us, mccontrol, custom',

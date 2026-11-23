@@ -118,7 +118,7 @@ export function relayPicker(ctx, svc, { onChange = () => {} } = {}) {
     if (!result) return t('road.relayQuiet', { relay });
     if (!s) return t('road.budgetUnknown', { relay });
     if (!s.on) return t('road.budgetOff', { relay });
-    return s.left === null ? t('road.budgetUnknown', { relay }) : t('road.budget', { relay, left: s.left, floods: s.floodsLeft });
+    return s.left === null ? t('road.budgetUnknown', { relay }) : t('road.budget', { relay, left: s.left, floods: s.floods });
   }), { signal: ctx.signal });
 
   return {
