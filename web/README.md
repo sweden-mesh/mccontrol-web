@@ -490,7 +490,7 @@ Rules the demo keeps, each pinned by a test:
 - **The nodes are simulated, with the real bytes.** `lib/demo/nodes.js` puts the fleet's lou-20 nodes on the
   in-page broker: each holds its own invented key and the demo owner's key as its command key, keeps a sealed
   retained alive, and takes a command in the firmware's order (the seal opens, the signature holds, the
-  counter is above the last, not expired, the deny list, 10 commands an hour) before it answers sealed on the
+  counter is above the last, not expired, the deny list, 30 commands an hour) before it answers sealed on the
   reply topic, after 1 to 4 s. `lib/demo/answers.js` holds what they answer, in the firmware's formats; a
   `set` changes the node for the session, `reboot` makes it silent for 20 s. The node that relays takes a
   forward for the mesh-only node behind it, with the relay's own budget. The offline node and the one on

@@ -1,15 +1,15 @@
 # mccontrol-spec as copied here by scripts/spec-sync.mjs: never edit by hand
-source sweden-mesh/mccontrol-spec v0.3.2
+source sweden-mesh/mccontrol-spec v0.3.3
 8ea07e3d44189fc4ac70c1aa04cb5cde62e8ef0b3ee973b640bb661a7a81b81c  data/areas.json  web/lib/data/areas.json
 350f43367da9ef7b3c581afa6c6bd56a3b954c022a6963ca8ab5bc75e517108d  data/brokers.json  web/lib/data/brokers.json
 b15ffc589e84b9634b3d791bc4258c1a982ea3a4ea2de2f53cb33f5491ef8f80  data/cautions.json  web/lib/data/cautions.json
 115ec067c63b32ebb769684131cffde49886c0dd00de987d6da59a909fc91887  data/commands.json  web/lib/data/commands.json
 5399e7d3941f9451f8fc7283320235dc970474d72bbbbe9207f86a7d9f48cd7b  data/denylist.json  web/lib/data/denylist.json
 c8d085f3b8fbaf43b5827b87ea8974d79be1851923e5777b83cf9a1289799162  data/facts.json  web/lib/data/facts.json
-148851bc91cc2b6991aa31565c1f3cbcc888e85973ec23bff96562e64db5f533  data/firmware.json  web/lib/data/firmware.json
-8b2dd6ff03893faf8fc14ec49a5f2e09354b8d955779c27f708e2332d2f24ff4  data/help.json  web/lib/data/help.json
+e7a8eb7f6b2225facb8495b1f6380198470ef906e79404af3bcadebfb044d652  data/firmware.json  web/lib/data/firmware.json
+7672241b145f6072ffe22f398aa41919075478194671f143aa032213407d2e0c  data/help.json  web/lib/data/help.json
 28358a1f7ca4a85b75a4b084235ed2dee807cf90892d9e1b6e9be86196f55b30  data/protocol.json  web/lib/data/protocol.json
-15159aabcc08ff5bae459607716b00a91ae6bb448181981c854aef4a08ffaf35  data/results.json  web/lib/data/results.json
+141d71218293d5510e00cdad32708b74580890adf3ab9e5d316204a6376f6906  data/results.json  web/lib/data/results.json
 38bf3cfdf93a2fff43e6182501c18af66f8d64108bb15dbd659865556903d370  vectors/key-backup-vectors.json  web/test/key-backup-vectors.json
 1b726fcb2a00ed42a3b93f676ef1cc10d1f56a1b3653513ee23613d91ddd86e7  vectors/mcc3-vectors.json  web/test/mcc3-vectors.json
 ae4b529f24e39aa917231c36121aff34396dd323741d53edb6ae8523fbe892e6  vectors/vectors.json  web/test/vectors.json

@@ -81,6 +81,13 @@ function wholeText(data) {
 // A response as the companion hands it (after the tag) as a Result with `clock` (null when the
 // node's clock is unset) and `road: 'mesh'`, or null when it is too short or answers another
 // counter.
+// The mesh hands a datagram over zero-filled to its 16-byte block edge.
+function unfilled(bytes) {
+  let end = bytes.length;
+  while (end > 0 && bytes[end - 1] === 0) end -= 1;
+  return bytes.subarray(0, end);
+}
+
 export function parseMeshResponse(data, { node = null, command = '', counter = null } = {}) {
   const bytes = data instanceof Uint8Array ? data : new Uint8Array(data || []);
   if (bytes.length < MESH.response_head) return null;
@@ -88,7 +95,7 @@ export function parseMeshResponse(data, { node = null, command = '', counter = n
   const clock = view.getUint32(0, true);
   const got = view.getUint32(4, true);
   if (counter !== null && counter !== undefined && got !== counter) return null;
-  const base = makeResult(node, got, bytes[8], command, wholeText(bytes.subarray(9)), true);
+  const base = makeResult(node, got, bytes[8], command, wholeText(unfilled(bytes.subarray(9))), true);
   return Object.freeze({ ...base, clock: clock >= MESH.clock_set_from ? clock : null, road: 'mesh' });
 }
 

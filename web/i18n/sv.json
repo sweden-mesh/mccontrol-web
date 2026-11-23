@@ -501,7 +501,7 @@
   "road.willMqtt": "Går över MQTT.",
   "road.willMesh": "Går över meshen via din companion ({why}).",
   "road.willMeshPlain": "Går över meshen via din companion.",
-  "road.meshLimits": "Över meshen: en nod i taget, högst 59 byte, och en nod svarar på högst ett kommando i minuten den vägen.",
+  "road.meshLimits": "Över meshen: en nod i taget, högst 57 byte (59 till lou-19). En nod svarar på ett floodat kommando 15 till 30 sekunder efter att det kommit fram, och på högst 30 kommandon i timmen.",
   "road.groupMesh": "Över meshen tillfrågas varje nod i tur och ordning.",
   "road.why.meshOnly": "noden har bara mesh",
   "road.why.meshCommand": "bara meshvägen tar emot det här kommandot",

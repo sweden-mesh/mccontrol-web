@@ -4,7 +4,7 @@
   "-lou-",
   "-ar-"
  ],
- "lou_features_pattern": "-lou-\\d+-([a-z]+)-",
+ "lou_features_pattern": "-lou-\\d+(?:rc\\d*)?-([a-z]+)-",
  "admitted": [
   {
    "tag": "ar-10",

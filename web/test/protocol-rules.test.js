@@ -32,6 +32,16 @@ test('the oldest firmware that admits a command', () => {
   for (const c of C.needs) assert.equal(rules.needs(c.command), c.tag, JSON.stringify(c.command));
 });
 
+// `lou-20rc` (operator 2026-11-23): revision 20, and the features are the token after it.
+test("a release candidate's revision is not the feature rc", () => {
+  const arrc = 'esp32s3-v1.18.0-lou-20rc-arrc-observer-1d365aba';
+  assert.equal(rules.revision(arrc), 20);
+  assert.equal(rules.features(arrc), 'arrc');
+  assert.equal(rules.features('nrf52840-v1.18.0-lou-20rc-ar-a8ab24d0'), 'ar');
+  assert.equal(rules.features('nrf52840-v1.18.0-lou-20rc2-rc-a8ab24d0'), 'rc');
+  assert.equal(rules.features('nrf52840-v1.18.0-lou-20-rc-9ccbb597'), 'rc');
+});
+
 test('firmware rules per version', () => {
   for (const f of C.firmware) {
     const v = f.version;

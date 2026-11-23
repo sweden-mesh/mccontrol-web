@@ -81,7 +81,7 @@ export function createJobs({
   now = () => Date.now(), readOnly = false,
 }) {
   const wait = () => waitSecs ?? brokers.wait_secs ?? 20;
-  // A sealed request over the mesh: a lou-20 node answers a flooded one 15-30 s after it arrives.
+  // A request over the mesh, sealed or not: a lou-20 node answers a flooded one 15-30 s after it arrives.
   const meshWait = () => waitSecs ?? Math.max(brokers.wait_secs ?? 20, MESH_WAIT_SECS);
   // `configOf(region)`: the page passes settings-store's brokerConfig, so a region this device
   // sends to its own broker is honoured; the default is the exported table alone.
@@ -220,7 +220,7 @@ export function createJobs({
     const counter = sealed ? await stores.devices.nextCounter(device.node) : null;
     const out = await meshSend({
       companion: radio, handle, keyHex: device.key, region: oldRegion(device), meshOnly: rules.deviceMeshOnly(device), keys, counter,
-      name: label(device), command, ttl: brokers.ttl_secs ?? undefined, waitSecs: sealed ? meshWait() : wait(), signal,
+      name: label(device), command, ttl: brokers.ttl_secs ?? undefined, waitSecs: meshWait(), signal,
       progress: (elapsed, total) => {
         onProgress?.({ phase: 'waiting', road: 'mesh', node: device.node, name: label(device), index, count, elapsed, total, answered: 0 });
         return Boolean(signal?.aborted);
@@ -260,7 +260,7 @@ export function createJobs({
     const keys = sealed ? await keysFor(handle, key) : null;
     const relayKeys = await keysFor(handle, relayKey);
     const secs = Math.floor(now() / 1000);
-    const counter = sealed ? await stores.devices.nextCounter(device.node) : secs;
+    const counter = await stores.devices.nextCounter(device.node);
     const topic = sealed ? mcc3Topic(key) : meshTopic(oldRegion(device), key, rules.deviceMeshOnly(device));
     // Zero hops back only where the relay sends with none and the target knows the flag (0xC2).
     const flags = sealed && route === 'neighbour' ? FLAG_ZERO_HOP : 0;
@@ -550,7 +550,7 @@ export function createJobs({
       onProgress?.({ phase: 'sending', road: 'mesh', node, name: name || node, index: 0, count: 1 });
       const out = await meshSend({
         companion: radio, handle, keyHex: key, region: r, meshOnly: true, name, command: 'ver',
-        ttl: brokers.ttl_secs ?? undefined, waitSecs: wait(), signal,
+        ttl: brokers.ttl_secs ?? undefined, waitSecs: meshWait(), signal,
         progress: (elapsed, total) => {
           onProgress?.({ phase: 'waiting', road: 'mesh', node, name: name || node, index: 0, count: 1, elapsed, total, answered: 0 });
           return Boolean(signal?.aborted);

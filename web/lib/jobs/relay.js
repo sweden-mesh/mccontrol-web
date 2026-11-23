@@ -11,7 +11,7 @@
 //   flood        a flood in the relay's region home                  flood
 //   flood-wide   a flood in the relay's default scope                flood-wide
 //
-// A flood costs every node in reach airtime and the relay admits two an hour, so it is the
+// A flood costs every node in reach airtime and the relay admits one a minute at most, so it is the
 // owner's word each time (`confirmed`), never auto's and never part of a send to several nodes.
 import { ALIVE_FLAG_RELAY, ROUTES } from '../protocol/mcc3.js';
 
