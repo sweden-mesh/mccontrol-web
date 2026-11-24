@@ -303,6 +303,10 @@
    "exact": false
   },
   {
+   "text": "rekey",
+   "exact": false
+  },
+  {
    "text": "ver",
    "exact": true
   },
