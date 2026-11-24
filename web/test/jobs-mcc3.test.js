@@ -209,3 +209,11 @@ test('a sealed answer over MQTT that opens clears "no longer yours" without wait
   assert.equal(d.alive.state, 'online');
   assert.equal(d.alive.region, 'se-jkp');
 });
+
+test('a node added by its key, with no version and no IATA code, takes mcc3: the old scheme could not be tried', () => {
+  const key = 'B'.repeat(64);
+  assert.equal(scheme(rules, { node: 'BBBBBBBB', key, region: '' }), 'mcc3');
+  assert.equal(scheme(rules, { node: 'BBBBBBBB', key, region: 'JKG' }), 'old');
+  assert.equal(scheme(rules, { node: 'BBBBBBBB', key: null, region: '' }), 'old');
+  assert.equal(scheme(rules, { node: 'BBBBBBBB', key, region: '', ver: LOU19 }), 'old');
+});

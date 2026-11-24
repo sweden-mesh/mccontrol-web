@@ -18,7 +18,12 @@ export function speaksMcc3(rules, version) {
 export function scheme(rules, device) {
   const alive = device?.alive;
   if (alive && alive.state !== 'not-yours') return 'mcc3';
-  return speaksMcc3(rules, device?.ver) ? 'mcc3' : 'old';
+  if (speaksMcc3(rules, device?.ver)) return 'mcc3';
+  // Added by its key, nothing read from it yet (a node without MQTT cannot say its version before
+  // the first command reaches it) and no IATA code to address the old scheme by: the old scheme
+  // cannot be tried at all, so the first command goes the new way.
+  if (!alive && !device?.ver && /^[0-9A-Fa-f]{64}$/.test(device?.key || '') && !oldRegion(device)) return 'mcc3';
+  return 'old';
 }
 
 // The IATA code the old scheme addresses the node by: its stored one, else the one Beacon's
