@@ -82,8 +82,15 @@ export function rulesFrom({ denylist, cautions, commands, firmware, facts }) {
 
   // -- firmware --------------------------------------------------------------------------------
 
-  function revision(versionText) {
+  // A node's alive names its version without the board and MeshCore prefix
+  // (`lou-20rc-arrc-observer-60407864`): read it as `-lou-...`, like `ver`'s answer.
+  const lower = (versionText) => {
     const text = (versionText || '').toLowerCase();
+    return text.startsWith('lou-') ? `-${text}` : text;
+  };
+
+  function revision(versionText) {
+    const text = lower(versionText);
     for (const tag of firmware.revision_tags) {
       const at = text.indexOf(tag);
       if (at < 0) continue;
@@ -96,7 +103,7 @@ export function rulesFrom({ denylist, cautions, commands, firmware, facts }) {
   const louFeatures = new RegExp(firmware.lou_features_pattern);
 
   function features(versionText) {
-    const text = (versionText || '').toLowerCase();
+    const text = lower(versionText);
     const m = louFeatures.exec(text);
     if (!m) return text.includes('-lou-') ? '' : firmware.features_before_lou;
     return firmware.feature_tokens.includes(m[1]) ? m[1] : '';
@@ -200,7 +207,7 @@ export function rulesFrom({ denylist, cautions, commands, firmware, facts }) {
 
   // The plane without the Observer bridge: no Wi-Fi, no MQTT.
   function meshOnly(versionText) {
-    const text = (versionText || '').toLowerCase();
+    const text = lower(versionText);
     return text.includes('-lou-') && has(versionText, 'rc') && !text.includes('-observer');
   }
 

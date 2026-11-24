@@ -450,3 +450,12 @@ test('history in words: which relay, the route, the SNR; the relay\'s status in 
     }
   }
 });
+
+test("a version as an alive names it (no board prefix) reads like ver's answer", () => {
+  const short = 'lou-20rc-arrc-observer-60407864';
+  assert.equal(rules.canRelay(short), true);
+  assert.equal(rules.meshOnly('lou-20rc-rc-1f80c095'), true);
+  assert.equal(rules.meshOnly(short), false);
+  assert.equal(rules.speaksMesh(short), true);
+  assert.equal(rules.canRelay('lou-19-arrc-observer-1a2b3c4d'), false);
+});
