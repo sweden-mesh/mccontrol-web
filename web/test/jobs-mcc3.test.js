@@ -199,3 +199,13 @@ test('the mesh road to a lou-20 node: 0xC2, 57 bytes, sealed both ways, the topi
   assert.equal(frame.length, 1 + 32 + 132);
   await assert.rejects(jobs.send({ command: `set wifi.pwd ${'x'.repeat(45)}`, nodes: [N], road: 'mesh' }), (e) => e.code === 'denied' || e.code === 'meshTooLong');
 });
+
+test('a sealed answer over MQTT that opens clears "no longer yours" without waiting for a scan', async () => {
+  const devices = [{ node: NODE, key: NODE, region: '', name: 'loutest', ver: LOU20, alive: { state: 'not-yours', boot: 1, sequence: 1, region: 'se-jkp' } }];
+  const { jobs, stores } = await setup({ devices });
+  await jobs.send({ command: 'ver', nodes: [NODE.slice(0, 8)] });
+  const d = await stores.devices.get(NODE.slice(0, 8));
+  assert.equal(d.lastResult.verified, true);
+  assert.equal(d.alive.state, 'online');
+  assert.equal(d.alive.region, 'se-jkp');
+});

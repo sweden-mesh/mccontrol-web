@@ -153,6 +153,11 @@ export function createJobs({
       changes.lastHeard = event.at;      // a refusal too proves it is there
       changes[road === 'mqtt' ? 'lastHeardMqtt' : 'lastHeardMesh'] = event.at;   // the auto road asks which way
     }
+    // A sealed answer that opens with your key over MQTT proves the node is yours again (rekeyed
+    // back, or its old alive was read before its new one): do not wait for the next scan to say so.
+    if (result && result.verified === true && road === 'mqtt' && device.alive?.state === 'not-yours') {
+      changes.alive = { ...device.alive, state: 'online', at: event.at };
+    }
     await stores.devices.update(device.node, changes);
     if (result && result.ok) {
       if (rules.isRead(command)) await stores.devices.rememberRead(device.node, command, result.reply || 'OK', result.verified);
