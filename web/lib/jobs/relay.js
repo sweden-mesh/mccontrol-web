@@ -81,8 +81,11 @@ export function noRelayWhy(rules, devices, target, now = Date.now()) {
 }
 
 // The routes to offer through one candidate, the cheapest first.
-export const routesFor = (candidate) => [candidate.hears === false ? null : 'neighbour', candidate.path ? 'path' : null, 'flood', 'flood-wide']
-  .filter(Boolean);
+// A relay's neighbour list holds only what it heard an advert from since it started, so a list
+// without the target proves nothing (absence of evidence): the zero-hop route stays, last.
+export const routesFor = (candidate) => (candidate.hears === false
+  ? [candidate.path ? 'path' : null, 'flood', 'flood-wide', 'neighbour']
+  : ['neighbour', candidate.path ? 'path' : null, 'flood', 'flood-wide']).filter(Boolean);
 
 // What auto may take: a relay known to hear the target directly, else one with a stored path;
 // { relay, route } or null. Never a flood, and never a guess.

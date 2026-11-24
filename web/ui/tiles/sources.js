@@ -22,7 +22,8 @@
 //   brokerReport()                { ok, detail, at } | null
 //
 // Jobs (HISTORY's bars):
-//   startJob({ label })           -> { progress(fraction | null, text), done() }; label is the line
+//   startJob({ label, command, nodes })  -> { progress(fraction | null, text), done() }; label is the line;
+//                                 command and nodes let a node's own view show it as pending
 //   jobs()                        [{ id, label, fraction, text }] running now
 //   onJobs(fn)                    returns unsubscribe
 //
@@ -65,15 +66,16 @@ const jobListeners = new Set();
 let serial = 0;
 const tellJobs = () => { for (const fn of jobListeners) fn(); };
 
-export function startJob({ label }) {
+export function startJob({ label, command = '', nodes = [] }) {
   const id = `j${serial += 1}`;
-  running.set(id, { id, label, fraction: null, text: '' });
+  const base = { id, label, command, nodes: [...nodes], at: Date.now() };
+  running.set(id, { ...base, fraction: null, text: '' });
   tellJobs();
   return Object.freeze({
     id,
     progress(fraction, text = '') {
       if (!running.has(id)) return;
-      running.set(id, { id, label, fraction: Number.isFinite(fraction) ? Math.max(0, Math.min(1, fraction)) : null, text });
+      running.set(id, { ...base, fraction: Number.isFinite(fraction) ? Math.max(0, Math.min(1, fraction)) : null, text });
       tellJobs();
     },
     done() { if (running.delete(id)) tellJobs(); },

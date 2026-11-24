@@ -6,7 +6,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { areaByScb, areaByScope, areaLabel, areaList, iatasOf } from '../lib/discovery/areas.js';
-import { createDiscovery, META } from '../lib/discovery/index.js';
+import { ALIVE_COOLDOWN_MS, createDiscovery, META } from '../lib/discovery/index.js';
 import { areasTable, fakeClock, fakeJobs, HOUR, memStores, MIN, settle } from './auto-fakes.js';
 
 // `region`: an old (lou-19) node of the owner's already in the list there, so the old discovery looks there.
@@ -46,7 +46,7 @@ test('the alive scan runs every time, adds your nodes wherever they are with no 
   const [x] = await stores.devices.list();
   assert.deepEqual([x.node, x.key, x.name, x.region, x.alive.region], ['4FD099CC', K1, 'Loutest', '', 'se-jkp']);
   assert.deepEqual(d.state().last.alive, { ours: 1, offline: 1, notYours: 0 });
-  assert.equal(d.state().nextRun, d.state().lastRun + HOUR);
+  assert.equal(d.state().nextRun, d.state().lastRun + ALIVE_COOLDOWN_MS);
   const again = await d.run({ force: true });
   assert.equal(again.known, 1);
   assert.equal(again.added.length, 0);
@@ -64,7 +64,7 @@ test("the first start runs at once in an old node's region, adds every answering
   assert.deepEqual(s.last.added.map((a) => a.name).sort(), ['Gisebo', 'Torpa']);
   assert.equal(s.canUndo, true);
   assert.equal(s.lastRun, s.last.at);
-  assert.equal(s.nextRun, s.lastRun + HOUR);
+  assert.equal(s.nextRun, s.lastRun + ALIVE_COOLDOWN_MS);
 });
 
 test('at most once an hour per region, and the cooldown survives a reload', async () => {

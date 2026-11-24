@@ -257,7 +257,7 @@ test('who can relay: yours, fresh, an Observer lou-20, relaying, and not the tar
   const t = { ...target, relayHears: { [many[2].node]: { hears: true, at: iso() }, [many[0].node]: { hears: false, at: iso() } },
     relayPaths: { [many[3].node]: { pathLen: 1, path: 'A1', at: iso() } } };
   assert.deepEqual(relayCandidates(rules, [...many, t], t, now).map((c) => c.device.name), ['D', 'E', 'B', 'A']);
-  assert.deepEqual(routesFor(relayCandidates(rules, [...many, t], t, now)[3]), ['flood', 'flood-wide'], 'not a neighbour: no zero-hop route');
+  assert.deepEqual(routesFor(relayCandidates(rules, [...many, t], t, now)[3]), ['flood', 'flood-wide', 'neighbour'], 'not listed as a neighbour: the zero-hop route stays, last');
 });
 
 test('auto takes a relay only for a node without MQTT or silent on it, with no companion, and never floods', async () => {

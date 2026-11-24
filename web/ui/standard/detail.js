@@ -20,7 +20,7 @@ import { commandLine } from '../tiles/node-view.js';
 import { age, clockTime, stateMark } from '../tiles/kit.js';
 import { mapModel, nodeRegions, nodeStatus } from '../tiles/data.js';
 import { areaNodes } from '../tiles/map.js';
-import { onDataChanged } from '../tiles/sources.js';
+import { jobs, onDataChanged, onJobs } from '../tiles/sources.js';
 import { mapView } from './map.js';
 import { parseNeighbors } from './neighbours-data.js';
 
@@ -195,16 +195,29 @@ function overview(ctx, svc, device, st, release, onPick, onTab) {
   const table = h('tbody', {});
   const all = h('button', { type: 'button', class: 'tool std-small' }, ctx.t('std.allHistory'));
   all.addEventListener('click', () => onTab('history'), { signal: ctx.signal });
+  // A command on its way is a row at once, "pending" with what it waits for, until its answer
+  // (or "no answer") takes its place: through a relay or the mesh that is up to two minutes.
+  let answered = null;          // the history rows, once read
+  const pendingRows = () => jobs().filter((j) => j.nodes?.includes(device.node)).map((j) => h('tr', { class: 'std-pending' },
+    h('td', { class: 'muted std-time' }, clockTime(ctx, new Date(j.at).toISOString())), h('td', {}, h('code', {}, j.command)),
+    h('td', { role: 'status' }, stateMark(ctx, 'unknown', [ctx.t('std.pending'), j.text].filter(Boolean).join(' · ')))));
+  const drawTable = () => {
+    const waiting = pendingRows();
+    if (!waiting.length && answered && !answered.length) { table.replaceChildren(h('tr', {}, h('td', { colspan: '3', class: 'muted' }, ctx.t('node.noHistory')))); return; }
+    table.replaceChildren(...waiting, ...(answered || []));
+  };
+  ctx.signal.addEventListener('abort', onJobs(drawTable), { once: true });
+  drawTable();
   events.then((list) => {
     const recent = list.filter((e) => e.node === device.node).slice(0, 6);
-    if (!recent.length) { table.replaceChildren(h('tr', {}, h('td', { colspan: '3', class: 'muted' }, ctx.t('node.noHistory')))); return; }
-    table.replaceChildren(...recent.map((e) => {
+    answered = recent.map((e) => {
       const x = explainEvent(ctx, svc, e, device);
       const state = { ok: 'ok', refused: 'alert', forged: 'alert', silent: 'warn' }[x.kind] || 'unknown';
       const open = h('a', { href: `#result/${encodeURIComponent(e.id)}` }, h('code', {}, e.command));
       return h('tr', {}, h('td', { class: 'muted std-time' }, clockTime(ctx, e.at)), h('td', {}, open),
         h('td', {}, stateMark(ctx, state, x.kind === 'ok' ? x.text : x.kind === 'silent' ? ctx.t('history.kind.silent') : x.text)));
-    }));
+    });
+    drawTable();
   }).catch(() => {});
 
   return h('div', { class: 'std-panels' },

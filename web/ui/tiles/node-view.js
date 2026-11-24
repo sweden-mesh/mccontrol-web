@@ -358,7 +358,7 @@ export function commandLine(ctx, svc, nodeId) {
     send.disabled = true;
     // The progress is HISTORY' job bar; the answers are HISTORY' rows.
     const label = `${p.command} → ${to.length === 1 ? nameOf(to[0]) : ctx.t('tile.nNodes', { n: to.length })}`;
-    const job = startJob({ label });
+    const job = startJob({ label, command: p.command, nodes: to.map((d) => d.node) });
     try {
       const res = await svc.jobs.send({
         command: p.command, nodes: to.map((d) => d.node), road: road.value, relay,

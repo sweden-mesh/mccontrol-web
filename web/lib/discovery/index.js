@@ -38,6 +38,9 @@
 import { oldRegion, scheme } from '../jobs/scheme.js';
 
 export const COOLDOWN_MS = 60 * 60 * 1000;
+// The alive scan only reads, and a relay is trusted for two of its 15-minute alive intervals
+// (relay.js): read the alive messages well inside that, or the relay road greys out between scans.
+export const ALIVE_COOLDOWN_MS = 10 * 60 * 1000;
 export const HOUR_MS = 60 * 60 * 1000;
 export const REGIONS_PER_HOUR = 8;
 export const RUNS_PER_HOUR = 2;           // 2 broadcasts each: 4 of the broker's 5
@@ -74,6 +77,7 @@ const validRegion = (r) => (/^[A-Z0-9]{2,8}$/.test(r) ? r : null);
 export function createDiscovery({
   stores, jobs, rules = null, clock = realClock, unlocked = () => true,
   cooldownMs = COOLDOWN_MS, regionsPerHour = REGIONS_PER_HOUR, runsPerHour = RUNS_PER_HOUR,
+  aliveCooldownMs = Math.min(cooldownMs, ALIVE_COOLDOWN_MS),
 }) {
   let state = EMPTY;
   let timer = null;
@@ -119,7 +123,7 @@ export function createDiscovery({
     let next = Infinity;
     for (const r of [ALIVE, ...regionList]) {
       const last = newest(runs[r]);
-      next = Math.min(next, last === null ? now : last + cooldownMs);
+      next = Math.min(next, last === null ? now : last + (r === ALIVE ? aliveCooldownMs : cooldownMs));
     }
     // A region over the per-key cap waits until the oldest region of the last hour leaves it.
     const hourRegions = Object.entries(runs).filter(([r, list]) => r !== ALIVE && list.some((t) => now - t < HOUR_MS));
@@ -165,7 +169,7 @@ export function createDiscovery({
 
     // The alive scan: free (it only reads), so every run has one.
     const lastAlive = newest(runs[ALIVE]);
-    if (force || lastAlive === null || clock.now() - lastAlive >= cooldownMs) {
+    if (force || lastAlive === null || clock.now() - lastAlive >= aliveCooldownMs) {
       runs = { ...runs, [ALIVE]: [clock.now()] };
       await stores.meta.set(META.runs, runs);
       set({ progress: { region: null, elapsed: 0, total: 0, answered: 0 } });
