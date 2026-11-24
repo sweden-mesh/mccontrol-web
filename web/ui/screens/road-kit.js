@@ -111,7 +111,7 @@ export function relayPicker(ctx, svc, { onChange = () => {} } = {}) {
     return t(out.hears === true ? 'road.hearsYes' : out.hears === false ? 'road.hearsNo' : out.result ? 'road.hearsUnknown' : 'road.relayQuiet', names);
   }), { signal: ctx.signal });
   budget.addEventListener('click', () => ask(async (c) => {
-    const out = await svc.jobs.send({ command: 'get mqtt.relay', nodes: [c.device.node], road: 'mqtt' });
+    const out = await svc.jobs.send({ command: 'get relay', nodes: [c.device.node], road: 'mqtt' });
     const result = out.outcomes[0]?.result;
     const s = result?.ok ? parseRelayState(result.reply) : null;
     const relay = nameOf(c.device);

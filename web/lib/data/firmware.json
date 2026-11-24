@@ -80,11 +80,12 @@
  ],
  "arrived": {
   "mqtt.cmd ping": 12,
+  "cmd ping": 20,
   "ota update": 19,
-  "get mqtt.relay": 20,
+  "get relay": 20,
   "get sensors": 20,
-  "set mqtt.relay off": 20,
-  "set mqtt.relay own": 20
+  "set relay off": 20,
+  "set relay own": 20
  },
  "v2_from": 13,
  "utf8_from": 17,

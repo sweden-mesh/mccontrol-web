@@ -40,7 +40,7 @@ test('reads are in the firmware\'s formats', () => {
   assert.match(answer(s, 'get radio', ctx).reply, /^\d+\.\d+,\d+(\.\d+)?,\d+,\d+$/);
   assert.deepEqual(parseNeighbors(answer(s, 'neighbors', ctx).reply), [{ prefix: 'ABABABAB', secsAgo: 90, snr: -4.5 }, { prefix: 'CDCDCDCD', secsAgo: 400, snr: 5.5 }]);
   assert.equal(answer(s, 'neighbors', { ...ctx, neighbours: [] }).reply, '-none-');
-  assert.equal(answer(s, 'get mqtt.relay', ctx).reply, 'own');
+  assert.equal(answer(s, 'get relay', ctx).reply, 'own');
 });
 
 test('a set changes the state, a get reads it back; an unknown command gets the firmware\'s answer', () => {

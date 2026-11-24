@@ -2,7 +2,7 @@
 // UI -- receives a key handle and never sees the seed.
 //
 // A handle:
-//   publicKeyHex           64 upper-case hex, what `set mqtt.cmd.pubkey` takes
+//   publicKeyHex           64 upper-case hex, what `set cmd.pubkey` takes
 //   sign(bytes)            Ed25519 (RFC 8032, deterministic) signature, 64 bytes
 //   sharedSecret(nodeHex)  MeshCore's ed25519_key_exchange with a node's public key, 32 bytes
 //   sealLocal(bytes)       encrypt something this browser keeps beside the key (the mcc3 shared

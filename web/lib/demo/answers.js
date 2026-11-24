@@ -20,7 +20,7 @@ export function newState(world, n) {
       autoreply: 'on', 'autoreply.mode': 'channel', 'autoreply.hops': '2', 'autoreply.direct.flood': 'off', 'autoreply.private': 'off',
       'autoreply.region': DEMO_REGION, 'autoreply.slot': '1', 'autoreply.slots': '4', 'autoreply.window': '300',
       'mqtt.status': 'on', 'mqtt.packets': 'on', 'mqtt.raw': 'off', 'mqtt.neighbors': 'on', 'mqtt.iata': 'JKG', 'mqtt.interval': '300',
-      'mqtt.relay': n.kind === 'relay' ? 'own' : 'off', 'mqtt.cmd': 'on demo.invalid',
+      'relay': n.kind === 'relay' ? 'own' : 'off', 'cmd': 'on demo.invalid',
     },
     switches: { powersaving: 'off', gps: 'off' },
     regions: { home: DEMO_REGION, default: 'se', list: ['*', DEMO_REGION, 'se'] },

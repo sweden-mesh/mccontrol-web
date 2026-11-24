@@ -14,8 +14,8 @@ export const title = 'nav.setup';
 export const BAUD = 115200;
 
 // The lines, in order. The firmware reads a line up to '\r'.
-export const setupLines = (pub) => [`set mqtt.cmd.pubkey ${String(pub).toUpperCase()}`, 'set mqtt.cmd on'];
-export const CHECK_LINE = 'get mqtt.cmd.pubkey';
+export const setupLines = (pub) => [`set cmd.pubkey ${String(pub).toUpperCase()}`, 'set cmd on'];
+export const CHECK_LINE = 'get cmd.pubkey';
 export const REBOOT_LINE = 'reboot';
 export const consoleBytes = (line) => new TextEncoder().encode(`${line}\r`);
 
@@ -28,7 +28,7 @@ export const serialAvailable = (nav = globalThis.navigator) => Boolean(nav && 's
 const MAX_LOG = 8000;
 
 // What the console said after the check line was sent: the verdict reads only this, never the
-// page's own echo of `set mqtt.cmd.pubkey <key>` above it, which holds the key too (W-12).
+// page's own echo of `set cmd.pubkey <key>` above it, which holds the key too (W-12).
 export function consoleLog(max = MAX_LOG) {
   let text = '';
   let since = null;

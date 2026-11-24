@@ -182,6 +182,8 @@ export function rulesFrom({ denylist, cautions, commands, firmware, facts }) {
 
   // Why the firmware will refuse `command` over the mesh road, or null when it travels.
   function meshRefusal(command, meshOnly = false) {
+    // lou-20: a clock step, matched whole as typed, travels the mesh road on every node.
+    if (mesh.clock_step_pattern && new RegExp(mesh.clock_step_pattern).test(command || '')) return null;
     if (meshOnly) {
       if (needsUplink(command) || meshAllowed(squash(command))) return mesh.mesh_only_why;
       return refusal(command);

@@ -3,8 +3,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { suggestionsFor } from '../ui/command-combo.js';
 
-const rules = { admits: (ver, c) => !(ver === 'old' && c.startsWith('set mqtt')), deviceMeshOnly: (d) => Boolean(d.meshOnly), features: (v) => (v === 'bare' ? '' : 'arrc') };
-const lines = [{ text: 'ver', command: 'ver' }, { text: 'set mqtt.cmd on', command: 'set mqtt.cmd on' }];
+const rules = { admits: (ver, c) => !(ver === 'old' && c.startsWith('set cmd')), deviceMeshOnly: (d) => Boolean(d.meshOnly), features: (v) => (v === 'bare' ? '' : 'arrc') };
+const lines = [{ text: 'ver', command: 'ver' }, { text: 'set cmd on', command: 'set cmd on' }];
 const svc = { rules };
 
 test('a known version filters, an unknown one lists all and says so', () => {

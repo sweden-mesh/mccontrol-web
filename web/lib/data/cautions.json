@@ -71,7 +71,7 @@
    "why": "changes the Wi-Fi password the node uses; a wrong one keeps it off MQTT until the mesh road sets it again."
   },
   {
-   "prefix": "set mqtt.cmd on",
+   "prefix": "set cmd on",
    "why": "points the node's command slot at a broker; a wrong one keeps it off the control plane until the mesh road sets it again."
   }
  ]

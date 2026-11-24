@@ -52,7 +52,7 @@ export function demoPlane(world, { rules, now = () => Date.now(), delay = demoDe
     const at = now();
     const uptime = Math.floor((at - x.state.started) / 1000);
     x.sequence += 1;
-    const relays = x.state.settings['mqtt.relay'] === 'own' && rules.canRelay(x.state.version) === true;
+    const relays = x.state.settings['relay'] === 'own' && rules.canRelay(x.state.version) === true;
     broker.retain(mcc3.aliveTopic(x.n.key), mcc3.sealAlive(x.keys, { boot: x.state.boot, sequence: Math.floor(uptime / 900) + x.sequence, uptime,
       clock: Math.floor(at / 1000), last_counter: x.lastCounter, interval: 900, flags: UPLINK | (relays ? mcc3.ALIVE_FLAG_RELAY : 0), mesh: 1,
       fingerprint: owner.slice(0, 8), via: 0, version: x.state.version, region: DEMO_REGION, name: x.state.name }));
@@ -74,13 +74,13 @@ export function demoPlane(world, { rules, now = () => Date.now(), delay = demoDe
     x.sent = within(x.sent, at);
     if (x.sent.length >= RATE_PER_HOUR) return { code: CODE['rate-limited'], reply: '' };
     x.sent.push(at);
-    const wasRelay = x.state.settings['mqtt.relay'];
+    const wasRelay = x.state.settings['relay'];
     const wasName = x.state.name;
     const out = answer(x.state, command, { now: at, neighbours: neighbours(x) });
     if (rebooting(x)) {
       // A restart: silent for the while, then up again with a new boot number and a fresh alive.
       later(Math.max(0, x.state.rebootUntil - at) || 0, () => { x.state.boot += 1; x.state.started = now(); x.sequence = 0; if (x.n.kind !== 'mesh') alive(x); });
-    } else if (x.n.kind !== 'mesh' && (wasRelay !== x.state.settings['mqtt.relay'] || wasName !== x.state.name)) alive(x);
+    } else if (x.n.kind !== 'mesh' && (wasRelay !== x.state.settings['relay'] || wasName !== x.state.name)) alive(x);
     return out;
   }
 
@@ -91,7 +91,7 @@ export function demoPlane(world, { rules, now = () => Date.now(), delay = demoDe
     const at = now();
     const clock = Math.floor(at / 1000);
     const say = (status, more = {}) => later(delay(x.n, 'relay'), () => broker.publish(mcc3.replyTopic(f.rid), mcc3.sealForwardResult(x.keys, f.counter, status, clock, more)));
-    if (x.state.settings['mqtt.relay'] !== 'own') return say(FWD.off), true;
+    if (x.state.settings['relay'] !== 'own') return say(FWD.off), true;
     if (f.expiry < clock || f.expiry > clock + mcc3.FORWARD_MAX_TTL) return say(FWD.expired), true;
     if (x.lastForward !== null && f.counter <= x.lastForward) return say(FWD.replay), true;
     x.lastForward = f.counter;

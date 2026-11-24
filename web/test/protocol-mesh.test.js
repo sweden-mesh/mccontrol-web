@@ -110,7 +110,7 @@ test('which firmware speaks the mesh road, and which is mesh only', () => {
 // meshcore/JKG/<whole key>/cmd, the topic the firmware rebuilds for a node with an IATA
 // (mqttCtrlMeshRegion: its mqtt.iata, upper case since set). A node only answers a request whose
 // signature and counter it accepts, so the refusal was the node's own: 19 mesh-closed, its
-// mqtt.cmd.mesh being auto with MQTT up. Nothing to fix on either side.
+// cmd.mesh being auto with MQTT up. Nothing to fix on either side.
 test('LOUTEST: the web app\'s mesh ver is the CLI\'s, byte for byte', async () => {
   const { createHash } = await import('node:crypto');
   const { meshRequest, meshTopic } = await import('../lib/protocol/mesh.js');

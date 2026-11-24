@@ -93,7 +93,7 @@ export function demoHistory(world) {
   add('DEMO-Granbo', 26, 'ver', 0, by('DEMO-Granbo').fw, { road: 'mesh', note: 'through DEMO-Kvarnberget' });
   add('DEMO-Lövåsen', 20, 'ver', 0, by('DEMO-Lövåsen').fw);
   add('DEMO-Vattentornet', 6, 'get autoreply', 0, 'on');
-  add('DEMO-Kvarnberget', 2, 'get mqtt.relay', 0, 'own');
+  add('DEMO-Kvarnberget', 2, 'get relay', 0, 'own');
   add('DEMO-Sjöudden', 1, 'clock', 0, '12:00 - 1/1/2026 UTC');
   return out.sort((a, b) => b.hoursAgo - a.hoursAgo);
 }

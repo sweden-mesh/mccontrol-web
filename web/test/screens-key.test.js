@@ -59,9 +59,9 @@ test('unlock: passphrases and what an import holds', () => {
 
 test('set-up: the console lines, the line ending, and when the node asks for a reboot', () => {
   assert.equal(BAUD, 115200);
-  assert.deepEqual(setupLines(KEY.toLowerCase()), [`set mqtt.cmd.pubkey ${KEY}`, 'set mqtt.cmd on']);
+  assert.deepEqual(setupLines(KEY.toLowerCase()), [`set cmd.pubkey ${KEY}`, 'set cmd on']);
   assert.deepEqual([...consoleBytes('ver')], [118, 101, 114, 13], 'the firmware reads a line up to \\r');
-  assert.equal(asksReboot('> set mqtt.cmd on\nOK - reboot to apply\n'), true);
+  assert.equal(asksReboot('> set cmd on\nOK - reboot to apply\n'), true);
   assert.equal(asksReboot('OK\n'), false);
   assert.equal(showsKey(`> ${KEY.toLowerCase()}`, KEY), true);
   assert.equal(showsKey('> (none)', KEY), false);
@@ -228,8 +228,8 @@ test('every string the new screens use exists in both languages', () => {
 test('the key check reads only what the console said after the check line, not our echo (W-12)', () => {
   const pub = 'AB'.repeat(32);
   const said = consoleLog(200);
-  said.append(`> set mqtt.cmd.pubkey ${pub}\nOK - reboot to apply\n`);
-  said.append('> get mqtt.cmd.pubkey\n');
+  said.append(`> set cmd.pubkey ${pub}\nOK - reboot to apply\n`);
+  said.append('> get cmd.pubkey\n');
   said.mark();
   said.append('> (not set)\n');
   assert.equal(showsKey(said.sinceMark(), pub), false);

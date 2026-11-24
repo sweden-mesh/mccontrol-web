@@ -40,7 +40,7 @@ test('a typed line is an instance of the longest command it starts with', () => 
   assert.equal(commandOf(table, 'region').text, 'region');
   assert.equal(commandOf(table, 'get autoreply').text, 'get autoreply');
   assert.equal(commandOf(table, 'get mqtt1.server').text, 'get', 'the generic read');
-  assert.equal(commandOf(table, 'set mqtt.cmd on').text, 'set', 'the generic write');
+  assert.equal(commandOf(table, 'set cmd on').text, 'set', 'the generic write');
   assert.equal(commandOf(table, 'regionx'), null, 'a prefix of a word is not a match');
   assert.equal(commandOf(table, '  '), null);
   assert.equal(commandHelp(t, table, 'region save'), en['palette.cmd.region save']);

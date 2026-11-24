@@ -164,7 +164,7 @@ export function createJobs({
       const value = valueOf(result.reply);
       if (command === 'ver' && value) await stores.devices.update(device.node, { ver: value.slice(0, 60) });
       // The node's own word on its relaying, until its next alive says it again.
-      const relaying = /^set mqtt\.relay (off|own)$/.exec(command);
+      const relaying = /^set relay (off|own)$/.exec(command);
       if (relaying && device.alive) await stores.devices.update(device.node, { alive: { ...device.alive, relay: relaying[1] === 'own' } });
       if (command === 'get name' && value && !device.name) {
         try { await stores.devices.update(device.node, { name: value.slice(0, 40) }); } catch { /* the name is taken */ }
@@ -418,7 +418,9 @@ export function createJobs({
   // result, reason?, event? }], answered, asked }. `reason` ({ code, vars }) is why a member
   // was not sent to; `result` null with sent true is silence.
   async function send({ command, nodes, group, area, road = 'mqtt', relay = null, onProgress, signal } = {}) {
-    const text = String(command || '').split(/\s+/).filter(Boolean).join(' ');
+    let text = String(command || '').split(/\s+/).filter(Boolean).join(' ');
+    // `time now`: this computer's clock, for a node whose own fell behind (lou-20, the mesh road).
+    if (text.toLowerCase() === 'time now') text = `time ${Math.floor(Date.now() / 1000)}`;
     const target = await targets({ nodes, group, area });
     vet([text], target, road);
     const batch = batchId();

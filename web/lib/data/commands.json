@@ -152,7 +152,7 @@
    "read": true
   },
   {
-   "text": "get mqtt.cmd",
+   "text": "get cmd",
    "group": "reads",
    "kind": "none",
    "choices": [],
@@ -160,7 +160,7 @@
    "read": true
   },
   {
-   "text": "get mqtt.relay",
+   "text": "get relay",
    "group": "reads",
    "kind": "none",
    "choices": [],
@@ -620,7 +620,7 @@
    "read": false
   },
   {
-   "text": "set mqtt.relay",
+   "text": "set relay",
    "group": "MQTT",
    "kind": "choice",
    "choices": [

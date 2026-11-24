@@ -394,14 +394,14 @@ test('Check neighbours: one read to the relay over MQTT, the finding kept on the
   assert.equal((await vague.stores.devices.get(T)).relayHears[R].hears, true);
 });
 
-test('set mqtt.relay off|own: the node\'s OK is its word until the next alive', async () => {
+test('set relay off|own: the node\'s OK is its word until the next alive', async () => {
   const { jobs, stores } = await setup();
-  await jobs.send({ command: 'set mqtt.relay off', nodes: [R] });
+  await jobs.send({ command: 'set relay off', nodes: [R] });
   assert.equal((await stores.devices.get(R)).alive.relay, false);
   assert.equal(relayRefusal(rules, await stores.devices.get(R), { node: T }).code, 'relayOff');
-  await jobs.send({ command: 'set mqtt.relay own', nodes: [R] });
+  await jobs.send({ command: 'set relay own', nodes: [R] });
   assert.equal((await stores.devices.get(R)).alive.relay, true);
-  assert.equal(rules.refusal('set mqtt.relay own'), null, 'not on the deny list');
+  assert.equal(rules.refusal('set relay own'), null, 'not on the deny list');
 });
 
 test('importing history keeps a relay event and refuses a made-up one', async () => {

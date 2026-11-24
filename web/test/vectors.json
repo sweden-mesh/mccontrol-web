@@ -413,19 +413,19 @@
     "refusal": "denied: a secret"
    },
    {
-    "command": "set mqtt.cmd on",
+    "command": "set cmd on",
     "refusal": "denied: the control plane itself: it would take the node off it"
    },
    {
-    "command": "set mqtt.cmd.pubkey AA",
+    "command": "set cmd.pubkey AA",
     "refusal": "denied: the control plane itself: it would take the node off it"
    },
    {
-    "command": "get mqtt.cmd",
+    "command": "get cmd",
     "refusal": null
    },
    {
-    "command": "get mqtt.cmd.pubkey",
+    "command": "get cmd.pubkey",
     "refusal": "denied: the command key"
    },
    {
@@ -577,7 +577,7 @@
     "refusal": null
    },
    {
-    "command": "mqtt.cmd ping",
+    "command": "cmd ping",
     "refusal": null
    },
    {
@@ -641,19 +641,19 @@
     "refusal": "denied: the radio"
    },
    {
-    "command": "set mqtt.relay own",
+    "command": "set relay own",
     "refusal": null
    },
    {
-    "command": "set mqtt.relay off",
+    "command": "set relay off",
     "refusal": null
    },
    {
-    "command": "get mqtt.relay",
+    "command": "get relay",
     "refusal": null
    },
    {
-    "command": "set mqtt.cmd.relay own",
+    "command": "set cmd.relay own",
     "refusal": "denied: the control plane itself: it would take the node off it"
    }
   ],
@@ -695,19 +695,19 @@
     "caution": null
    },
    {
-    "command": "set mqtt.cmd on",
+    "command": "set cmd on",
     "caution": "points the node's command slot at a broker; a wrong one keeps it off the control plane until the mesh road sets it again."
    },
    {
-    "command": "set mqtt.cmd.pubkey AA",
+    "command": "set cmd.pubkey AA",
     "caution": null
    },
    {
-    "command": "get mqtt.cmd",
+    "command": "get cmd",
     "caution": null
    },
    {
-    "command": "get mqtt.cmd.pubkey",
+    "command": "get cmd.pubkey",
     "caution": null
    },
    {
@@ -859,7 +859,7 @@
     "caution": "renames the node as the whole mesh sees it in every advert."
    },
    {
-    "command": "mqtt.cmd ping",
+    "command": "cmd ping",
     "caution": null
    },
    {
@@ -923,19 +923,19 @@
     "caution": null
    },
    {
-    "command": "set mqtt.relay own",
+    "command": "set relay own",
     "caution": null
    },
    {
-    "command": "set mqtt.relay off",
+    "command": "set relay off",
     "caution": null
    },
    {
-    "command": "get mqtt.relay",
+    "command": "get relay",
     "caution": null
    },
    {
-    "command": "set mqtt.cmd.relay own",
+    "command": "set cmd.relay own",
     "caution": null
    }
   ],
@@ -977,19 +977,19 @@
     "read": false
    },
    {
-    "command": "set mqtt.cmd on",
+    "command": "set cmd on",
     "read": false
    },
    {
-    "command": "set mqtt.cmd.pubkey AA",
+    "command": "set cmd.pubkey AA",
     "read": false
    },
    {
-    "command": "get mqtt.cmd",
+    "command": "get cmd",
     "read": true
    },
    {
-    "command": "get mqtt.cmd.pubkey",
+    "command": "get cmd.pubkey",
     "read": true
    },
    {
@@ -1141,7 +1141,7 @@
     "read": false
    },
    {
-    "command": "mqtt.cmd ping",
+    "command": "cmd ping",
     "read": false
    },
    {
@@ -1205,19 +1205,19 @@
     "read": false
    },
    {
-    "command": "set mqtt.relay own",
+    "command": "set relay own",
     "read": false
    },
    {
-    "command": "set mqtt.relay off",
+    "command": "set relay off",
     "read": false
    },
    {
-    "command": "get mqtt.relay",
+    "command": "get relay",
     "read": true
    },
    {
-    "command": "set mqtt.cmd.relay own",
+    "command": "set cmd.relay own",
     "read": false
    }
   ],
@@ -1259,19 +1259,19 @@
     "transmit": false
    },
    {
-    "command": "set mqtt.cmd on",
+    "command": "set cmd on",
     "transmit": false
    },
    {
-    "command": "set mqtt.cmd.pubkey AA",
+    "command": "set cmd.pubkey AA",
     "transmit": false
    },
    {
-    "command": "get mqtt.cmd",
+    "command": "get cmd",
     "transmit": false
    },
    {
-    "command": "get mqtt.cmd.pubkey",
+    "command": "get cmd.pubkey",
     "transmit": false
    },
    {
@@ -1423,7 +1423,7 @@
     "transmit": false
    },
    {
-    "command": "mqtt.cmd ping",
+    "command": "cmd ping",
     "transmit": false
    },
    {
@@ -1487,19 +1487,19 @@
     "transmit": false
    },
    {
-    "command": "set mqtt.relay own",
+    "command": "set relay own",
     "transmit": false
    },
    {
-    "command": "set mqtt.relay off",
+    "command": "set relay off",
     "transmit": false
    },
    {
-    "command": "get mqtt.relay",
+    "command": "get relay",
     "transmit": false
    },
    {
-    "command": "set mqtt.cmd.relay own",
+    "command": "set cmd.relay own",
     "transmit": false
    }
   ],
@@ -1541,19 +1541,19 @@
     "refusal": null
    },
    {
-    "command": "set mqtt.cmd on",
+    "command": "set cmd on",
     "refusal": null
    },
    {
-    "command": "set mqtt.cmd.pubkey AA",
+    "command": "set cmd.pubkey AA",
     "refusal": null
    },
    {
-    "command": "get mqtt.cmd",
+    "command": "get cmd",
     "refusal": null
    },
    {
-    "command": "get mqtt.cmd.pubkey",
+    "command": "get cmd.pubkey",
     "refusal": null
    },
    {
@@ -1705,7 +1705,7 @@
     "refusal": null
    },
    {
-    "command": "mqtt.cmd ping",
+    "command": "cmd ping",
     "refusal": null
    },
    {
@@ -1769,19 +1769,19 @@
     "refusal": null
    },
    {
-    "command": "set mqtt.relay own",
+    "command": "set relay own",
     "refusal": null
    },
    {
-    "command": "set mqtt.relay off",
+    "command": "set relay off",
     "refusal": null
    },
    {
-    "command": "get mqtt.relay",
+    "command": "get relay",
     "refusal": null
    },
    {
-    "command": "set mqtt.cmd.relay own",
+    "command": "set cmd.relay own",
     "refusal": null
    }
   ],
@@ -1823,19 +1823,19 @@
     "tag": null
    },
    {
-    "command": "set mqtt.cmd on",
+    "command": "set cmd on",
     "tag": null
    },
    {
-    "command": "set mqtt.cmd.pubkey AA",
+    "command": "set cmd.pubkey AA",
     "tag": null
    },
    {
-    "command": "get mqtt.cmd",
+    "command": "get cmd",
     "tag": "ar-11"
    },
    {
-    "command": "get mqtt.cmd.pubkey",
+    "command": "get cmd.pubkey",
     "tag": null
    },
    {
@@ -1987,8 +1987,8 @@
     "tag": "ar-11"
    },
    {
-    "command": "mqtt.cmd ping",
-    "tag": "ar-12"
+    "command": "cmd ping",
+    "tag": "lou-20"
    },
    {
     "command": "advert",
@@ -2051,19 +2051,19 @@
     "tag": null
    },
    {
-    "command": "set mqtt.relay own",
+    "command": "set relay own",
     "tag": "lou-20"
    },
    {
-    "command": "set mqtt.relay off",
+    "command": "set relay off",
     "tag": "lou-20"
    },
    {
-    "command": "get mqtt.relay",
+    "command": "get relay",
     "tag": "lou-20"
    },
    {
-    "command": "set mqtt.cmd.relay own",
+    "command": "set cmd.relay own",
     "tag": null
    }
   ],
@@ -2083,14 +2083,14 @@
      "set autoreply on": true,
      "trigger test": true,
      "region": false,
-     "mqtt.cmd ping": false,
+     "cmd ping": false,
      "get stats": false,
      "set txdelay 0.5": false,
      "get txdelay": true,
      "set prv.key 00": false,
      "ota update": false,
-     "set mqtt.relay own": false,
-     "get mqtt.relay": false
+     "set relay own": false,
+     "get relay": false
     },
     "lacks": {
      "ver": null,
@@ -2098,14 +2098,14 @@
      "set autoreply on": null,
      "trigger test": null,
      "region": null,
-     "mqtt.cmd ping": null,
+     "cmd ping": null,
      "get stats": null,
      "set txdelay 0.5": null,
      "get txdelay": null,
      "set prv.key 00": null,
      "ota update": null,
-     "set mqtt.relay own": null,
-     "get mqtt.relay": null
+     "set relay own": null,
+     "get relay": null
     }
    },
    {
@@ -2123,14 +2123,14 @@
      "set autoreply on": true,
      "trigger test": true,
      "region": false,
-     "mqtt.cmd ping": false,
+     "cmd ping": false,
      "get stats": false,
      "set txdelay 0.5": false,
      "get txdelay": true,
      "set prv.key 00": false,
      "ota update": false,
-     "set mqtt.relay own": false,
-     "get mqtt.relay": false
+     "set relay own": false,
+     "get relay": false
     },
     "lacks": {
      "ver": null,
@@ -2138,14 +2138,14 @@
      "set autoreply on": null,
      "trigger test": null,
      "region": null,
-     "mqtt.cmd ping": null,
+     "cmd ping": null,
      "get stats": null,
      "set txdelay 0.5": null,
      "get txdelay": null,
      "set prv.key 00": null,
      "ota update": null,
-     "set mqtt.relay own": null,
-     "get mqtt.relay": null
+     "set relay own": null,
+     "get relay": null
     }
    },
    {
@@ -2163,14 +2163,14 @@
      "set autoreply on": true,
      "trigger test": true,
      "region": false,
-     "mqtt.cmd ping": false,
+     "cmd ping": false,
      "get stats": false,
      "set txdelay 0.5": false,
      "get txdelay": true,
      "set prv.key 00": false,
      "ota update": false,
-     "set mqtt.relay own": false,
-     "get mqtt.relay": false
+     "set relay own": false,
+     "get relay": false
     },
     "lacks": {
      "ver": null,
@@ -2178,14 +2178,14 @@
      "set autoreply on": null,
      "trigger test": null,
      "region": null,
-     "mqtt.cmd ping": null,
+     "cmd ping": null,
      "get stats": null,
      "set txdelay 0.5": null,
      "get txdelay": null,
      "set prv.key 00": null,
      "ota update": null,
-     "set mqtt.relay own": null,
-     "get mqtt.relay": null
+     "set relay own": null,
+     "get relay": null
     }
    },
    {
@@ -2203,14 +2203,14 @@
      "set autoreply on": true,
      "trigger test": true,
      "region": false,
-     "mqtt.cmd ping": false,
+     "cmd ping": false,
      "get stats": false,
      "set txdelay 0.5": false,
      "get txdelay": true,
      "set prv.key 00": false,
      "ota update": false,
-     "set mqtt.relay own": false,
-     "get mqtt.relay": false
+     "set relay own": false,
+     "get relay": false
     },
     "lacks": {
      "ver": null,
@@ -2218,14 +2218,14 @@
      "set autoreply on": null,
      "trigger test": null,
      "region": null,
-     "mqtt.cmd ping": null,
+     "cmd ping": null,
      "get stats": null,
      "set txdelay 0.5": null,
      "get txdelay": null,
      "set prv.key 00": null,
      "ota update": null,
-     "set mqtt.relay own": null,
-     "get mqtt.relay": null
+     "set relay own": null,
+     "get relay": null
     }
    },
    {
@@ -2243,14 +2243,14 @@
      "set autoreply on": true,
      "trigger test": true,
      "region": true,
-     "mqtt.cmd ping": false,
+     "cmd ping": false,
      "get stats": true,
      "set txdelay 0.5": true,
      "get txdelay": true,
      "set prv.key 00": false,
      "ota update": false,
-     "set mqtt.relay own": false,
-     "get mqtt.relay": false
+     "set relay own": false,
+     "get relay": false
     },
     "lacks": {
      "ver": null,
@@ -2258,14 +2258,14 @@
      "set autoreply on": null,
      "trigger test": null,
      "region": null,
-     "mqtt.cmd ping": null,
+     "cmd ping": null,
      "get stats": null,
      "set txdelay 0.5": null,
      "get txdelay": null,
      "set prv.key 00": null,
      "ota update": null,
-     "set mqtt.relay own": null,
-     "get mqtt.relay": null
+     "set relay own": null,
+     "get relay": null
     }
    },
    {
@@ -2283,14 +2283,14 @@
      "set autoreply on": true,
      "trigger test": true,
      "region": true,
-     "mqtt.cmd ping": true,
+     "cmd ping": false,
      "get stats": true,
      "set txdelay 0.5": true,
      "get txdelay": true,
      "set prv.key 00": false,
      "ota update": false,
-     "set mqtt.relay own": false,
-     "get mqtt.relay": false
+     "set relay own": false,
+     "get relay": false
     },
     "lacks": {
      "ver": null,
@@ -2298,14 +2298,14 @@
      "set autoreply on": null,
      "trigger test": null,
      "region": null,
-     "mqtt.cmd ping": null,
+     "cmd ping": null,
      "get stats": null,
      "set txdelay 0.5": null,
      "get txdelay": null,
      "set prv.key 00": null,
      "ota update": null,
-     "set mqtt.relay own": null,
-     "get mqtt.relay": null
+     "set relay own": null,
+     "get relay": null
     }
    },
    {
@@ -2323,14 +2323,14 @@
      "set autoreply on": true,
      "trigger test": true,
      "region": true,
-     "mqtt.cmd ping": true,
+     "cmd ping": false,
      "get stats": true,
      "set txdelay 0.5": true,
      "get txdelay": true,
      "set prv.key 00": false,
      "ota update": false,
-     "set mqtt.relay own": false,
-     "get mqtt.relay": false
+     "set relay own": false,
+     "get relay": false
     },
     "lacks": {
      "ver": null,
@@ -2338,14 +2338,14 @@
      "set autoreply on": null,
      "trigger test": null,
      "region": null,
-     "mqtt.cmd ping": null,
+     "cmd ping": null,
      "get stats": null,
      "set txdelay 0.5": null,
      "get txdelay": null,
      "set prv.key 00": null,
      "ota update": null,
-     "set mqtt.relay own": null,
-     "get mqtt.relay": null
+     "set relay own": null,
+     "get relay": null
     }
    },
    {
@@ -2363,14 +2363,14 @@
      "set autoreply on": true,
      "trigger test": true,
      "region": true,
-     "mqtt.cmd ping": true,
+     "cmd ping": false,
      "get stats": true,
      "set txdelay 0.5": true,
      "get txdelay": true,
      "set prv.key 00": false,
      "ota update": false,
-     "set mqtt.relay own": false,
-     "get mqtt.relay": false
+     "set relay own": false,
+     "get relay": false
     },
     "lacks": {
      "ver": null,
@@ -2378,14 +2378,14 @@
      "set autoreply on": null,
      "trigger test": null,
      "region": null,
-     "mqtt.cmd ping": null,
+     "cmd ping": null,
      "get stats": null,
      "set txdelay 0.5": null,
      "get txdelay": null,
      "set prv.key 00": null,
      "ota update": null,
-     "set mqtt.relay own": null,
-     "get mqtt.relay": null
+     "set relay own": null,
+     "get relay": null
     }
    },
    {
@@ -2403,14 +2403,14 @@
      "set autoreply on": false,
      "trigger test": false,
      "region": false,
-     "mqtt.cmd ping": false,
+     "cmd ping": false,
      "get stats": false,
      "set txdelay 0.5": false,
      "get txdelay": false,
      "set prv.key 00": false,
      "ota update": false,
-     "set mqtt.relay own": false,
-     "get mqtt.relay": false
+     "set relay own": false,
+     "get relay": false
     },
     "lacks": {
      "ver": "rc",
@@ -2418,14 +2418,14 @@
      "set autoreply on": "rc",
      "trigger test": "rc",
      "region": "rc",
-     "mqtt.cmd ping": "rc",
+     "cmd ping": "rc",
      "get stats": "rc",
      "set txdelay 0.5": "rc",
      "get txdelay": "rc",
      "set prv.key 00": "rc",
      "ota update": "rc",
-     "set mqtt.relay own": "rc",
-     "get mqtt.relay": "rc"
+     "set relay own": "rc",
+     "get relay": "rc"
     }
    },
    {
@@ -2443,14 +2443,14 @@
      "set autoreply on": false,
      "trigger test": false,
      "region": true,
-     "mqtt.cmd ping": true,
+     "cmd ping": false,
      "get stats": true,
      "set txdelay 0.5": true,
      "get txdelay": true,
      "set prv.key 00": false,
      "ota update": false,
-     "set mqtt.relay own": false,
-     "get mqtt.relay": false
+     "set relay own": false,
+     "get relay": false
     },
     "lacks": {
      "ver": null,
@@ -2458,14 +2458,14 @@
      "set autoreply on": "ar",
      "trigger test": "ar",
      "region": null,
-     "mqtt.cmd ping": null,
+     "cmd ping": null,
      "get stats": null,
      "set txdelay 0.5": null,
      "get txdelay": null,
      "set prv.key 00": null,
      "ota update": null,
-     "set mqtt.relay own": null,
-     "get mqtt.relay": null
+     "set relay own": null,
+     "get relay": null
     }
    },
    {
@@ -2483,14 +2483,14 @@
      "set autoreply on": true,
      "trigger test": true,
      "region": true,
-     "mqtt.cmd ping": true,
+     "cmd ping": false,
      "get stats": true,
      "set txdelay 0.5": true,
      "get txdelay": true,
      "set prv.key 00": false,
      "ota update": false,
-     "set mqtt.relay own": false,
-     "get mqtt.relay": false
+     "set relay own": false,
+     "get relay": false
     },
     "lacks": {
      "ver": null,
@@ -2498,14 +2498,14 @@
      "set autoreply on": null,
      "trigger test": null,
      "region": null,
-     "mqtt.cmd ping": null,
+     "cmd ping": null,
      "get stats": null,
      "set txdelay 0.5": null,
      "get txdelay": null,
      "set prv.key 00": null,
      "ota update": null,
-     "set mqtt.relay own": null,
-     "get mqtt.relay": null
+     "set relay own": null,
+     "get relay": null
     }
    },
    {
@@ -2523,14 +2523,14 @@
      "set autoreply on": true,
      "trigger test": true,
      "region": true,
-     "mqtt.cmd ping": true,
+     "cmd ping": false,
      "get stats": true,
      "set txdelay 0.5": true,
      "get txdelay": true,
      "set prv.key 00": false,
      "ota update": false,
-     "set mqtt.relay own": false,
-     "get mqtt.relay": false
+     "set relay own": false,
+     "get relay": false
     },
     "lacks": {
      "ver": null,
@@ -2538,14 +2538,14 @@
      "set autoreply on": null,
      "trigger test": null,
      "region": null,
-     "mqtt.cmd ping": null,
+     "cmd ping": null,
      "get stats": null,
      "set txdelay 0.5": null,
      "get txdelay": null,
      "set prv.key 00": null,
      "ota update": null,
-     "set mqtt.relay own": null,
-     "get mqtt.relay": null
+     "set relay own": null,
+     "get relay": null
     }
    },
    {
@@ -2563,14 +2563,14 @@
      "set autoreply on": true,
      "trigger test": true,
      "region": true,
-     "mqtt.cmd ping": true,
+     "cmd ping": false,
      "get stats": true,
      "set txdelay 0.5": true,
      "get txdelay": true,
      "set prv.key 00": false,
      "ota update": false,
-     "set mqtt.relay own": false,
-     "get mqtt.relay": false
+     "set relay own": false,
+     "get relay": false
     },
     "lacks": {
      "ver": null,
@@ -2578,14 +2578,14 @@
      "set autoreply on": null,
      "trigger test": null,
      "region": null,
-     "mqtt.cmd ping": null,
+     "cmd ping": null,
      "get stats": null,
      "set txdelay 0.5": null,
      "get txdelay": null,
      "set prv.key 00": null,
      "ota update": null,
-     "set mqtt.relay own": null,
-     "get mqtt.relay": null
+     "set relay own": null,
+     "get relay": null
     }
    },
    {
@@ -2603,14 +2603,14 @@
      "set autoreply on": true,
      "trigger test": true,
      "region": true,
-     "mqtt.cmd ping": true,
+     "cmd ping": false,
      "get stats": true,
      "set txdelay 0.5": true,
      "get txdelay": true,
      "set prv.key 00": false,
      "ota update": true,
-     "set mqtt.relay own": false,
-     "get mqtt.relay": false
+     "set relay own": false,
+     "get relay": false
     },
     "lacks": {
      "ver": null,
@@ -2618,14 +2618,14 @@
      "set autoreply on": null,
      "trigger test": null,
      "region": null,
-     "mqtt.cmd ping": null,
+     "cmd ping": null,
      "get stats": null,
      "set txdelay 0.5": null,
      "get txdelay": null,
      "set prv.key 00": null,
      "ota update": null,
-     "set mqtt.relay own": null,
-     "get mqtt.relay": null
+     "set relay own": null,
+     "get relay": null
     }
    },
    {
@@ -2643,14 +2643,14 @@
      "set autoreply on": false,
      "trigger test": false,
      "region": false,
-     "mqtt.cmd ping": false,
+     "cmd ping": false,
      "get stats": false,
      "set txdelay 0.5": false,
      "get txdelay": false,
      "set prv.key 00": false,
      "ota update": false,
-     "set mqtt.relay own": false,
-     "get mqtt.relay": false
+     "set relay own": false,
+     "get relay": false
     },
     "lacks": {
      "ver": "rc",
@@ -2658,14 +2658,14 @@
      "set autoreply on": "rc",
      "trigger test": "rc",
      "region": "rc",
-     "mqtt.cmd ping": "rc",
+     "cmd ping": "rc",
      "get stats": "rc",
      "set txdelay 0.5": "rc",
      "get txdelay": "rc",
      "set prv.key 00": "rc",
      "ota update": "rc",
-     "set mqtt.relay own": "rc",
-     "get mqtt.relay": "rc"
+     "set relay own": "rc",
+     "get relay": "rc"
     }
    },
    {
@@ -2683,14 +2683,14 @@
      "set autoreply on": false,
      "trigger test": false,
      "region": true,
-     "mqtt.cmd ping": true,
+     "cmd ping": false,
      "get stats": true,
      "set txdelay 0.5": true,
      "get txdelay": true,
      "set prv.key 00": false,
      "ota update": true,
-     "set mqtt.relay own": false,
-     "get mqtt.relay": false
+     "set relay own": false,
+     "get relay": false
     },
     "lacks": {
      "ver": null,
@@ -2698,14 +2698,14 @@
      "set autoreply on": "ar",
      "trigger test": "ar",
      "region": null,
-     "mqtt.cmd ping": null,
+     "cmd ping": null,
      "get stats": null,
      "set txdelay 0.5": null,
      "get txdelay": null,
      "set prv.key 00": null,
      "ota update": null,
-     "set mqtt.relay own": null,
-     "get mqtt.relay": null
+     "set relay own": null,
+     "get relay": null
     }
    },
    {
@@ -2723,14 +2723,14 @@
      "set autoreply on": true,
      "trigger test": true,
      "region": true,
-     "mqtt.cmd ping": true,
+     "cmd ping": false,
      "get stats": true,
      "set txdelay 0.5": true,
      "get txdelay": true,
      "set prv.key 00": false,
      "ota update": true,
-     "set mqtt.relay own": false,
-     "get mqtt.relay": false
+     "set relay own": false,
+     "get relay": false
     },
     "lacks": {
      "ver": null,
@@ -2738,14 +2738,14 @@
      "set autoreply on": null,
      "trigger test": null,
      "region": null,
-     "mqtt.cmd ping": null,
+     "cmd ping": null,
      "get stats": null,
      "set txdelay 0.5": null,
      "get txdelay": null,
      "set prv.key 00": null,
      "ota update": null,
-     "set mqtt.relay own": null,
-     "get mqtt.relay": null
+     "set relay own": null,
+     "get relay": null
     }
    },
    {
@@ -2763,14 +2763,14 @@
      "set autoreply on": false,
      "trigger test": false,
      "region": false,
-     "mqtt.cmd ping": false,
+     "cmd ping": false,
      "get stats": false,
      "set txdelay 0.5": false,
      "get txdelay": false,
      "set prv.key 00": false,
      "ota update": false,
-     "set mqtt.relay own": false,
-     "get mqtt.relay": false
+     "set relay own": false,
+     "get relay": false
     },
     "lacks": {
      "ver": "rc",
@@ -2778,14 +2778,14 @@
      "set autoreply on": "rc",
      "trigger test": "rc",
      "region": "rc",
-     "mqtt.cmd ping": "rc",
+     "cmd ping": "rc",
      "get stats": "rc",
      "set txdelay 0.5": "rc",
      "get txdelay": "rc",
      "set prv.key 00": "rc",
      "ota update": "rc",
-     "set mqtt.relay own": "rc",
-     "get mqtt.relay": "rc"
+     "set relay own": "rc",
+     "get relay": "rc"
     }
    },
    {
@@ -2803,14 +2803,14 @@
      "set autoreply on": false,
      "trigger test": false,
      "region": true,
-     "mqtt.cmd ping": true,
+     "cmd ping": false,
      "get stats": true,
      "set txdelay 0.5": true,
      "get txdelay": true,
      "set prv.key 00": false,
      "ota update": false,
-     "set mqtt.relay own": false,
-     "get mqtt.relay": false
+     "set relay own": false,
+     "get relay": false
     },
     "lacks": {
      "ver": null,
@@ -2818,14 +2818,14 @@
      "set autoreply on": "ar",
      "trigger test": "ar",
      "region": null,
-     "mqtt.cmd ping": null,
+     "cmd ping": null,
      "get stats": null,
      "set txdelay 0.5": null,
      "get txdelay": null,
      "set prv.key 00": null,
      "ota update": null,
-     "set mqtt.relay own": null,
-     "get mqtt.relay": null
+     "set relay own": null,
+     "get relay": null
     }
    },
    {
@@ -2843,14 +2843,14 @@
      "set autoreply on": true,
      "trigger test": true,
      "region": true,
-     "mqtt.cmd ping": true,
+     "cmd ping": true,
      "get stats": true,
      "set txdelay 0.5": true,
      "get txdelay": true,
      "set prv.key 00": false,
      "ota update": true,
-     "set mqtt.relay own": true,
-     "get mqtt.relay": true
+     "set relay own": true,
+     "get relay": true
     },
     "lacks": {
      "ver": null,
@@ -2858,14 +2858,14 @@
      "set autoreply on": null,
      "trigger test": null,
      "region": null,
-     "mqtt.cmd ping": null,
+     "cmd ping": null,
      "get stats": null,
      "set txdelay 0.5": null,
      "get txdelay": null,
      "set prv.key 00": null,
      "ota update": null,
-     "set mqtt.relay own": null,
-     "get mqtt.relay": null
+     "set relay own": null,
+     "get relay": null
     }
    },
    {
@@ -2883,14 +2883,14 @@
      "set autoreply on": false,
      "trigger test": false,
      "region": true,
-     "mqtt.cmd ping": true,
+     "cmd ping": true,
      "get stats": true,
      "set txdelay 0.5": true,
      "get txdelay": true,
      "set prv.key 00": false,
      "ota update": true,
-     "set mqtt.relay own": true,
-     "get mqtt.relay": true
+     "set relay own": true,
+     "get relay": true
     },
     "lacks": {
      "ver": null,
@@ -2898,14 +2898,14 @@
      "set autoreply on": "ar",
      "trigger test": "ar",
      "region": null,
-     "mqtt.cmd ping": null,
+     "cmd ping": null,
      "get stats": null,
      "set txdelay 0.5": null,
      "get txdelay": null,
      "set prv.key 00": null,
      "ota update": null,
-     "set mqtt.relay own": null,
-     "get mqtt.relay": null
+     "set relay own": null,
+     "get relay": null
     }
    }
   ],
@@ -3253,22 +3253,22 @@
     "mesh_only": "denied: a secret"
    },
    {
-    "command": "set mqtt.cmd on",
+    "command": "set cmd on",
     "uplink": null,
     "mesh_only": "denied: a mesh-only node has no Wi-Fi or MQTT; the firmware refuses it there (not-allowed)"
    },
    {
-    "command": "set mqtt.cmd.pubkey AA",
+    "command": "set cmd.pubkey AA",
     "uplink": "denied: the control plane itself: it would take the node off it",
     "mesh_only": "denied: the control plane itself: it would take the node off it"
    },
    {
-    "command": "get mqtt.cmd",
+    "command": "get cmd",
     "uplink": null,
     "mesh_only": null
    },
    {
-    "command": "get mqtt.cmd.pubkey",
+    "command": "get cmd.pubkey",
     "uplink": "denied: the command key",
     "mesh_only": "denied: the command key"
    },
@@ -3458,7 +3458,7 @@
     "mesh_only": null
    },
    {
-    "command": "mqtt.cmd ping",
+    "command": "cmd ping",
     "uplink": null,
     "mesh_only": "denied: a mesh-only node has no Wi-Fi or MQTT; the firmware refuses it there (not-allowed)"
    },
@@ -3538,22 +3538,22 @@
     "mesh_only": "denied: the radio"
    },
    {
-    "command": "set mqtt.relay own",
+    "command": "set relay own",
     "uplink": null,
     "mesh_only": null
    },
    {
-    "command": "set mqtt.relay off",
+    "command": "set relay off",
     "uplink": null,
     "mesh_only": null
    },
    {
-    "command": "get mqtt.relay",
+    "command": "get relay",
     "uplink": null,
     "mesh_only": null
    },
    {
-    "command": "set mqtt.cmd.relay own",
+    "command": "set cmd.relay own",
     "uplink": "denied: the control plane itself: it would take the node off it",
     "mesh_only": "denied: the control plane itself: it would take the node off it"
    },
@@ -3583,32 +3583,47 @@
     "mesh_only": "denied: a secret"
    },
    {
+    "command": "time 1795000000",
+    "uplink": null,
+    "mesh_only": null
+   },
+   {
+    "command": "time 12",
+    "uplink": "denied: steps the clock that judges expiry",
+    "mesh_only": "denied: steps the clock that judges expiry"
+   },
+   {
+    "command": "time 1795000000 x",
+    "uplink": "denied: steps the clock that judges expiry",
+    "mesh_only": "denied: steps the clock that judges expiry"
+   },
+   {
     "command": "SET WIFI.SSID HomeNet",
     "uplink": "denied: which network the node is on",
     "mesh_only": "denied: which network the node is on"
    },
    {
-    "command": "set mqtt.cmd on",
+    "command": "set cmd on",
     "uplink": null,
     "mesh_only": "denied: a mesh-only node has no Wi-Fi or MQTT; the firmware refuses it there (not-allowed)"
    },
    {
-    "command": "set mqtt.cmd on mqtt-meshcore.louie.se",
+    "command": "set cmd on mqtt-meshcore.louie.se",
     "uplink": null,
     "mesh_only": "denied: a mesh-only node has no Wi-Fi or MQTT; the firmware refuses it there (not-allowed)"
    },
    {
-    "command": "set mqtt.cmd off",
+    "command": "set cmd off",
     "uplink": "denied: the control plane itself: it would take the node off it",
     "mesh_only": "denied: the control plane itself: it would take the node off it"
    },
    {
-    "command": "set mqtt.cmd.pubkey AA",
+    "command": "set cmd.pubkey AA",
     "uplink": "denied: the control plane itself: it would take the node off it",
     "mesh_only": "denied: the control plane itself: it would take the node off it"
    },
    {
-    "command": "set mqtt.cmd.mesh on",
+    "command": "set cmd.mesh on",
     "uplink": "denied: the control plane itself: it would take the node off it",
     "mesh_only": "denied: the control plane itself: it would take the node off it"
    },
@@ -3633,7 +3648,7 @@
     "mesh_only": "denied: a mesh-only node has no Wi-Fi or MQTT; the firmware refuses it there (not-allowed)"
    },
    {
-    "command": "mqtt.cmd ping",
+    "command": "cmd ping",
     "uplink": null,
     "mesh_only": "denied: a mesh-only node has no Wi-Fi or MQTT; the firmware refuses it there (not-allowed)"
    },

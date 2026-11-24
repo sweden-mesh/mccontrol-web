@@ -35,7 +35,7 @@ function aliveFresh(alive, now) {
   return Number.isFinite(at) && now - at <= (2 * every + 60) * 1000;
 }
 
-// Does the node say it relays? Its alive's flag, or its own OK to `set mqtt.relay` since (jobs.js
+// Does the node say it relays? Its alive's flag, or its own OK to `set relay` since (jobs.js
 // keeps that as `relay`); null when its alive is not ours or says neither.
 export function relaying(alive) {
   if (!alive || alive.state === 'not-yours') return null;
@@ -124,7 +124,7 @@ export function hearsTarget(reply, targetKey) {
   return whole ? { hears: false, snr: null } : null;
 }
 
-// `get mqtt.relay`: { on: true, phase, left, floods } from "> own, forwarded 3, answered 2, refused 0,
+// `get relay`: { on: true, phase, left, floods } from "> own, forwarded 3, answered 2, refused 0,
 // burst, 39.9 s airtime left, floods today 1 of 100" (left in seconds of airtime, floods sent today),
 // { on: false } from "> off", null for anything else.
 export function parseRelayState(reply) {

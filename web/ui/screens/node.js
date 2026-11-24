@@ -91,7 +91,7 @@ export function firmwareBlock(ctx, svc, device, release, page, redraw) {
 }
 
 // Relaying (OTM-9e): whether this node sends your commands on by radio to nodes near it, as its
-// alive says, and the switch (`set mqtt.relay off|own`, one signed command over MQTT). Shown for
+// alive says, and the switch (`set relay off|own`, one signed command over MQTT). Shown for
 // an Observer image of lou-20 or later only: no other node can relay.
 export function relayBlock(ctx, svc, device, redraw) {
   const on = relaying(device.alive);
@@ -101,7 +101,7 @@ export function relayBlock(ctx, svc, device, redraw) {
     b.addEventListener('click', async () => {
       b.disabled = true;
       try {
-        const res = await svc.jobs.send({ command: `set mqtt.relay ${value}`, nodes: [device.node], road: 'mqtt' });
+        const res = await svc.jobs.send({ command: `set relay ${value}`, nodes: [device.node], road: 'mqtt' });
         const result = res.outcomes[0]?.result || null;
         if (result?.ok) { redraw(); return; }
         const x = explain(ctx, svc, result, device);

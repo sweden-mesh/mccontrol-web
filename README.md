@@ -98,7 +98,7 @@ Observer image of lou-20 or later whose alive is fresh and says relaying is on.
 - **No answer is not a refusal.** The relay waits two minutes; the node may have run the
   command. History keeps the relay, the route and how well the relay heard the answer.
 - **The relay cannot read it.** The request is sealed and signed for the node, the answer sealed
-  to you. A node's details have the switch (`set mqtt.relay off|own`); relaying is on by default.
+  to you. A node's details have the switch (`set relay off|own`); relaying is on by default.
 
 ## Install it as an app
 

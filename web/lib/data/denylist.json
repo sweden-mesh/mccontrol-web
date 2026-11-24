@@ -11,6 +11,14 @@
    "why": "identity: a changed key is a different node"
   },
   {
+   "prefix": "set cmd",
+   "why": "the control plane itself: it would take the node off it"
+  },
+  {
+   "prefix": "get cmd.pubkey",
+   "why": "the command key"
+  },
+  {
    "prefix": "set mqtt.cmd",
    "why": "the control plane itself: it would take the node off it"
   },
@@ -241,6 +249,8 @@
   "set bridge.secret",
   "get snmp.community",
   "set snmp.community",
+  "get cmd.pubkey",
+  "set cmd",
   "get mqtt.cmd.pubkey",
   "set mqtt.cmd",
   "get tls",
@@ -325,6 +335,10 @@
    "exact": true
   },
   {
+   "text": "cmd ping",
+   "exact": true
+  },
+  {
    "text": "mqtt.cmd ping",
    "exact": true
   },
@@ -343,14 +357,19 @@
   "allowance_with_value": [
    "set wifi.ssid ",
    "set wifi.pwd ",
+   "set cmd on ",
    "set mqtt.cmd on "
   ],
   "allowance_exact": [
+   "set cmd on",
    "set mqtt.cmd on"
   ],
+  "clock_step_pattern": "^time [0-9]{10}$",
+  "clock_step_rule": "a command that matches clock_step_pattern whole (as typed, not squashed) travels the mesh road, on a mesh-only node too: lou-20 and later step a clock that is behind to it, when the time is at or before the command's expiry by an hour at most",
   "needs_uplink": [
    "ota check",
    "ota update",
+   "cmd ping",
    "mqtt.cmd ping"
   ],
   "needs_uplink_slot_prefix": "set mqtt",

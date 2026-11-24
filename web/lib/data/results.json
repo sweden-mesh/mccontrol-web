@@ -39,7 +39,7 @@
   "12": "The node has no clock yet, so it cannot judge expiry. It will after its first advert.",
   "13": "The command holds a character the node refuses: a control character, the | separator or broken UTF-8.",
   "14": "The command is not on the node's allowlist. Only what its firmware admits travels this way.",
-  "15": "The node has no command key provisioned. Set mqtt.cmd.pubkey over serial first.",
+  "15": "The node has no command key provisioned. Set cmd.pubkey over serial first.",
   "16": "The signature did not verify. The node holds a different public key than this one.",
   "17": "The node's rate limit refused it. Wait a few minutes.",
   "18": "A command that transmits may not be sent to every node at once.",
@@ -75,24 +75,24 @@
   "help": {
    "0": "The relay sent the command and the node answered.",
    "1": "The relay sent the command and heard no answer in two minutes. This is not a refusal: the node may have run it. If a direct send stays unanswered, send once as a flood: its answer renews the path both ways.",
-   "2": "Relaying is switched off on the relay. Send it: set mqtt.relay own",
+   "2": "Relaying is switched off on the relay. Send it: set relay own",
    "3": "The relay got the request too late, or its clock and yours disagree. Nothing was sent.",
    "4": "The relay has already seen a newer request. Nothing was sent. Send again.",
    "5": "The relay refused the request, the route or the path. Nothing was sent.",
    "6": "The relay is waiting for the answer to another command. Nothing was sent. Try again in two minutes.",
-   "7": "The relay has used its airtime for now, or the flood came too soon after its last one. Nothing was sent. Try again in a few minutes: get mqtt.relay on the relay shows what is left.",
+   "7": "The relay has used its airtime for now, or the flood came too soon after its last one. Nothing was sent. Try again in a few minutes: get relay on the relay shows what is left.",
    "8": "The relay has no time yet. Nothing was sent. Try again in a minute.",
    "9": "The relay could not send right now. Nothing was sent. Try again."
   },
   "help_sv": {
    "0": "Reläet skickade kommandot och noden svarade.",
    "1": "Reläet skickade kommandot och hörde inget svar på två minuter. Det är ingen vägran: noden kan ha kört det. Om en direktsändning förblir obesvarad, skicka en gång som flood: svaret förnyar vägen åt båda håll.",
-   "2": "Reläfunktionen är avstängd på reläet. Skicka: set mqtt.relay own",
+   "2": "Reläfunktionen är avstängd på reläet. Skicka: set relay own",
    "3": "Begäran kom för sent till reläet, eller så går dess klocka och din olika. Inget skickades.",
    "4": "Reläet har redan sett en nyare begäran. Inget skickades. Skicka igen.",
    "5": "Reläet nekade begäran, vägen eller sökvägen. Inget skickades.",
    "6": "Reläet väntar på svaret på ett annat kommando. Inget skickades. Försök igen om två minuter.",
-   "7": "Reläet har använt sin sändningstid för stunden, eller så kom flooden för tätt efter den förra. Inget skickades. Försök igen om några minuter: get mqtt.relay på reläet visar vad som är kvar.",
+   "7": "Reläet har använt sin sändningstid för stunden, eller så kom flooden för tätt efter den förra. Inget skickades. Försök igen om några minuter: get relay på reläet visar vad som är kvar.",
    "8": "Reläet har ingen tid ännu. Inget skickades. Försök igen om en minut.",
    "9": "Reläet kunde inte sända just nu. Inget skickades. Försök igen."
   }

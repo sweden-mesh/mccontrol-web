@@ -76,7 +76,7 @@ test('the node\'s own gates, in the firmware\'s order: replay, expiry, the deny 
   assert.equal((await raw(plane, n, 'ver')).code, 0);
   assert.equal((await raw(plane, n, 'ver', { counter: x.lastCounter })).code, 9, 'a counter not above the last: replay');
   assert.equal((await raw(plane, n, 'ver', { expiry: Math.floor(Date.now() / 1000) - 5 })).code, 10, 'expired');
-  for (const denied of ['set radio 869.618,62.5,8,5', 'set prv.key 00', 'erase', 'set mqtt.cmd.pubkey 00']) {
+  for (const denied of ['set radio 869.618,62.5,8,5', 'set prv.key 00', 'erase', 'set cmd.pubkey 00']) {
     assert.ok(rules.refusal(denied), denied);
     assert.equal((await raw(plane, n, denied)).code, 14, denied);
   }
@@ -117,7 +117,7 @@ test('the alive scan finds the fleet that is on Wi-Fi by itself, and a rename sh
   const online = found.filter((e) => e.state === 'online').map((e) => e.name).sort();
   assert.deepEqual(online, world.nodes.filter((n) => ['wifi', 'relay'].includes(n.kind)).map((n) => n.name).sort());
   assert.equal(found.find((e) => e.name === 'DEMO-Kvarnberget').alive.relay, true);
-  await jobs.send({ command: 'set mqtt.relay off', nodes: [by('Kvarnberget').node] });
+  await jobs.send({ command: 'set relay off', nodes: [by('Kvarnberget').node] });
   const again = await jobs.discoverAlive({ waitSecs: 0.3 });
   assert.equal(again.find((e) => e.name === 'DEMO-Kvarnberget').alive.relay, false);
 });
@@ -146,7 +146,7 @@ test('through the relay to the mesh-only node: answered; off when the relay is s
   let status = 'answered';
   for (let i = 0; i < 2; i += 1) status = (await jobs.send({ command: 'get name', nodes: [T.node], road: 'relay', relay: via('flood', { confirmed: true }) })).outcomes[0].info?.status;
   assert.equal(status, 'rate-limited', 'a second flood within the minute');
-  plane.nodes.get(R.key).state.settings['mqtt.relay'] = 'off';
+  plane.nodes.get(R.key).state.settings['relay'] = 'off';
   const off = await jobs.send({ command: 'ver', nodes: [T.node], road: 'relay', relay: via('neighbour') });
   assert.equal(off.outcomes[0].info?.status ?? off.outcomes[0].reason?.code, 'off');
 });
