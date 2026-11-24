@@ -214,6 +214,7 @@ test('a node added by its key, with no version and no IATA code, takes mcc3: the
   const key = 'B'.repeat(64);
   assert.equal(scheme(rules, { node: 'BBBBBBBB', key, region: '' }), 'mcc3');
   assert.equal(scheme(rules, { node: 'BBBBBBBB', key, region: 'JKG' }), 'old');
+  assert.equal(scheme(rules, { node: 'BBBBBBBB', key, region: '', fleet: { iatas: ['JKG'] } }), 'mcc3', "Beacon's IATA is where it was heard, not its scheme");
   assert.equal(scheme(rules, { node: 'BBBBBBBB', key: null, region: '' }), 'old');
   assert.equal(scheme(rules, { node: 'BBBBBBBB', key, region: '', ver: LOU19 }), 'old');
 });

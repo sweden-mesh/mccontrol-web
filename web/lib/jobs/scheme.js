@@ -20,9 +20,10 @@ export function scheme(rules, device) {
   if (alive && alive.state !== 'not-yours') return 'mcc3';
   if (speaksMcc3(rules, device?.ver)) return 'mcc3';
   // Added by its key, nothing read from it yet (a node without MQTT cannot say its version before
-  // the first command reaches it) and no IATA code to address the old scheme by: the old scheme
-  // cannot be tried at all, so the first command goes the new way.
-  if (!alive && !device?.ver && /^[0-9A-Fa-f]{64}$/.test(device?.key || '') && !oldRegion(device)) return 'mcc3';
+  // the first command reaches it) and no IATA code of its own: the first command goes the new way.
+  // A node found by the old scheme carries the region it answered in; Beacon's IATA for a node
+  // (fleet.iatas) is where it was heard, not proof of the old scheme, and does not count here.
+  if (!alive && !device?.ver && /^[0-9A-Fa-f]{64}$/.test(device?.key || '') && !String(device?.region || '').trim()) return 'mcc3';
   return 'old';
 }
 
