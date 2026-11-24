@@ -94,7 +94,10 @@ export function createDiscovery({
   async function regions() {
     const out = [];
     for (const d of await stores.devices.list()) {
-      if (rules && scheme(rules, d) !== 'old') continue;
+      // A node added by key with nothing read from it yet is sent to the new way first (scheme),
+      // but may still be lou-19: its region is searched the old way too, which reads its version.
+      const unread = !d.ver && !d.alive;
+      if (rules && scheme(rules, d) !== 'old' && !unread) continue;
       const v = validRegion(upper(oldRegion(d)));
       if (v && !out.includes(v)) out.push(v);
     }
