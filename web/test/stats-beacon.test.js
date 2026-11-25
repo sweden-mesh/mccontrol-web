@@ -1,11 +1,11 @@
-// lib/stats/beacon.js against a capture of beacon.meshcore-jkp.se (test/smoke/beacon-fixture.json):
+// lib/stats/beacon-client.js against a capture of beacon.meshcore-jkp.se (test/smoke/beacon-fixture.json):
 // hourly running totals become airtime per bar, gaps and reboots become "not known", and every
 // failure is a StatsError with a code the chart turns into its one-line note.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { HOUR, airtimeBars, beaconClient, nodeStats, niceScale, summarize, ageParts, StatsError }
-  from '../lib/stats/beacon.js';
+  from '../lib/stats/beacon-client.js';
 
 const FIX = JSON.parse(readFileSync(new URL('./smoke/beacon-fixture.json', import.meta.url), 'utf8'));
 const NODE = FIX.paths[Object.keys(FIX.paths).find((p) => p.startsWith('/nodes?'))].items[0];

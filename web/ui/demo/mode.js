@@ -16,7 +16,7 @@
 //   - The key session and the services take memory stores (key-session.js, node-services.js ask isDemo()).
 //
 // No DOM here beyond `location` and the globals it replaces, so the tests run it with fakes.
-import { demoAnswer } from '../../lib/demo/beacon.js';
+import { demoAnswer } from '../../lib/demo/beacon-world.js';
 
 export const DEMO_PARAM = 'demo';
 // The display settings: ui/prefs.js CHOICES and what it retired (ui/boot.js reads them before paint).
@@ -75,7 +75,7 @@ export class NoSocket extends EventTarget {
 }
 
 // The page's fetch in the demo: its own files and the basemap go through; Beacon and the release list
-// are answered from the demo's world (lib/demo/beacon.js); a request to any other host is refused.
+// are answered from the demo's world (lib/demo/beacon-world.js); a request to any other host is refused.
 export function demoFetch(real, answer, origin) {
   return async (input, init) => {
     const url = typeof input === 'string' || input instanceof URL ? String(input) : input.url;

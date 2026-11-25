@@ -18,7 +18,7 @@ import { createJobs } from '../../lib/jobs/jobs.js';
 import { META_ID, provedNodes } from '../../lib/jobs/rekey.js';
 import { latestRelease, releaseSource } from '../../lib/jobs/releases.js';
 import { refreshFleet } from '../../lib/jobs/fleet.js';
-import { beaconBase, beaconClient } from '../../lib/stats/beacon.js';
+import { beaconBase, beaconClient } from '../../lib/stats/beacon-client.js';
 import { brokerConfig, meshAfterMins } from './settings-store.js';
 import { companion } from '../companion-session.js';
 

@@ -124,7 +124,7 @@ What it means for code:
 - **No third-party requests.** `connect-src` allows this origin, any `wss:` command server (an
   owner may use their own, RB-1), `ws:` for mccontrol-bridge on the owner's own network (W-31e:
   from the https page only a private or loopback address, behind Chrome's local-network prompt;
-  security review L7b), Beacon's API (`lib/stats/beacon.json`) and GitHub's API for the firmware
+  security review L7b), Beacon's API (`lib/stats/beacon-client.json`) and GitHub's API for the firmware
   release list (`lib/jobs/releases.json`). No fonts, images, analytics or scripts from
   elsewhere. A new origin is a CSP change and a security-review item, not a code change.
 - A `<meta>` CSP cannot carry `frame-ancestors`; `_headers` does.
@@ -505,7 +505,7 @@ What a demo page replaces, before any other module runs:
 | key store (IndexedDB `mccontrol-key`) | `memoryStorage()`; the invented key goes in through the keyring as an imported key | `ui/screens/key-session.js`, `ui/demo/start.js` |
 | data (IndexedDB `mccontrol-data`) | `memoryDb()`, seeded with the fleet | `ui/screens/node-services.js`, `lib/demo/world.js` |
 | `WebSocket` | a socket to the in-page command server and its simulated nodes | `ui/demo/mode.js` (`DemoSocket`), `lib/demo/broker.js`, `lib/demo/nodes.js` |
-| `fetch` | own files and the basemap pass; Beacon and release-list paths are answered from the world; any other host is refused | `ui/demo/mode.js`, `lib/demo/beacon.js` |
+| `fetch` | own files and the basemap pass; Beacon and release-list paths are answered from the world; any other host is refused | `ui/demo/mode.js`, `lib/demo/beacon-world.js` |
 | `localStorage` | memory, except the display settings (theme, layout, colours, language) | `ui/demo/mode.js` |
 
 Rules the demo keeps, each pinned by a test:

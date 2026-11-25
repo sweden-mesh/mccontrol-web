@@ -2,11 +2,11 @@
 // its readers take, and nothing else gets through.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { demoAnswer, demoBeacon, demoReleases, DEMO_IATA } from '../lib/demo/beacon.js';
+import { demoAnswer, demoBeacon, demoReleases, DEMO_IATA } from '../lib/demo/beacon-world.js';
 
 const BEACON = 'https://beacon.meshcoresverige.se/api/v1';
 import { demoWorld } from '../lib/demo/world.js';
-import { beaconClient, nodeStats } from '../lib/stats/beacon.js';
+import { beaconClient, nodeStats } from '../lib/stats/beacon-client.js';
 import { newestRelease } from '../lib/jobs/releases.js';
 import { demoFetch } from '../ui/demo/mode.js';
 

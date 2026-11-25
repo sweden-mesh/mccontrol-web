@@ -38,10 +38,10 @@ export class StatsError extends Error {
 
 let defaultBase = null;
 
-// The Beacon this page reads from: lib/stats/beacon.json (an origin the CSP's connect-src names).
+// The Beacon this page reads from: lib/stats/beacon-client.json (an origin the CSP's connect-src names).
 export function beaconBase(read = (url) => fetch(url).then((r) => r.json())) {
   if (!defaultBase) {
-    defaultBase = Promise.resolve(read(new URL('./beacon.json', import.meta.url)))
+    defaultBase = Promise.resolve(read(new URL('./beacon-source.json', import.meta.url)))
       .then((cfg) => String(cfg.url).replace(/\/+$/, ''));
   }
   return defaultBase;

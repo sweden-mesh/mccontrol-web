@@ -5,7 +5,7 @@
 // known, and "Select" for one of the owner's own nodes. A modal like any other, in both layouts.
 // Reading only: it sends nothing; `neighbors` in Send a command asks the node again.
 import { h } from '../dom.js';
-import { beaconBase } from '../../lib/stats/beacon.js';
+import { beaconBase } from '../../lib/stats/beacon-client.js';
 import { setSelected } from '../board-state.js';
 import { nameOf, screen, withServices, put } from '../screens/node-kit.js';
 import { age } from '../tiles/kit.js';

@@ -20,7 +20,7 @@ import { h } from '../dom.js';
 import { deriveFacts } from '../../lib/store/index.js';
 import { batteryKnown, lastHeard, shortVersion } from '../../lib/jobs/overview.js';
 import { blocker, preflight } from '../../lib/jobs/checks.js';
-import { beaconBase, beaconClient } from '../../lib/stats/beacon.js';
+import { beaconBase, beaconClient } from '../../lib/stats/beacon-client.js';
 import { CompanionError } from '../../lib/mesh/companion.js';
 import { lowBatteryVolts, meshAfterMins, notHeardHours } from '../screens/settings-store.js';
 import { confirm, nameOf, volts } from '../screens/node-kit.js';

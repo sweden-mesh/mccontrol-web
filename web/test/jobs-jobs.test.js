@@ -10,7 +10,7 @@ import { createJobs, JobError } from '../lib/jobs/jobs.js';
 import { blocker, fillSteps, preflight } from '../lib/jobs/checks.js';
 import { latestRelease, newestRelease, updateAvailable } from '../lib/jobs/releases.js';
 import { refreshFleet } from '../lib/jobs/fleet.js';
-import { beaconClient } from '../lib/stats/beacon.js';
+import { beaconClient } from '../lib/stats/beacon-client.js';
 
 const BASE = 'https://beacon.example/api/v1';
 import { fleetCounts, needsAttention, recentSince } from '../lib/jobs/overview.js';
@@ -218,7 +218,7 @@ test('releases: the newest real release, cached for an hour; the mark compares r
 test('fleet: battery and last status from Beacon; a node Beacon does not know keeps nothing stale', async () => {
   const { stores } = await setup();
   await stores.devices.update('BBBB0002', { fleet: { batteryMv: 1, seen: 'old' } });
-  // The statistics' Beacon client (lib/stats/beacon.js) over a fake fetch: one client for both.
+  // The statistics' Beacon client (lib/stats/beacon-client.js) over a fake fetch: one client for both.
   const asked = [];
   const fetch = async (url) => {
     asked.push(url.replace(BASE, ''));

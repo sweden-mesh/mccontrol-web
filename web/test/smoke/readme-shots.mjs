@@ -34,7 +34,7 @@ async function main() {
   mkdirSync(o.out, { recursive: true });
   const server = await serve(ROOT);
   const origin = `http://127.0.0.1:${server.address().port}`;
-  const beacon = JSON.parse(readFileSync(join(ROOT, 'lib/stats/beacon.json'), 'utf8')).url;
+  const beacon = JSON.parse(readFileSync(join(ROOT, 'lib/stats/beacon-client.json'), 'utf8')).url;
   const browser = await puppeteer().launch({
     headless: true,
     executablePath: existsSync('/usr/bin/google-chrome') ? '/usr/bin/google-chrome' : undefined,

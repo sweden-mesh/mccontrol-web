@@ -16,7 +16,7 @@
 // the land reads as land (W-23c). Same origin, so the CSP is unchanged.
 import { h } from '../dom.js';
 import { lowBatteryVolts, notHeardHours } from '../screens/settings-store.js';
-import { beaconBase } from '../../lib/stats/beacon.js';
+import { beaconBase } from '../../lib/stats/beacon-client.js';
 import { nameOf } from '../screens/node-kit.js';
 import { forKey, s } from './kit.js';
 import { fit, mapFrame, mapModel, nodeRegions, nodeStatus, outlinePaths, project, sharedPrefix, waterPaths } from './data.js';

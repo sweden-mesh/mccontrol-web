@@ -1,7 +1,7 @@
 // The status refresh (W-20e, operator decision 5): Beacon on load and every 15 minutes, free for
 // the nodes; one signed `ver` per node per day, and after Beacon reports a new firmware.
 //
-// Beacon (lib/stats/beacon.js's client, read-only HTTP): per node, /nodes?pubkeyPrefix= (its
+// Beacon (lib/stats/beacon-client.js's client, read-only HTTP): per node, /nodes?pubkeyPrefix= (its
 // Beacon id, neighbours, position, IATA codes) and /observers/<id> (battery, airtime, noise
 // floor, uptime, firmware, when its status was last seen). Stored on the device as `fleet`, the
 // shape lib/jobs/fleet.js writes plus more fields:

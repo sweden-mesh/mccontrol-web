@@ -1,5 +1,5 @@
 // The traffic chart: the airtime a node sent per hour (24 h) or per 6 hours (7 d), from Beacon
-// (lib/stats/beacon.js). One series, so no legend: the caption names it. Every value is also in
+// (lib/stats/beacon-client.js). One series, so no legend: the caption names it. Every value is also in
 // words (the summary), in a table, and in the readout line that follows the pointer and the arrow
 // keys. When Beacon cannot be asked, the slot shows one muted line, never an error.
 //
@@ -7,7 +7,7 @@
 //
 // The statistics screen (stats.js) uses it and the stats it resolves with. Plain SVG drawn here, no library.
 import { h } from '../dom.js';
-import { beaconBase, beaconClient, nodeStats, niceScale } from '../../lib/stats/beacon.js';
+import { beaconBase, beaconClient, nodeStats, niceScale } from '../../lib/stats/beacon-client.js';
 import { batteryKnown } from '../../lib/jobs/overview.js';
 import { volts } from './node-kit.js';
 

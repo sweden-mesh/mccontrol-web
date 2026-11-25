@@ -36,7 +36,7 @@ import { beaconCandidates } from '../lib/discovery/mesh-candidates.js';
 import { areaByScope } from '../lib/discovery/areas.js';
 import { areaOf } from '../lib/jobs/scheme.js';
 import { createRefresh } from '../lib/refresh/index.js';
-import { beaconBase, beaconClient } from '../lib/stats/beacon.js';
+import { beaconBase, beaconClient } from '../lib/stats/beacon-client.js';
 import { keyStatus, onKeyStatus } from './screens/key-session.js';
 import { services } from './screens/node-services.js';
 import { demoReadOnly } from './demo/mode.js';

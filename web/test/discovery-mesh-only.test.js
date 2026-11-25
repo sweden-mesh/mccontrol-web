@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { beaconCandidates, insideCounty } from '../lib/discovery/mesh-candidates.js';
-import { beaconClient } from '../lib/stats/beacon.js';
+import { beaconClient } from '../lib/stats/beacon-client.js';
 import { memoryDb } from '../lib/store/db.js';
 import { openStores } from '../lib/store/index.js';
 import { rulesFrom } from '../lib/protocol/rules.js';

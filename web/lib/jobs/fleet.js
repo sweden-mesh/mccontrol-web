@@ -1,6 +1,6 @@
 // Battery and "last heard on MQTT" for each device, from Beacon (read-only HTTP, no
 // credentials). A port of actions.refresh_fleet, through the statistics' Beacon client
-// (lib/stats/beacon.js), so the page reads one Beacon, the one its CSP names: the node by the
+// (lib/stats/beacon-client.js), so the page reads one Beacon, the one its CSP names: the node by the
 // start of its key finds its observer id, then one /observers/<id> each. Nothing here transmits.
 //
 // The result is stored on the device as `fleet` { batteryMv, seen, firmware, fetched }; a

@@ -1,9 +1,9 @@
 // Statistics for one node: #/stats/<node id> (the 8-hex control id or the whole public key).
 // What the terminal's "mccontrol stats" shows: the latest status block with its age, and the
 // airtime the node sent per hour over 24 hours or per 6 hours over 7 days. All of it from Beacon
-// (lib/stats/beacon.js); nothing here sends to the mesh. Without an id it asks for one.
+// (lib/stats/beacon-client.js); nothing here sends to the mesh. Without an id it asks for one.
 import { h } from '../dom.js';
-import { ageParts } from '../../lib/stats/beacon.js';
+import { ageParts } from '../../lib/stats/beacon-client.js';
 import { batteryKnown } from '../../lib/jobs/overview.js';
 import { volts } from './node-kit.js';
 import { mountTrafficChart, useStatsStyles } from './stats-chart.js';
