@@ -106,7 +106,10 @@ export function attachCombo(ctx, input, { svc, devices }) {
   const opts = { signal: ctx.signal };
   input.addEventListener('input', (e) => { if (e.isTrusted) open(); }, opts);
   // Open on focus and on a click into the field too, not only after typing (W-35c).
-  input.addEventListener('focus', () => open(), opts);
+  // After a send, a dialog may take the focus (a flood asks first) and hand it back when it
+  // closes: that returning focus must not open the list again over the emptied field.
+  let sent = false;
+  input.addEventListener('focus', () => { if (sent) { sent = false; return; } open(); }, opts);
   input.addEventListener('pointerdown', () => { if (document.activeElement === input && !isOpen()) open(); }, opts);
   input.addEventListener('keydown', (e) => {
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
@@ -118,6 +121,7 @@ export function attachCombo(ctx, input, { svc, devices }) {
       e.preventDefault();
       take(shown[active].text);
     } else if (e.key === 'Enter') {
+      sent = true;
       close();                                    // Enter with no suggestion marked sends: the list goes away
     } else if (e.key === 'Escape' && isOpen()) {
       e.preventDefault();
@@ -125,9 +129,10 @@ export function attachCombo(ctx, input, { svc, devices }) {
       close();
     } else if (e.key === 'Tab') close();
   }, opts);
-  input.addEventListener('blur', () => close(), opts);
+  // Focus that leaves for anything but a dialog ends the "just sent" state: the next focus is the owner's.
+  input.addEventListener('blur', () => { close(); queueMicrotask(() => { if (!document.querySelector('dialog.dlg[open]')) sent = false; }); }, opts);
   // Sent by the button too: the list does not stay over an emptied field.
-  addEventListener('submit', (e) => { if (e.target === input.form) close(); }, { ...opts, capture: true });
+  addEventListener('submit', (e) => { if (e.target === input.form) { sent = document.activeElement !== input || sent; close(); } }, { ...opts, capture: true });
   addEventListener('resize', () => { if (isOpen()) place(); }, opts);
   addEventListener('scroll', () => { if (isOpen()) place(); }, { ...opts, capture: true, passive: true });
   ctx.signal.addEventListener('abort', () => { close(); list.remove(); }, { once: true });
