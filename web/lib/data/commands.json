@@ -232,6 +232,22 @@
    "read": true
   },
   {
+   "text": "get cmd.mesh",
+   "group": "reads",
+   "kind": "none",
+   "choices": [],
+   "examples": [],
+   "read": true
+  },
+  {
+   "text": "get alive.interval",
+   "group": "reads",
+   "kind": "none",
+   "choices": [],
+   "examples": [],
+   "read": true
+  },
+  {
    "text": "get",
    "group": "reads",
    "kind": "text",
@@ -306,6 +322,18 @@
    "choices": [],
    "examples": [
     "se-jkp"
+   ],
+   "read": false
+  },
+  {
+   "text": "set autoreply.national",
+   "group": "auto-reply",
+   "kind": "text",
+   "choices": [],
+   "examples": [
+    "auto",
+    "off",
+    "se"
    ],
    "read": false
   },
@@ -628,6 +656,17 @@
     "own"
    ],
    "examples": [],
+   "read": false
+  },
+  {
+   "text": "set alive.interval",
+   "group": "MQTT",
+   "kind": "text",
+   "choices": [],
+   "examples": [
+    "15",
+    "60"
+   ],
    "read": false
   },
   {

@@ -85,7 +85,9 @@
   "get relay": 20,
   "get sensors": 20,
   "set relay off": 20,
-  "set relay own": 20
+  "set relay own": 20,
+  "get cmd.mesh": 20,
+  "get alive.interval": 20
  },
  "v2_from": 13,
  "utf8_from": 17,
