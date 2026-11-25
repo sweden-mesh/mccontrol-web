@@ -2,7 +2,7 @@
 // (meshcore-regional-template, hugo.toml [params.map]: MapLibre 6.16.0 on OpenFreeMap's "liberty"
 // and "dark" styles; the template has no tile proxy of its own), so the CSP names one more origin,
 // basemap.json's `origin`, in connect-src and nothing else. The URLs live in basemap.json, as
-// Beacon's do in lib/stats/beacon-client.json. MapLibre is vendored (vendor/maplibre-gl/, the
+// Beacon's do in lib/stats/beacon-source.json. MapLibre is vendored (vendor/maplibre-gl/, the
 // template's three files byte for byte) and loaded only when a map is first drawn.
 //
 // Trusted Types: MapLibre starts its worker with `new Worker(url)`, a script-URL sink. The policy

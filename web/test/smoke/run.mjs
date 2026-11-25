@@ -128,7 +128,7 @@ async function main() {
   mkdirSync(o.out, { recursive: true });
   const server = await serve(o.root);
   const origin = `http://127.0.0.1:${server.address().port}`;
-  const beacon = JSON.parse(readFileSync(join(o.root, 'lib/stats/beacon-client.json'), 'utf8')).url;
+  const beacon = JSON.parse(readFileSync(join(o.root, 'lib/stats/beacon-source.json'), 'utf8')).url;
   const answers = fixture();
   const browser = await puppeteer().launch({
     headless: true,

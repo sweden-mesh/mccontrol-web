@@ -124,7 +124,7 @@ What it means for code:
 - **No third-party requests.** `connect-src` allows this origin, any `wss:` command server (an
   owner may use their own, RB-1), `ws:` for mccontrol-bridge on the owner's own network (W-31e:
   from the https page only a private or loopback address, behind Chrome's local-network prompt;
-  security review L7b), Beacon's API (`lib/stats/beacon-client.json`) and GitHub's API for the firmware
+  security review L7b), Beacon's API (`lib/stats/beacon-source.json`) and GitHub's API for the firmware
   release list (`lib/jobs/releases.json`). No fonts, images, analytics or scripts from
   elsewhere. A new origin is a CSP change and a security-review item, not a code change.
 - A `<meta>` CSP cannot carry `frame-ancestors`; `_headers` does.
