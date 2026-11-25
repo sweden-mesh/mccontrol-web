@@ -61,11 +61,13 @@ mcc3; mccontrol-spec's wire format has the bytes):
   reply topic named only inside the command. The command server sees neither the command nor
   who sent it: the page signs in with a throwaway key drawn for each session. There is no IATA,
   no region and no broadcast topic, and every node uses the shared command server.
-- **Discovery from alive.** Each lou-20 node keeps a sealed "alive" message on the command
-  server (`mcc/alive/<KEY>`, every 15 minutes and at boot) that only its owner's key opens.
+- **Discovery from alive.** Each lou-20 Observer node keeps a sealed "alive" message on the command
+  server (`mcc/alive/<KEY>`, soon after it connects and then about every 15 minutes; `set
+  alive.interval <5-1440>` changes that) that only its owner's key opens.
   While the key is unlocked the page reads them all and adds the nodes that are yours, wherever
   they are, by their whole key; a node that went offline or was rekeyed away is marked so.
   Nothing is sent, and no area or region is chosen anywhere: Setup's area tab is gone.
+  A node without Wi-Fi sends no alive message and is never found this way (below).
 - **A county is one command per node.** "Each of your nodes in a county" sends each node that
   names that county as its own region home (from its alive) its own sealed command, in random
   order, 10-90 s apart (5-30 min for a restart). A command that transmits, and the mesh road,
@@ -78,13 +80,39 @@ mcc3; mccontrol-spec's wire format has the bytes):
   discovery runs only in the IATA codes of your own old nodes. A lou-19 node takes `ota update`
   over the old scheme, comes back on lou-20, and moves to mcc3 by itself at its first alive.
   lou-21 removes the old scheme; the page drops it after that.
+- **The settings have new names.** On lou-20 the node's settings are `cmd` (`set cmd on`,
+  `set cmd.pubkey`, `get cmd`), and the old `mqtt.cmd` names are gone there. The stored settings
+  carry over. Setup's "Put the key on a node" types the lou-20 lines and names the older ones.
+  A lou-18 node set with `set mqtt.cmd on <host>` needs `set cmd on <host>` (or the bare
+  `set cmd on`) once more after the upgrade.
+- **New commands and limits.** `get sensors` and `get relay` are in the command list;
+  `set alive.interval`, `set autoreply.national auto|off|<region>` and `get cmd.mesh` are typed
+  as a `set` or `get`. `time now`, sent over the mesh or through a relay, mends a clock that fell
+  behind. A node takes 50 commands an hour. Help's "commands" and "lou20" topics have the rest.
+- **Replacing the key.** The page has no `rekey` of its own yet: rotate with the terminal tool
+  (`python -m mccontrol.rekey`), then bring the new key here with a backup file.
+
+## A node without Wi-Fi (mesh only)
+
+From lou-20 the `rc` and `arrc` images for stock MeshCore boards take commands over the mesh
+alone. Put the key on the node as on any other (`set cmd.pubkey`, `set cmd on`; `get cmd` then
+says `mesh only`). The page never finds such a node by itself. Add it under Add nodes, "Add a
+node by its public key", or let "Mesh-only nodes" look in your companion's contacts and on
+Beacon for candidates and check one with a signed `ver`. Send to it through a relay or through
+your companion; the node's settings have "Mesh only" for a node whose version is not known yet.
+Help's "meshonly" topic has the steps.
 
 ## Through a relay
 
 From lou-20 one of your own nodes that is on MQTT can send a command by radio to a node that is
 not: a mesh-only node, or one whose Wi-Fi has failed. You need no companion. The road selector
 has **Through a relay** when the command goes to one node and a node of yours can relay: an
-Observer image of lou-20 or later whose alive is fresh and says relaying is on.
+Observer image of lou-20 or later whose alive is fresh and says relaying is on. The relay must
+hold the same command key as the node and be in radio reach of it.
+
+- **One command at a time, on a budget.** A second command sent before the first is on the air
+  replaces it, and the first is never answered. Airtime: 5 % of 15 minutes (about 26 commands),
+  then 1 % of the next 15 (about 5).
 
 - **You choose the relay and the route.** Direct neighbour (one transmission each way, no
   hops), direct along a path an earlier answer taught, or a flood. "Check neighbours" asks a
@@ -96,7 +124,9 @@ Observer image of lou-20 or later whose alive is fresh and says relaying is on.
   minutes, only when no companion is connected, and only by a way that is no flood. A group,
   several nodes, a county, a set and the automatic work never go through a relay.
 - **No answer is not a refusal.** The relay waits two minutes; the node may have run the
-  command. History keeps the relay, the route and how well the relay heard the answer.
+  command. A node answers on an airtime budget of its own (5 % of 15 minutes, then 1 %), and a
+  command over it gets no answer at all: wait a few minutes; `get cmd` counts it as refused. A
+  flooded command is answered after 15 to 30 s, and that answer teaches the way back. History keeps the relay, the route and how well the relay heard the answer.
 - **The relay cannot read it.** The request is sealed and signed for the node, the answer sealed
   to you. A node's details have the switch (`set relay off|own`); relaying is on by default.
 

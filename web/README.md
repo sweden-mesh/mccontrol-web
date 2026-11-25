@@ -9,8 +9,8 @@ in the Mesh-Health workspace (sections 11 to 16 are the operator's answers).
 the backup file or the private key as text for a password manager, both optional,
 passphrase change, fingerprint unlock, broker registration, key replacement), set up a node over
 USB (Web Serial), the overview, nodes, one node, send, groups, command sets, history, statistics
-(Beacon), settings and help. The firmware update is shown but flashed by hand until the firmware
-admits `ota update` over the control plane.
+(Beacon), settings and help. A node whose firmware admits `ota update` (lou-19 and later,
+Observer images) is updated from its Firmware tab; any other is shown the release and flashed by hand.
 
 **Redesign (W-20, `planning/mccontrol/web-redesign-proposal-20261117.md`):** wave 1 is in: one board
 (NODES | NODE | STATUS + MAP + HISTORY) with the status line and the key bar, everything else in a
