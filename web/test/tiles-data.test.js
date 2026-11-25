@@ -21,6 +21,11 @@ const opts = { now: NOW, hours: 24, thresholdMv: 3500, rules };
 test('a node is ok, needs attention, refused or not known', () => {
   assert.equal(nodeStatus({ node: 'A', lastHeard: iso(5) }, opts).state, 'ok');
   assert.equal(nodeStatus({ node: 'A' }, opts).state, 'unknown');
+  // a command that got no answer is no evidence that the node is well: not known, and it says which command
+  const silent = nodeStatus({ node: 'A', lastResult: { at: iso(5), command: 'ver', code: null, verified: null } }, opts);
+  assert.equal(silent.state, 'unknown');
+  assert.equal(silent.unanswered, 'ver');
+  assert.equal(nodeStatus({ node: 'A', lastResult: { at: iso(5), command: 'ver', code: 0, verified: true } }, opts).state, 'ok');
   const quiet = nodeStatus({ node: 'A', lastHeard: iso(60 * 30) }, opts);
   assert.equal(quiet.state, 'warn');
   assert.equal(quiet.reasons[0].kind, 'notHeard');

@@ -1031,6 +1031,7 @@
   "combo.unknown": "Okänd version: alla kommandon visas",
   "hint.allOk": "Allt OK",
   "hint.notKnown": "Inte hörd än: status okänd",
+  "hint.noAnswerYet": "Inte hörd än: det senaste kommandot ({command}) fick inget svar",
   "std.foot.version": "mccontrol-web {version}",
   "alive.online": "online",
   "alive.offline": "offline",

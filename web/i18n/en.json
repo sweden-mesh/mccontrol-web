@@ -1031,6 +1031,7 @@
   "combo.unknown": "Version unknown: every command is listed",
   "hint.allOk": "All OK",
   "hint.notKnown": "Not heard yet: no status known",
+  "hint.noAnswerYet": "Not heard yet: the last command ({command}) got no answer",
   "std.foot.version": "mccontrol-web {version}",
   "alive.online": "online",
   "alive.offline": "offline",

@@ -142,6 +142,8 @@ export function nodeDetail(ctx, svc, nodeId, { tab = 'overview', onTab, onPick }
 function overview(ctx, svc, device, st, release, onPick, onTab) {
   // Status
   const why = st.reasons.map((r) => ctx.t(`dash.att.${r.kind}`, r.vars)).join('; ');
+  // Never heard, and the last command got no answer: say so beside the mark, not just "not known".
+  const silent = st.state === 'unknown' && st.unanswered != null ? ctx.t('hint.noAnswerYet', { command: st.unanswered }) : '';
   const up = device.ver ? updateAvailable(svc.rules, device.ver, release) : null;
   const events = svc.stores.history.list({ node: device.node, limit: 60 });
   const nb = h('button', { type: 'button', class: 'link-button std-nb' }, ctx.t('std.neighbours'));
@@ -157,7 +159,7 @@ function overview(ctx, svc, device, st, release, onPick, onTab) {
     ? h('button', { type: 'button', class: 'link-button std-update-now' }, h('span', { 'aria-hidden': 'true' }, '↗ '), ctx.t('update.now')) : null;
   updateNow?.addEventListener('click', () => runUpdate(ctx, svc, device, release, { out: updateOut, control: updateNow, redraw: () => dataChanged('devices') }), { signal: ctx.signal });
   const statusPanel = panel('std-p-status', ctx.t('std.status'),
-    h('p', { class: 'std-state' }, stateMark(ctx, st.state, why || ctx.t(`tile.state.${st.state}`))),
+    h('p', { class: 'std-state' }, stateMark(ctx, st.state, why || silent || ctx.t(`tile.state.${st.state}`))),
     h('dl', { class: 'std-dl' },
       h('dt', {}, ctx.t('std.firmware')), h('dd', {}, h('code', {}, device.ver ? shortVersion(svc.rules, device.ver) : '–'),
         up ? [' ', h('span', { class: 'std-tag' }, ctx.t('update.available')), updateNow ? [' ', updateNow] : null] : up === false ? [' ', h('span', { class: 'muted' }, ctx.t('std.upToDate'))] : null),

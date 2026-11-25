@@ -17,12 +17,17 @@ export const ALERT_KINDS = new Set(['refused', 'forged']);
 // The row's state: 'alert' for a refused or forged last answer, 'warn' for anything else the
 // overview counts as needing attention (not heard, low battery, outdated firmware), 'ok' when the
 // node was heard and nothing is wrong, 'unknown' when nothing is known yet. Absence of evidence
-// is not a finding: a node never heard is unknown, not silent.
+// is not a finding: a node never heard is unknown, not silent. A command that got no answer is no
+// evidence either: only an answer makes a never-heard node 'ok'; `unanswered` then names the
+// command, for the words beside the mark.
 export function nodeStatus(device, { now, hours, thresholdMv, release = null, rules }) {
   const reasons = needsAttention([device], { now, hours, thresholdMv, release, rules });
   if (reasons.some((r) => ALERT_KINDS.has(r.kind))) return { state: 'alert', reasons };
   if (reasons.length) return { state: 'warn', reasons };
-  return { state: lastHeard(device) === null && !device.lastResult ? 'unknown' : 'ok', reasons };
+  const last = device.lastResult;
+  const answered = Boolean(last && last.code === 0);
+  if (lastHeard(device) === null && !answered) return { state: 'unknown', reasons, unanswered: last ? last.command || '' : null };
+  return { state: 'ok', reasons };
 }
 
 // rows: [{ device, status }]. A new array.

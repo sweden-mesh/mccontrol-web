@@ -22,7 +22,10 @@ const upper = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 export function statusLines(ctx, status) {
   const reasons = status?.reasons || [];
   if (reasons.length) return reasons.map((r) => ({ state: ALERT.has(r.kind) ? 'alert' : 'warn', text: upper(ctx.t(`dash.att.${r.kind}`, r.vars)) }));
-  return [status?.state === 'unknown' ? { state: 'unknown', text: ctx.t('hint.notKnown') } : { state: 'ok', text: ctx.t('hint.allOk') }];
+  if (status?.state === 'unknown') {
+    return [{ state: 'unknown', text: status.unanswered != null ? ctx.t('hint.noAnswerYet', { command: status.unanswered }) : ctx.t('hint.notKnown') }];
+  }
+  return [{ state: 'ok', text: ctx.t('hint.allOk') }];
 }
 
 function hide() {
