@@ -6,6 +6,11 @@
 // it and answers sealed on the reply topic named inside the command. A node that relays takes a
 // forward for the mesh-only node behind it. Nothing here reaches a network.
 //
+// `rekey <new public key>` (lou-20): signed by the key in use, it makes the new key wait in the
+// node's memory for 60 minutes of the demo's clock, or until it restarts. The first command that
+// opens under the waiting key makes it the node's command key: the answer and the next alive are
+// sealed to it, and the old key opens nothing any more. A forward is the key in use's only.
+//
 //   const plane = demoPlane(world, { rules });
 //   plane.broker.WebSocket     what the page's mqtt client is given
 //   plane.nodes                Map(KEY -> the node's state), for the tests
@@ -23,6 +28,25 @@ export const RATE_PER_HOUR = 50;
 // The firmware counts airtime (5 % of 15 minutes, then 1 %); here that is about so many sends.
 export const FORWARDS_PER_HOUR = 60;
 export const FLOOD_GAP_MS = 60000;
+export const REKEY_WAIT_MS = 60 * 60 * 1000;
+export const REKEY_OK = 'OK - the new key waits 60 min: send a command signed by it';
+export const REKEY_USE = 'Err - use: rekey <the new PUBLIC key, 43 base64url characters>';
+export const REKEY_SAME = 'Err - that is the key in use';
+
+// The new key of `rekey <43 base64url characters>` as 64 upper-case hex, or null (mqttCtrlRekeyParse):
+// exactly 32 bytes, the two spare bits zero.
+export function rekeyParse(command) {
+  const m = /^rekey ([A-Za-z0-9_-]{43})$/.exec(String(command || ''));
+  if (!m) return null;
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+  let bits = '';
+  for (const ch of m[1]) bits += alphabet.indexOf(ch).toString(2).padStart(6, '0');
+  if (bits.slice(256) !== '00') return null;
+  let hex = '';
+  for (let i = 0; i < 256; i += 4) hex += parseInt(bits.slice(i, i + 4), 2).toString(16);
+  return hex.toUpperCase();
+}
+const isRekey = (command) => /^rekey( |$)/.test(String(command || ''));
 const HOUR = 3600000;
 const UPLINK = 0x02;
 // lib/data/results.json's codes, by name.
@@ -39,12 +63,30 @@ export function demoPlane(world, { rules, now = () => Date.now(), delay = demoDe
   for (const n of world.nodes) {
     if (!['wifi', 'relay', 'mesh'].includes(n.kind)) continue;   // offline, older firmware, never heard: not on this plane
     const handle = keyFromSeed(fromHex(n.seedHex));
-    nodes.set(n.key, { n, handle, keys: mcc3.nodeKeys(handle, owner), state: { ...newState(world, n), started: started - (9 + n.i * 3) * 86400000 },
+    nodes.set(n.key, { n, handle, owner, pending: null, keys: mcc3.nodeKeys(handle, owner), state: { ...newState(world, n), started: started - (9 + n.i * 3) * 86400000 },
       lastCounter: 100 + n.i * 7, lastMesh: null, lastForward: null, sequence: 0, sent: [], forwards: [], floods: [] });
   }
   const later = (ms, fn) => (ms > 0 ? timers.setTimeout(fn, ms) : fn());
   const within = (list, at) => list.filter((t) => at - t < HOUR);
   const rebooting = (x) => now() < x.state.rebootUntil;
+
+  // The key that waits on a node, while its hour runs; a restart forgets it too.
+  function waiting(x) {
+    if (x.pending && now() - x.pending.since >= REKEY_WAIT_MS) x.pending = null;
+    return x.pending;
+  }
+  // Open what arrived with the key in use; failing that with the key that waits, which then takes over.
+  function opened(x, open) {
+    try { return open(x.owner); } catch (e) {
+      const p = waiting(x);
+      if (!p) throw e;
+      const out = open(p.key);
+      x.owner = p.key;
+      x.keys = mcc3.nodeKeys(x.handle, p.key);
+      x.pending = null;
+      return out;
+    }
+  }
 
   // The sealed alive a node on Wi-Fi keeps on the server: again after every command, as the
   // firmware's does at its interval, with its last counter.
@@ -55,7 +97,7 @@ export function demoPlane(world, { rules, now = () => Date.now(), delay = demoDe
     const relays = x.state.settings['relay'] === 'own' && rules.canRelay(x.state.version) === true;
     broker.retain(mcc3.aliveTopic(x.n.key), mcc3.sealAlive(x.keys, { boot: x.state.boot, sequence: Math.floor(uptime / 900) + x.sequence, uptime,
       clock: Math.floor(at / 1000), last_counter: x.lastCounter, interval: 900, flags: UPLINK | (relays ? mcc3.ALIVE_FLAG_RELAY : 0), mesh: 1,
-      fingerprint: owner.slice(0, 8), via: 0, version: x.state.version, region: DEMO_REGION, name: x.state.name }));
+      fingerprint: x.owner.slice(0, 8), via: x.rekeyed ? 2 : 0, version: x.state.version, region: DEMO_REGION, name: x.state.name }));
   }
 
   const neighbours = (x) => world.nodes.filter((m) => near(x.n, m) && m.heard !== null && m.kind !== 'offline')
@@ -74,10 +116,19 @@ export function demoPlane(world, { rules, now = () => Date.now(), delay = demoDe
     x.sent = within(x.sent, at);
     if (x.sent.length >= RATE_PER_HOUR) return { code: CODE['rate-limited'], reply: '' };
     x.sent.push(at);
+    // `rekey` never reaches the console: the node itself keeps the offered key, in memory.
+    if (isRekey(command)) {
+      const key = rekeyParse(command);
+      if (!key) return { code: CODE.ok, reply: REKEY_USE };
+      if (key === x.owner) return { code: CODE.ok, reply: REKEY_SAME };
+      x.pending = { key, since: at };
+      return { code: CODE.ok, reply: REKEY_OK };
+    }
     const wasRelay = x.state.settings['relay'];
     const wasName = x.state.name;
     const out = answer(x.state, command, { now: at, neighbours: neighbours(x) });
     if (rebooting(x)) {
+      x.pending = null;      // a key that waits is in RAM only
       // A restart: silent for the while, then up again with a new boot number and a fresh alive.
       later(Math.max(0, x.state.rebootUntil - at) || 0, () => { x.state.boot += 1; x.state.started = now(); x.sequence = 0; if (x.n.kind !== 'mesh') alive(x); });
     } else if (x.n.kind !== 'mesh' && (wasRelay !== x.state.settings['relay'] || wasName !== x.state.name)) alive(x);
@@ -87,7 +138,7 @@ export function demoPlane(world, { rules, now = () => Date.now(), delay = demoDe
   // A forward (kind F) to a node that relays: the relay's own order, then the radio and the target.
   function forward(x, payload) {
     let f;
-    try { f = mcc3.openForward(x.handle, owner, payload); } catch { return false; }
+    try { f = mcc3.openForward(x.handle, x.owner, payload); } catch { return false; }
     const at = now();
     const clock = Math.floor(at / 1000);
     const say = (status, more = {}) => later(delay(x.n, 'relay'), () => broker.publish(mcc3.replyTopic(f.rid), mcc3.sealForwardResult(x.keys, f.counter, status, clock, more)));
@@ -104,7 +155,9 @@ export function demoPlane(world, { rules, now = () => Date.now(), delay = demoDe
     // Out of reach: not a node of this world on the mesh, restarting, or too far for one hop without a flood.
     if (!target || rebooting(target) || (!flood && !near(x.n, target.n))) return say(FWD['no-answer'], { sent }), true;
     let req;
-    try { req = mcc3.openMeshRequest(target.handle, owner, concatTag(f.body)); } catch { return say(FWD['no-answer'], { sent }), true; }
+    const was = target.owner;
+    try { req = opened(target, (key) => mcc3.openMeshRequest(target.handle, key, concatTag(f.body))); } catch { return say(FWD['no-answer'], { sent }), true; }
+    if (target.owner !== was) target.rekeyed = true;
     const a = run(target, req.command, req.counter, req.expiry ?? clock + 60, { road: 'mesh' });
     const response = mcc3.sealMeshResponse(target.keys, 0, req.counter, a.code, clock, a.reply || '').subarray(4);
     return say(FWD.answered, { sent, snr: 18 + (target.n.i % 9), response }), true;
@@ -120,7 +173,9 @@ export function demoPlane(world, { rules, now = () => Date.now(), delay = demoDe
       const payload = fromUtf8(p.payload);
       if (forward(x, payload)) return;
       let cmd;
-      try { cmd = mcc3.openCommand(x.handle, owner, payload); } catch { return; }   // not ours, or altered: silence
+      const was = x.owner;
+      try { cmd = opened(x, (key) => mcc3.openCommand(x.handle, key, payload)); } catch { return; }   // not ours, or altered: silence
+      if (x.owner !== was) x.rekeyed = true;
       const a = run(x, cmd.command, cmd.counter, cmd.expiry, { road: 'mqtt' });
       const clock = Math.floor(now() / 1000);
       later(delay(x.n, 'command'), () => {

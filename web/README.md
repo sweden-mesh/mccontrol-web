@@ -7,7 +7,7 @@ in the Mesh-Health workspace (sections 11 to 16 are the operator's answers).
 
 **Status:** every screen of the plan is built: start and unlock, key and backup (QR code,
 the backup file or the private key as text for a password manager, both optional,
-passphrase change, fingerprint unlock, broker registration, key replacement), set up a node over
+passphrase change, fingerprint unlock, broker registration, replacing the key on the nodes with `rekey`, key replacement), set up a node over
 USB (Web Serial), the overview, nodes, one node, send, groups, command sets, history, statistics
 (Beacon), settings and help. A node whose firmware admits `ota update` (lou-19 and later,
 Observer images) is updated from its Firmware tab; any other is shown the release and flashed by hand.
@@ -50,7 +50,7 @@ that says why.
 | `fonts/`, `icon*` | IBM Plex (OFL) and the icons, copied from the regional template | shell |
 | `_headers`, `manifest.webmanifest`, `sw.js`, `version.json` | the hosted copy: headers, install, offline copy | shell (W-10) |
 | `lib/protocol/` | envelope v1/v2, results r1/r2/r3, broker token, registration, the MQTT client; `mcc3.js`, the sealed plane of lou-20 and later (`test/mcc3-vectors.json`) | protocol (W-3, W-4, W-16) |
-| `lib/key/` | the key: `handle.js` (seed -> signing handle), storage, unlock, auto-lock, backup, passphrase change | key and security (W-5) |
+| `lib/key/` | the key: `handle.js` (seed -> signing handle), storage, unlock, auto-lock, backup, passphrase change, the next key of a replacement on the nodes | key and security (W-5, W-44) |
 | `lib/store/` | IndexedDB stores per key: devices, history, groups, sets, meta | screens (W-7, W-9) |
 | `lib/jobs/` | send, run a set, discover, refresh, update; checks before signing; the roads (`road.js`) and the relay road (`relay.js`: who can relay, the routes, what auto may take); the overview's sums; Beacon fleet reads (through `lib/stats`); the firmware release list (GitHub) | screens (W-8, W-15, W-18, W-19) |
 | `lib/discovery/` | automatic discovery (`index.js`: on unlock and hourly, the alive scan wherever the nodes are; the old broadcast discovery only in the IATA codes of the list's lou-19-and-older nodes; adds with undo, the broker's caps, mesh-only candidates) and the counties (`areas.js`: a node's region home to its county, for an area act) | discovery (W-20a, IATA2-MC4) |
@@ -347,7 +347,7 @@ palette's `:` (70, "Commands") and `ctrl+k`.
 
 Setup (`ui/modals/setup.js`) has seven tabs, each its own address: `#setup/key` (public key, copy,
 QR, broker registration, lock and auto-lock, backup, private key behind the passphrase,
-passphrase, fingerprint, replace), `#setup/node` (put the key on a node: USB, and the lines to type,
+passphrase, fingerprint, the key on the nodes, replace), `#setup/node` (put the key on a node: USB, and the lines to type,
 each with a Copy button, W-20h), `#setup/connections` (the command server, the companion radio, mesh-only nodes; the area choice
 is gone with IATA-2), `#setup/groups`, `#setup/sets` (what a set is, when to use one, the shipped example; every
 step says what it does, W-20i), `#setup/warnings` (battery, not heard, mesh road), `#setup/display`.
@@ -459,6 +459,39 @@ the offline copy.
 `vendor/VENDOR.md` lists each package, version, licence and tarball hash, and how it was
 copied (`scripts/vendor-web.sh`). The MQTT client is our own (no library); the reasons are there.
 
+## Replacing the key on the nodes (W-44)
+
+A port of the terminal tool's `mccontrol/rekey.py`; the wire is the firmware's (lou-20, `rekey <new public key
+as 43 base64url characters>`, signed by the key in use; the new key waits 60 minutes in RAM and takes over
+when a command it signed arrives).
+
+| Part | Where |
+|---|---|
+| the round as pure functions: `start`, `view`, `rotate` (one node: offer, then prove), `summary`, `finishRefusal`, `abortRefusal` | `lib/jobs/rekey.js` |
+| the next key: made, sealed (under the passphrase, and under the key in use so it signs while that is unlocked), backed up, dropped, or made the key; the replaced key kept sealed | `lib/key/keyring.js` (`rekey*`, `replacedBackup`, `forgetReplaced`) |
+| the per-node state `{ from, next, nodes: { NODE: { state, at } } }` | the owner's `meta` store, id `rekey` |
+| a second set of jobs that signs with the next key, over the same devices, counters and history; a relay hop sealed with the key that relay is on | `ui/screens/node-services.js` (`nextJobs`), `hopHandle` in `lib/jobs/jobs.js` |
+| the owner's data copied to the new key at finish, each device without its old alive | `copyStores` in `lib/store/index.js` |
+| the screen | `ui/screens/key-rekey.js`, in Setup's Key tab |
+
+A node is `waiting` (on the key in use), `sent` (offered, not proved, with the minutes its key still waits),
+`proved` (on the new key), `failed` (the offer was refused or unanswered) or `cannot` (older than lou-20, no
+control plane, version or whole key unknown: never sent anything). Rules the flow keeps:
+
+- **The new key is saved first.** No node can be sent to before its backup file was downloaded.
+- **One node at a time, each send once.** Nothing is retried by itself; "Send to the nodes on Wi-Fi" goes
+  through them one after another. A node without Wi-Fi goes by the auto road (the companion, or a relay
+  that hears it); a flood through a relay is not offered here.
+- **Finish is the owner's word.** The dialog names the nodes on the new key, those left on the old one and
+  those that need USB. The replaced key stays in the record, sealed, with its backup file one press away.
+- **Abort only while no node has taken the key**, as the terminal tool has it. A node that was offered the
+  key and did not answer the proof is named: it may have taken it unseen.
+- Until finish the other screens sign with the key in use; a node on the new key answers only this screen.
+
+Three things differ from the terminal tool on purpose (the header of `lib/jobs/rekey.js` says why): an offer
+counts only on the node's own `OK`; any answer that opens under the new key is proof, a refusal too; and a
+node that was offered the key can be proved again without a second offer while its hour runs.
+
 ## The demo (W-39)
 
 `?demo=1` in the address runs the real app against a simulated world, for someone with no flashed node and
@@ -487,6 +520,14 @@ Rules the demo keeps, each pinned by a test:
 - **The key's doors are shut.** Once the invented key is in, the keyring only signs: making, importing,
   backing up, showing or changing a key answers "not in the demo", and locking leaves the demo, since nobody
   holds its passphrase (`closeDemoRing` in `key-session.js`, an allow-list; `test/demo-screens.test.js`).
+  One exception, by name (`DEMO_OWN`): replacing the key on the nodes can be tried, with the demo's own
+  invented next key (`demoNextSeedHex` in `lib/demo/world.js`), sealed in the page's memory; no backup file
+  is made of it.
+- **The nodes take `rekey` as the firmware does.** The offered key waits in the node's memory for 60 minutes
+  of the demo's clock or until a `reboot`; the first command that opens under it makes it the node's command
+  key, the answer and the next alive are sealed to it, and the old key meets silence. A key that is not 43
+  base64url characters, or is the key in use, gets the firmware's `Err` (`test/demo-rekey.test.js` runs the
+  whole round: behind the relay first, the relay last, the offline node left behind, finish).
 - **The nodes are simulated, with the real bytes.** `lib/demo/nodes.js` puts the fleet's lou-20 nodes on the
   in-page broker: each holds its own invented key and the demo owner's key as its command key, keeps a sealed
   retained alive, and takes a command in the firmware's order (the seal opens, the signature holds, the

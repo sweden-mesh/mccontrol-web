@@ -38,6 +38,11 @@ button[aria-busy="true"] { cursor: progress; }
 /* The replace dialog's list of costs. */
 .cost { padding-left: 1.25rem; margin: 0; display: grid; gap: .5rem; }
 
+/* Replacing the key on the nodes: node-kit's table; a name stays on one line where it is a table. */
+@container (width >= 44rem) { .rekey-table tbody th { white-space: nowrap; } }
+.rekey-table select { max-width: 100%; min-height: var(--tap); font: inherit; }
+.rekey-table .row { margin: 0; }
+
 /* Set up a node: the console, the lines to type. */
 .console, .lines, .help-text {
   margin: .75rem 0; padding: .75rem 1rem; background: var(--surface); border: 1px solid var(--line);

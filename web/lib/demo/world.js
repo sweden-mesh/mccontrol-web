@@ -19,6 +19,9 @@ export const DEMO_OWNER_PHRASE = 'mccontrol demo owner key';
 // Not a secret: the demo unlocks its own key with it, in memory, and it protects nothing.
 export const DEMO_PASSPHRASE = 'demo-not-a-secret';
 export const DEMO_REGION = 'se-jkp';
+// The demo's next owner keys, for trying the key replacement (rekey): as invented as the first,
+// one per round so a second round does not offer the key in use.
+export const demoNextSeedHex = (round) => toHex(seedOf(`${DEMO_OWNER_PHRASE} ${Number(round) + 1}`));
 
 const OBSERVER = 'v1.18.0-lou-20-arrc-observer-0';
 const MESH_ONLY = 'v1.18.0-lou-20-arrc-0';

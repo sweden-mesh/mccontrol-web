@@ -24,6 +24,19 @@
 //   await ring.saveSecrets(map)  store that map again, sealed (sealLocal) under the unlocked key
 //   await ring.reconcile()       another tab changed the stored key: re-read it, and lock a handle
 //                                that is no longer the stored key
+//
+// Replacing the key on the nodes (`rekey`, lib/jobs/rekey.js): a second key, the next one, is kept
+// in the same record until the owner finishes or aborts. It is stored twice, both sealed: under the
+// passphrase (what its backup file is, and what becomes the stored key at finish) and under the
+// key in use (sealLocal), so it signs whenever that key is unlocked, by whatever way.
+//   await ring.rekeyStart(pass)  make the next key; -> its public key. Nothing is sent
+//   ring.rekeyHandle()           the next key's handle while unlocked, or null
+//   await ring.rekeyBackup(pass) -> { filename, text }, the next key's backup file
+//   await ring.rekeyAbort()      forget the next key
+//   await ring.rekeyFinish()     the next key becomes the key; the replaced one stays in the record,
+//                                sealed, until forgetReplaced(id). -> the new handle
+//   await ring.replacedBackup(id, pass)   -> { filename, text }, a replaced key's backup file
+//   await ring.forgetReplaced(id)         drop a replaced key for good
 import { keyFromSeed } from './handle.js';
 import { ITERATIONS, MIN_PASSPHRASE, openSealed, randomBytes, readKeyFile, sealSeed } from './backup.js';
 import { createPrfWrap, openPrfWrap } from './prf.js';
@@ -46,6 +59,7 @@ export function createKeyring({
 } = {}) {
   if (!storage) throw new TypeError('a keyring needs a storage');
   let current = null;          // the unlocked handle
+  let next = null;             // the next key's handle while a replacement is under way (rekey)
   let lastActive = 0;
   let timer = null;
   let holds = 0;
@@ -79,8 +93,27 @@ export function createKeyring({
     if (!current) return;
     const handle = current;
     current = null;
+    dropNext();
     if (holds > 0) waiting.push(handle); else handle.forget();
     notify();
+  }
+
+  function dropNext() {
+    if (!next) return;
+    if (holds > 0) waiting.push(next); else next.forget();
+    next = null;
+  }
+
+  // The next key's handle, from the copy sealed under the key in use; null when there is none or
+  // it does not open (the record is another key's).
+  function openNext(record) {
+    dropNext();
+    if (!current || !record?.next?.local || record.id !== current.publicKeyHex) return;
+    let seed = null;
+    try {
+      seed = current.openLocal(fromHex(record.next.local));
+      next = keyFromSeed(seed);
+    } catch { next = null; } finally { seed?.fill(0); }
   }
 
   async function open(seed) {
@@ -91,6 +124,7 @@ export function createKeyring({
       seed.fill(0);
     }
     const minutes = await settings();
+    openNext(await active());
     limitMs = minutes === null ? null : minutes * 60000;
     lastActive = clock.now();
     arm();
@@ -116,6 +150,8 @@ export function createKeyring({
     if (existing.length && !replace) {
       throw new Error('This browser already holds a key. Replacing it silences every node set up with it.');
     }
+    // The next key lives in the record this would remove.
+    if (existing.some((r) => r.next)) throw new Error('A key replacement is under way. Finish or abort it first.');
     const sealed = await sealSeed(seed, passphrase, { iterations });
     const record = {
       id: sealed.public_key, created: nowIso(clock), source,
@@ -150,6 +186,8 @@ export function createKeyring({
         fingerprint: Boolean(record?.wraps?.prf),
         persist: record?.persist ?? null,
         passphraseChanged: record?.passphraseChanged ?? null,
+        rekey: record?.next ? { publicKeyHex: record.next.id, created: record.next.created, backup: record.next.backup ?? null } : null,
+        replaced: (record?.replaced || []).map((r) => ({ publicKeyHex: r.id, at: r.at })),
       };
     },
 
@@ -242,14 +280,27 @@ export function createKeyring({
     // The stored copy re-encrypted under `next`. A backup file saved before keeps opening with
     // the old passphrase only, so the record says when the change was made; the fingerprint
     // copy is unaffected (it is wrapped by the passkey, not the passphrase).
-    async changePassphrase(passphrase, next) {
-      checkPassphrase(next);
+    async changePassphrase(passphrase, fresh) {
+      checkPassphrase(fresh);
       const record = await active();
       if (!record) throw new Error('There is no key in this browser.');
       const seed = await openSealed(record.wraps.passphrase, passphrase);
       try {
-        const sealed = await sealSeed(seed, next, { iterations });
-        await update((r) => { r.wraps = { ...r.wraps, passphrase: sealed }; r.passphraseChanged = nowIso(clock); });
+        const sealed = await sealSeed(seed, fresh, { iterations });
+        // The next key and the replaced ones follow: one passphrase opens everything kept here.
+        const reseal = async (wrap) => {
+          const s = await openSealed(wrap, passphrase);
+          try { return await sealSeed(s, fresh, { iterations }); } finally { s.fill(0); }
+        };
+        const nextWrap = record.next ? await reseal(record.next.wrap) : null;
+        const replaced = [];
+        for (const r of record.replaced || []) replaced.push({ ...r, wrap: await reseal(r.wrap) });
+        await update((r) => {
+          r.wraps = { ...r.wraps, passphrase: sealed };
+          r.passphraseChanged = nowIso(clock);
+          if (r.next && nextWrap) r.next = { ...r.next, wrap: nextWrap, passphraseChanged: r.passphraseChanged };
+          if (replaced.length) r.replaced = replaced;
+        });
       } finally {
         seed.fill(0);
       }
@@ -283,6 +334,7 @@ export function createKeyring({
     async reconcile() {
       const record = await active();
       if (current && (!record || record.id !== current.publicKeyHex)) { lock(); return; }
+      if ((record?.next?.id ?? null) !== (next?.publicKeyHex ?? null)) openNext(record);
       const minutes = await settings();
       limitMs = minutes === null ? null : minutes * 60000;
       if (current) arm();
@@ -303,6 +355,88 @@ export function createKeyring({
       if (!current || !record || record.id !== current.publicKeyHex) return;
       record.secrets = toHex(current.sealLocal(utf8(JSON.stringify(map))));
       await storage.put(record);
+    },
+
+    // -- replacing the key on the nodes (rekey) ---------------------------------------------------
+
+    // Make the next key. The passphrase is the stored key's: the next key is sealed under it as
+    // the stored one is. `seedHex` takes a key instead of making one (the demo's invented one).
+    async rekeyStart(passphrase, { seedHex = null } = {}) {
+      const record = await active();
+      if (!record) throw new Error('There is no key in this browser.');
+      if (!current || record.id !== current.publicKeyHex) throw new Error('The key is locked.');
+      if (record.next) throw new Error('A key replacement is already under way.');
+      (await openSealed(record.wraps.passphrase, passphrase)).fill(0);
+      const seed = seedHex ? fromHex(seedHex) : randomBytes(32);
+      try {
+        const sealed = await sealSeed(seed, passphrase, { iterations });
+        if (sealed.public_key.toUpperCase() === record.id.toUpperCase()) throw new Error('That is the key in use.');
+        const local = toHex(current.sealLocal(seed));
+        await update((r) => { r.next = { id: sealed.public_key, created: nowIso(clock), wrap: sealed, local, backup: null }; });
+        openNext(await active());
+        notify();
+        return sealed.public_key;
+      } finally {
+        seed.fill(0);
+      }
+    },
+
+    rekeyHandle: () => next,
+
+    async rekeyBackup(passphrase) {
+      const record = await active();
+      if (!record?.next) throw new Error('No key replacement is under way.');
+      (await openSealed(record.next.wrap, passphrase)).fill(0);
+      await update((r) => { r.next = { ...r.next, backup: { at: nowIso(clock), form: 'file' } }; });
+      return {
+        filename: `mccontrol-key-${record.next.id.slice(0, 8)}.json`,
+        text: `${JSON.stringify(record.next.wrap, null, 2)}\n`,
+      };
+    },
+
+    async rekeyAbort() {
+      const record = await active();
+      if (!record?.next) throw new Error('No key replacement is under way.');
+      dropNext();
+      await update((r) => { delete r.next; });
+    },
+
+    // The next key becomes the stored key. The replaced one is kept in the new record, sealed
+    // under the passphrase as it was, because a node that did not follow answers only to it.
+    // Fingerprint unlock wrapped the replaced key and is dropped; the shared secrets were that
+    // key's too.
+    async rekeyFinish() {
+      const record = await active();
+      if (!record?.next) throw new Error('No key replacement is under way.');
+      if (!current || !next || record.id !== current.publicKeyHex || next.publicKeyHex !== record.next.id) throw new Error('The key is locked.');
+      const at = nowIso(clock);
+      const fresh = {
+        id: record.next.id, created: record.next.created, source: 'created',
+        wraps: { passphrase: record.next.wrap }, backup: record.next.backup ?? null,
+        settings: record.settings, persist: record.persist ?? null,
+        passphraseChanged: record.next.passphraseChanged ?? null,
+        replaced: [...(record.replaced || []), { id: record.id, at, wrap: record.wraps.passphrase }],
+      };
+      await storage.put(fresh);
+      await storage.remove(record.id);
+      const old = current;
+      current = next;
+      next = null;
+      if (holds > 0) waiting.push(old); else old.forget();
+      notify();
+      return current;
+    },
+
+    async replacedBackup(id, passphrase) {
+      const record = await active();
+      const kept = (record?.replaced || []).find((r) => r.id === id);
+      if (!kept) throw new Error('No such replaced key is kept here.');
+      (await openSealed(kept.wrap, passphrase)).fill(0);
+      return { filename: `mccontrol-key-${kept.id.slice(0, 8)}.json`, text: `${JSON.stringify(kept.wrap, null, 2)}\n` };
+    },
+
+    async forgetReplaced(id) {
+      await update((r) => { r.replaced = (r.replaced || []).filter((x) => x.id !== id); });
     },
 
     subscribe(fn) {

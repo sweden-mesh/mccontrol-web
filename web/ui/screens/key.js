@@ -1,8 +1,8 @@
 // Setup's Key tab (W-5, W-20d): the public key, copy and QR code, the broker registration (it
 // runs by itself, key-register.js), lock and auto-lock, the copies the owner may keep
 // (the backup file, or the private key shown after the passphrase) and the browser's keeping of
-// it, the passphrase, fingerprint unlock, and replacing the key behind
-// a dialog that says what it costs. Keeping a copy is the owner's job (operator 2026-11-17).
+// it, the passphrase, fingerprint unlock, replacing the key on the nodes (key-rekey.js), and
+// replacing the key in this browser outright behind a dialog that says what it costs. Keeping a copy is the owner's job (operator 2026-11-17).
 import { h } from '../dom.js';
 import { download } from './node-kit.js';
 import { copyButton, errorLine, groupedHex, passField, qrSvg, showPassphrases, useStyles } from './key-kit.js';
@@ -11,6 +11,7 @@ import { isDemo } from '../demo/mode.js';
 import { passProblem, MIN } from './unlock.js';
 import { registerNow, registration, onRegistration, registrationText } from './key-register.js';
 import { AUTO_LOCK_CHOICES } from '../../lib/key/keyring.js';
+import { rekeyBlock } from './key-rekey.js';
 
 export const REG_GLYPH = Object.freeze({ ok: '●', failed: '✕', running: '…', none: '?' });
 
@@ -96,8 +97,12 @@ export function render(ctx) {
       body.replaceChildren(h('p', {}, t('keyscreen.none')), h('p', {}, h('a', { class: 'button', href: '#/unlock' }, t('keyscreen.toStart'))));
       return;
     }
-    if (isDemo()) { body.replaceChildren(h('p', { class: 'demo-note' }, t('demo.keyNote')), publicBlock(s)); return; }
-    body.replaceChildren(publicBlock(s), registerBlock(), lockBlock(s), backupBlock(s), passBlock(s), fingerprintBlock(s), replaceBlock(),
+    if (isDemo()) { body.replaceChildren(h('p', { class: 'demo-note' }, t('demo.keyNote')), publicBlock(s), rekeyBlock(ctx)); return; }
+    // While the key is being replaced on the nodes, replacing it outright would drop the next key.
+    const outright = replaceBlock();
+    outright.hidden = Boolean(s.rekey);
+    body.replaceChildren(...[publicBlock(s), registerBlock(), lockBlock(s), backupBlock(s), passBlock(s), fingerprintBlock(s),
+      rekeyBlock(ctx, { onRound: (active) => { outright.hidden = active; } }), outright].filter(Boolean),
       h('p', {}, h('a', { href: '#help/signing' }, t('keyscreen.helpLink'))));
   };
 

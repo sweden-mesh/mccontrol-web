@@ -48,6 +48,25 @@ export function eventId(ms) {
   return `${Math.floor(ms).toString(36).padStart(9, '0')}-${randomHex(8)}`;
 }
 
+// A key replaced on the nodes (lib/jobs/rekey.js): everything kept for the key `from` is copied to
+// the key `to`, so the nodes, their counters, the groups, the sets and the history follow the
+// owner to the new key. The copy of a device drops its alive, which was sealed to the replaced
+// key; `skipMeta` names bookkeeping that stays behind. The records of `from` are left as they are:
+// the replaced key is kept too, and a node that did not follow still answers to it.
+export async function copyStores(db, from, to, { skipMeta = [] } = {}) {
+  const a = String(from || '').toUpperCase();
+  const b = String(to || '').toUpperCase();
+  if (!KEY.test(a) || !KEY.test(b) || a === b) throw new Error('the stores are copied from one key to another: two 64-hex public keys');
+  for (const store of STORES) {
+    for (const record of await db.list(store, a)) {
+      if (store === 'meta' && skipMeta.includes(record.id)) continue;
+      const copy = { ...record, owner: b };
+      if (store === 'devices') delete copy.alive;
+      await db.put(store, copy);
+    }
+  }
+}
+
 export function openStores(db, owner, { now = () => Date.now(), defaultSets = {} } = {}) {
   if (!KEY.test(String(owner || '').toUpperCase())) throw new Error('the stores belong to a key: its 64-hex public key');
   const me = owner.toUpperCase();

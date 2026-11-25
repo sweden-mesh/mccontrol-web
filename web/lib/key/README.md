@@ -2,7 +2,7 @@
 
 | File | Holds |
 |---|---|
-| `keyring.js` | the API the app uses: create, import, unlock, lock, auto-lock, backup, showing the private key, fingerprint unlock |
+| `keyring.js` | the API the app uses: create, import, unlock, lock, auto-lock, backup, showing the private key, fingerprint unlock, and the second key of a replacement on the nodes (`rekey*`) |
 | `handle.js` | seed -> frozen handle (`publicKeyHex`, `sign`, `sharedSecret`, `forget`) |
 | `backup.js` | the backup file and the at-rest encryption (one format), internal |
 | `prf.js` | fingerprint/face unlock through a passkey's PRF output, internal |
@@ -37,6 +37,16 @@ vectors) `handle.js`. A test fails if anything imports `backup.js` or `prf.js`.
 | `forget()` zeroing | the seed staying readable in the handle after a lock | copies inside the JS engine and noble's internals, which JS cannot zero |
 | Fingerprint unlock | typing the passphrase in public | a person who can unlock the phone itself |
 | CSP and same-origin code | injected third-party script | **malicious code served from this origin**: after unlock it can read the seed or sign anything. Mitigations live elsewhere (W-10: the release's `integrity.json`, the PWA's controlled updates, a zip to run locally) |
+
+## The next key (`rekey`)
+
+While the owner replaces the key on the nodes (`lib/jobs/rekey.js`), the record of the key in use
+also holds the next key, sealed twice: under the passphrase, in the backup file's format (that copy
+is its backup file, and becomes the stored key at finish), and under the key in use (`sealLocal`),
+so it signs whenever that key is unlocked. Its seed is made, sealed and opened here only;
+`rekeyHandle()` hands out a handle like any other. At finish the replaced key stays in the new
+record, sealed under the passphrase, until the owner forgets it: a node that did not follow
+answers only to it. Making or importing another key outright is refused while a next key exists.
 
 Keeping a copy of the key is the owner's job: the app offers the backup file and the private key
 as text, and asks for neither (no gate, no forced download).

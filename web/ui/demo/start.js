@@ -2,7 +2,7 @@
 // itself, and the invented fleet in the key's (memory) stores. ui/app.js calls demoKeyOptions() for
 // the key session and startDemo() once it runs; neither is reached outside a demo page.
 import { memoryStorage } from '../../lib/key/storage.js';
-import { demoWorld, seedDemo } from '../../lib/demo/world.js';
+import { demoNextSeedHex, demoWorld, seedDemo } from '../../lib/demo/world.js';
 import { keyring, closeDemoRing } from '../screens/key-session.js';
 import { demoAddress, demoReadOnly, provideDemoPlane } from './mode.js';
 import { demoPlane } from '../../lib/demo/nodes.js';
@@ -28,6 +28,16 @@ export async function startDemo({ t = (k) => k } = {}) {
   if (!(await s.stores.devices.list()).length) await seedDemo(s.stores, w, { results: s.data.results });
   // The simulated nodes behind the page's socket (v2); read-only, nobody asks for them.
   if (!demoReadOnly()) provideDemoPlane(demoPlane(w, { rules: s.rules }));
-  closeDemoRing(() => { globalThis.location.assign(demoAddress(false)); }, () => t('demo.notHere'));   // worded when asked: the strings load after the key
+  // The key replacement (rekey) can be tried: with the demo's own next key, sealed in this page's
+  // memory under the demo's passphrase; no backup file is made of it.
+  let rounds = 0;
+  const own = (real) => ({
+    rekeyStart: () => real.rekeyStart(w.owner.passphrase, { seedHex: demoNextSeedHex(rounds++) }),
+    rekeyBackup: async () => { await real.rekeyBackup(w.owner.passphrase); return null; },   // only its side effect: it counts as saved
+    rekeyHandle: () => real.rekeyHandle(),
+    rekeyAbort: () => real.rekeyAbort(),
+    rekeyFinish: () => real.rekeyFinish(),
+  });
+  closeDemoRing(() => { globalThis.location.assign(demoAddress(false)); }, () => t('demo.notHere'), own);   // worded when asked: the strings load after the key
   return w;
 }

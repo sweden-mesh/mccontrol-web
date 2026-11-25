@@ -16,7 +16,7 @@ import { provideKeySource } from '../key-state.js';
 import { provideKeyring } from './node-services.js';
 
 const EMPTY = Object.freeze({ exists: false, locked: true, publicKeyHex: null, source: null,
-  backup: null, autoLockMinutes: 15, fingerprint: false, persist: null, passphraseChanged: null });
+  backup: null, autoLockMinutes: 15, fingerprint: false, persist: null, passphraseChanged: null, rekey: null, replaced: [] });
 
 let ring = null;
 let status = EMPTY;
@@ -27,13 +27,20 @@ export const keyring = () => ring;
 // The demo (W-39d), once its own invented key is in: only the doors that use the key stay open.
 // Everything that makes, changes, shows or copies a key answers "not in the demo", and locking
 // leaves the demo, since nobody holds its passphrase.
+// The key replacement on the nodes (rekey) can be tried in the demo: `own(real)` gives the doors the
+// demo opens in its own way, with its own invented next key (ui/demo/start.js), by the names in
+// DEMO_OWN and no others.
 export const DEMO_OPEN = Object.freeze(['handle', 'hold', 'touch', 'status', 'subscribe', 'reconcile', 'loadSecrets', 'saveSecrets']);
-export function closeDemoRing(leave, message) {
+export const DEMO_OWN = Object.freeze(['rekeyStart', 'rekeyHandle', 'rekeyBackup', 'rekeyAbort', 'rekeyFinish']);
+export function closeDemoRing(leave, message, own = () => ({})) {
   const real = ring;
   const closed = {};
+  const doors = own(real);
   for (const [name, v] of Object.entries(real)) {
     closed[name] = typeof v !== 'function' ? v : name === 'lock' ? leave
-      : DEMO_OPEN.includes(name) ? v : async () => { throw new Error(typeof message === 'function' ? message() : message); };
+      : DEMO_OPEN.includes(name) ? v
+        : DEMO_OWN.includes(name) && typeof doors[name] === 'function' ? doors[name]
+          : async () => { throw new Error(typeof message === 'function' ? message() : message); };
   }
   ring = Object.freeze(closed);
   return ring;
@@ -66,7 +73,7 @@ export function shellState(s) {
 // key changes here (made, replaced, passphrase, fingerprint, auto-lock) the others are told, and
 // each re-reads it and locks a handle that no longer matches (W-12). Locking itself stays per tab.
 let channel = null;
-const identity = (s) => JSON.stringify([s.exists, s.publicKeyHex, s.fingerprint, s.passphraseChanged, s.autoLockMinutes, s.backup]);
+const identity = (s) => JSON.stringify([s.exists, s.publicKeyHex, s.fingerprint, s.passphraseChanged, s.autoLockMinutes, s.backup, s.rekey, s.replaced]);
 
 async function refresh() {
   const before = identity(status);
@@ -103,7 +110,7 @@ export async function startKeySession(options = {}) {
     subscribe: (fn) => { shellListeners.add(fn); return () => shellListeners.delete(fn); },
   });
   provideKeyring({ handle: () => ring.handle(), hold: () => ring.hold(), touch: () => ring.touch(),
-    loadSecrets: () => ring.loadSecrets(), saveSecrets: (m) => ring.saveSecrets(m) });
+    loadSecrets: () => ring.loadSecrets(), saveSecrets: (m) => ring.saveSecrets(m), rekeyHandle: () => ring.rekeyHandle() });
   if (globalThis.document) {
     let last = 0;
     const touch = () => {

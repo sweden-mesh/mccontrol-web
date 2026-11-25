@@ -13,6 +13,8 @@
 // with every node key seen is cached beside the key (ring.loadSecrets / saveSecrets).
 //
 //   const jobs = createJobs({ ring, stores, rules, brokers, results, configOf });   // results: lib/data/results.json
+//   `hopHandle(relayDevice)` (optional, may be async): the handle of the key that relay is on when
+//   it is not this ring's, else null; only a key replacement under way gives one (rekey.js).
 //   await jobs.send({ command, nodes: ['4AC61A7F'] | group: 'canary' | area: 'se-jkp', road, onProgress, signal })
 //
 // `road` (W-16) is 'mqtt' (the default), 'mesh', 'relay' or 'auto' (road.js): the mesh goes through the
@@ -79,7 +81,7 @@ export function createJobs({
   plane = { send: realSendMcc3, scan: realScanAlive, forward: realForwardMcc3 }, random = Math.random,
   waitSecs = null, sleep = sleepFor, configExtra = {}, configOf = (region) => configFor(brokers, region),
   companion = () => null, meshSend = realMeshSend, meshAfterMins = () => MESH_AFTER_MINS, mqttSeen = null,
-  now = () => Date.now(), readOnly = false,
+  now = () => Date.now(), readOnly = false, hopHandle = null,
 }) {
   const wait = () => waitSecs ?? brokers.wait_secs ?? 20;
   // A request over the mesh, sealed or not: a lou-20 node answers a flooded one 15-30 s after it arrives.
@@ -278,7 +280,11 @@ export function createJobs({
     const key = wholeKey(device);
     const relayKey = wholeKey(via);
     const keys = sealed ? await keysFor(handle, key) : null;
-    const relayKeys = await keysFor(handle, relayKey);
+    // While the key is being replaced (rekey.js) the relay may be on the other key than the one
+    // that signs for the target: the hop is sealed with the key the relay is on. That key's shared
+    // secret is not this key's to cache.
+    const hop = (await hopHandle?.(via)) || handle;
+    const relayKeys = hop === handle ? await keysFor(handle, relayKey) : deriveKeys(hop.sharedSecret(relayKey), relayKey);
     const secs = Math.floor(now() / 1000);
     const counter = await stores.devices.nextCounter(device.node);
     const topic = sealed ? mcc3Topic(key) : meshTopic(oldRegion(device), key, rules.deviceMeshOnly(device));

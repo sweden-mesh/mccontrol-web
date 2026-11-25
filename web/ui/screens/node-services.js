@@ -13,8 +13,9 @@ import { loadAll } from '../../lib/data/load.js';
 import { rulesFrom } from '../../lib/protocol/rules.js';
 import { indexedDb, memoryDb } from '../../lib/store/db.js';
 import { isDemo, demoReadOnly } from '../demo/mode.js';
-import { openStores } from '../../lib/store/index.js';
+import { copyStores, openStores } from '../../lib/store/index.js';
 import { createJobs } from '../../lib/jobs/jobs.js';
+import { META_ID, provedNodes } from '../../lib/jobs/rekey.js';
 import { latestRelease, releaseSource } from '../../lib/jobs/releases.js';
 import { refreshFleet } from '../../lib/jobs/fleet.js';
 import { beaconBase, beaconClient } from '../../lib/stats/beacon.js';
@@ -33,14 +34,17 @@ async function load() {
   return { data, rules: rulesFrom(data), db: isDemo() ? memoryDb() : indexedDb(globalThis.indexedDB), beacon: beaconClient({ base: await beaconBase() }) };
 }
 
-// { data, rules, stores, jobs, releases(), fleet(nodes) } for the key `owner` (its public key).
+// { data, rules, stores, jobs, nextJobs, copyTo(key), releases(), fleet(nodes) } for the key `owner` (its public key).
 export async function services(owner) {
   if (!base) base = load();
   const { data, rules, db, beacon } = await base;
   if (!perOwner.has(owner)) {
     const stores = openStores(db, owner, { defaultSets: data.brokers.default_sets || {} });
-    const jobs = createJobs({ ring: { handle: () => ring.handle(), hold: () => ring.hold(), touch: () => ring.touch(),
-      loadSecrets: () => ring.loadSecrets?.() ?? {}, saveSecrets: (m) => ring.saveSecrets?.(m) },
+    // While the key is replaced on the nodes (lib/jobs/rekey.js) a second set of jobs signs with
+    // the next key. Both seal a relay hop with the key that relay is on: the next key once the
+    // relay has proved on it, the key in use until then.
+    const proved = async () => provedNodes(await stores.meta.get(META_ID));
+    const build = (keys, hopHandle) => createJobs({ ring: keys, hopHandle,
       stores, rules, brokers: data.brokers, results: data.results, configOf: (region) => brokerConfig(data.brokers, region),
       companion: isDemo() ? () => null : companion, meshAfterMins: () => meshAfterMins(), readOnly: demoReadOnly(),
       mqttSeen: async (d) => {
@@ -48,8 +52,18 @@ export async function services(owner) {
         const at = oid ? Number((await beacon.observer(oid))?.lastStatusAt) : NaN;
         return Number.isFinite(at) ? at : null;
       } });
+    const jobs = build({ handle: () => ring.handle(), hold: () => ring.hold(), touch: () => ring.touch(),
+      loadSecrets: () => ring.loadSecrets?.() ?? {}, saveSecrets: (m) => ring.saveSecrets?.(m) },
+    async (via) => ((await proved()).has(via.node) ? ring.rekeyHandle?.() ?? null : null));
+    // The next key's shared secrets live for the page only; at finish they are the key's own to make.
+    let nextSecrets = {};
+    const nextJobs = build({ handle: () => ring.rekeyHandle?.() ?? null, hold: () => ring.hold(), touch: () => ring.touch(),
+      loadSecrets: async () => ({ ...nextSecrets }), saveSecrets: async (m) => { nextSecrets = { ...m }; } },
+    async (via) => ((await proved()).has(via.node) ? null : ring.handle()));
     perOwner.set(owner, Object.freeze({
-      data, rules, stores, jobs,
+      data, rules, stores, jobs, nextJobs,
+      // Finish of a key replacement: what is kept for this key, copied to the key that replaces it.
+      copyTo: (next) => copyStores(db, owner, next, { skipMeta: [META_ID] }),
       releases: () => latestRelease({ meta: stores.meta }),
       releasePage: async () => (await releaseSource()).page,
       fleet: (nodes = null) => refreshFleet({ stores, client: beacon, nodes }),

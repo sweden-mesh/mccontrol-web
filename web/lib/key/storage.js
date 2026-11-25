@@ -9,7 +9,10 @@
 //     wraps: { passphrase: <sealed backup record>, prf?: { credentialId, salt, nonce, ciphertext } },
 //     backup: null | { at, form: 'file' | 'confirmed' },   ('confirmed': before 2026-11-17)
 //     settings: { autoLockMinutes: 5 | 15 | 60 | null },
-//     persist: null | { at, granted } }
+//     persist: null | { at, granted },
+//     next?: { id, created, wrap: <sealed backup record>, local: <hex, sealed under this key>, backup },
+//                                     the next key while a replacement on the nodes is under way
+//     replaced?: [{ id, at, wrap: <sealed backup record> }] }   keys this one replaced, kept sealed
 
 export const DB_NAME = 'mccontrol-key';
 const STORE = 'keys';

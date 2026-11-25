@@ -89,8 +89,16 @@ mcc3; mccontrol-spec's wire format has the bytes):
   `set alive.interval`, `set autoreply.national auto|off|<region>` and `get cmd.mesh` are typed
   as a `set` or `get`. `time now`, sent over the mesh or through a relay, mends a clock that fell
   behind. A node takes 50 commands an hour. Help's "commands" and "lou20" topics have the rest.
-- **Replacing the key.** The page has no `rekey` of its own yet: rotate with the terminal tool
-  (`python -m mccontrol.rekey`), then bring the new key here with a backup file.
+- **Replacing the key.** Setup's Key tab has "Replace the key on your nodes" (`rekey`, lou-20 and
+  later): make a new key in the browser, save its backup file, then send it to one node at a time.
+  A node is first sent `rekey <new public key>` signed by the key in use, then one `ver` signed by
+  the new key; when that is answered the node is on the new key. A node that says nothing can be
+  tried again while the key waits on it (60 minutes, or until it restarts). Nodes on lou-19 or
+  older are listed and never sent anything: they need the new key over USB. Finish makes the new
+  key the page's key and says which nodes were left on the old one; the replaced key stays in the
+  browser, sealed, until you forget it. Abort is open only while no node has taken the new key.
+  The demo (`?demo=1`) lets you try the whole round on its invented nodes. Details: `web/README.md`,
+  "Replacing the key on the nodes".
 
 ## A node without Wi-Fi (mesh only)
 
