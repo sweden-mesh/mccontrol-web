@@ -220,11 +220,15 @@ test('firmware update with check: ota check first, and ota update only when the 
   assert.equal(stages[0], 'otaCheck');
 });
 
-test('a version shortens the same way from ver and from an alive message', () => {
-  assert.equal(shortVersion(rules, 'esp32s3-v1.18.0-lou-20-arrc-observer-9c6c0a0 (Build: 24 Nov 2026)'), 'lou-20');
-  assert.equal(shortVersion(rules, 'lou-20-arrc-observer-9c6c0a0'), 'lou-20');          // an alive message's
-  assert.equal(shortVersion(rules, 'lou-20rc-arrc-observer-60407864'), 'lou-20rc');     // a release candidate keeps its mark
+test('a version shortens the same way from ver and from an alive message, and keeps what the image carries', () => {
+  assert.equal(shortVersion(rules, 'esp32s3-v1.18.0-lou-20-arrc-observer-9c6c0a0 (Build: 24 Nov 2026)'), 'lou-20-arrc-observer');
+  assert.equal(shortVersion(rules, 'lou-20-arrc-observer-9c6c0a0'), 'lou-20-arrc-observer');   // an alive message's
+  assert.equal(shortVersion(rules, 'nrf52840-v1.18.0-lou-20-arrc-6491056 (Build: 24-Nov-2026)'), 'lou-20-arrc');
+  assert.equal(shortVersion(rules, 'esp32s3-v1.18.0-lou-20-ar-6491056'), 'lou-20-ar');
+  assert.equal(shortVersion(rules, 'v1.18.0-lou-20-rc-observer-abc1234'), 'lou-20-rc-observer');
+  assert.equal(shortVersion(rules, 'lou-20rc-arrc-observer-60407864'), 'lou-20rc-arrc-observer');  // a release candidate keeps its mark
   assert.equal(shortVersion(rules, 'v1.18.0-lou-18'), 'lou-18');
+  assert.equal(shortVersion(rules, 'v1.18.0-lou-20-ar5f1a6'), 'lou-20');                     // a hash that starts like a flavour is no flavour
 });
 
 test('releases: the newest real release, cached for an hour; the mark compares revisions', async () => {

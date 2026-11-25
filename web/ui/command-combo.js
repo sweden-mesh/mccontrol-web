@@ -117,6 +117,8 @@ export function attachCombo(ctx, input, { svc, devices }) {
     } else if (e.key === 'Enter' && isOpen() && active >= 0) {
       e.preventDefault();
       take(shown[active].text);
+    } else if (e.key === 'Enter') {
+      close();                                    // Enter with no suggestion marked sends: the list goes away
     } else if (e.key === 'Escape' && isOpen()) {
       e.preventDefault();
       e.stopPropagation();
@@ -124,6 +126,8 @@ export function attachCombo(ctx, input, { svc, devices }) {
     } else if (e.key === 'Tab') close();
   }, opts);
   input.addEventListener('blur', () => close(), opts);
+  // Sent by the button too: the list does not stay over an emptied field.
+  addEventListener('submit', (e) => { if (e.target === input.form) close(); }, { ...opts, capture: true });
   addEventListener('resize', () => { if (isOpen()) place(); }, opts);
   addEventListener('scroll', () => { if (isOpen()) place(); }, { ...opts, capture: true, passive: true });
   ctx.signal.addEventListener('abort', () => { close(); list.remove(); }, { once: true });

@@ -79,12 +79,15 @@ export function fleetCounts(devices, { now, hours, rules }) {
   return { total: devices.length, regions: [...regions].sort(byCount), heard, quiet, unknown, versions: [...versions].sort(byCount), results };
 }
 
-// "lou-18" or "ar-10" from a whole version line; the line itself when it has no revision. The
-// line of `ver` starts "esp32s3-v1.18.0-lou-20-…", the one in an alive message "lou-20-…": both
-// shorten the same way. A release candidate keeps its mark ("lou-20rc").
+// "lou-20-arrc-observer" from a whole version line: the revision and what the image carries (ar
+// auto-reply, rc remote control, arrc both, observer the Observer firmware with Wi-Fi and MQTT),
+// without the board, the base version and the build hash. "lou-18" or "ar-10" when the line names
+// no more; the line itself when it has no revision. The line of `ver` starts
+// "esp32s3-v1.18.0-lou-20-…", the one in an alive message "lou-20-…": both shorten the same way.
+// A release candidate keeps its mark ("lou-20rc").
 export function shortVersion(rules, version) {
   if (!version) return null;
-  const m = /(?:^|-)(lou|ar)-(\d+(?:rc\d*)?)/i.exec(version);
-  if (m) return `${m[1].toLowerCase()}-${m[2]}`;
+  const m = /(?:^|-)(lou|ar)-(\d+(?:rc\d*)?)((?:-(?:arrc|ar|rc|observer)(?=[-\s]|$))*)/i.exec(version);
+  if (m) return `${m[1]}-${m[2]}${m[3]}`.toLowerCase();
   return rules.revision(version) === null ? version.slice(0, 24) : version;
 }
