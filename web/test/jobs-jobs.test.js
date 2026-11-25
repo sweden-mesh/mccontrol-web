@@ -333,3 +333,14 @@ test('preflight: a command that stops before its value is incomplete (W-23h)', (
     assert.equal(preflight(rules, { command: c, device: dev }).incomplete, null, c);
   }
 });
+
+test('a read that answers with a bare code gets its meaning in words', async () => {
+  const { valueWords } = await import('../ui/screens/node-kit.js');
+  const t = (key) => key;
+  assert.equal(valueWords(t, 'get path.hash.mode', '> 0'), 'value.path.hash.mode.0');
+  assert.equal(valueWords(t, 'get path.hash.mode', '>2'), 'value.path.hash.mode.2');
+  assert.equal(valueWords(t, 'get loop.detect', '> strict'), 'value.loop.detect.strict');
+  assert.equal(valueWords(t, 'get path.hash.mode', '> 7'), '');          // a value not in the list: no words
+  assert.equal(valueWords(t, 'get name', '> 0'), '');                    // a setting not in the list
+  assert.equal(valueWords(t, 'set path.hash.mode 1', 'OK'), '');
+});

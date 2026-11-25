@@ -80,6 +80,19 @@ export function when(ctx, iso) {
 // the spec's words: never "refused", because the node itself has said nothing. `advice` is what
 // lib/jobs/silence.js had to say of this send, kept on its history event: after a silence the
 // suggestion of a flood, and on a `get cmd` answer that the node refused for lack of airtime.
+// A read that answers with a bare code: what the value means, in words (W-54). `get <setting>`
+// and its answer -> the words, or '' when the setting or the value is not in the list.
+export const VALUE_WORDS = Object.freeze({
+  'path.hash.mode': ['0', '1', '2'],
+  'loop.detect': ['off', 'minimal', 'moderate', 'strict'],
+});
+export function valueWords(t, command, reply) {
+  const m = /^get\s+(\S+)$/i.exec(String(command || '').trim());
+  const setting = m ? m[1].toLowerCase() : null;
+  const value = String(reply || '').replace(/^>\s*/, '').trim().toLowerCase();
+  return setting && VALUE_WORDS[setting]?.includes(value) ? t(`value.${setting}.${value}`) : '';
+}
+
 export function explain(ctx, svc, result, device = null, road = 'mqtt', relay = null, advice = null) {
   // The flood is suggested by the names of the controls that ask for one; nothing is switched or sent.
   const controls = () => ({ road: ctx.t('road.legend'), relay: ctx.t('road.relay'), route: ctx.t('road.relayRoute'), flood: ctx.t('road.route.flood') });
@@ -92,7 +105,10 @@ export function explain(ctx, svc, result, device = null, road = 'mqtt', relay = 
   if (!result) return { kind: 'silent', text: ctx.t('send.res.silent'), help: road === 'mesh' ? `${ctx.t('road.silentMesh')} ${silent()}` : ctx.t('send.res.silentHelp') };
   if (result.verified === false) return { kind: 'forged', text: ctx.t('send.res.forged'), help: ctx.t('send.res.forgedHelp') };
   const sig = result.verified ? ctx.t('send.res.signed') : ctx.t('send.res.unsigned');
-  if (result.ok) return { kind: 'ok', text: result.reply || 'OK', help: sig + said('refused') };
+  if (result.ok) {
+    const words = valueWords(ctx.t, result.command, result.reply);
+    return { kind: 'ok', text: `${result.reply || 'OK'}${words ? ` · ${words}` : ''}`, help: sig + said('refused') };
+  }
   const name = codeName(svc.data.results, result.code);
   let help = codeHelp(svc.data.results, result.code) || ctx.t('send.res.noHelp');
   // not-allowed: say whether the node's firmware (its own `ver`, else what Beacon reports) is
