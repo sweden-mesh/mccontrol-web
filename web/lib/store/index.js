@@ -15,12 +15,13 @@
 //   history event  id = time-sortable and random, never reused; append-only: an event is written
 //                  once and never changed (created === updated). { v: 1, at, batch, node | null,
 //                  region, command, topic, code | null, codeName | null, reply | null,
-//                  verified: true | false | null, note, road: 'mqtt' | 'mesh' }. Silence is code
+//                  verified: true | false | null, note, road: 'mqtt' | 'mesh' | 'relay', advice: [word] }. Silence is code
 //                  null with no reply. An event from before the mesh road (W-16) went over MQTT.
 //   meta           id = a name ('lastVisit', 'releases'); value
 //
 //   const stores = openStores(db, publicKeyHex, { defaultSets });
 import { STORES } from './db.js';
+import { ADVICE } from '../jobs/silence.js';
 
 export const SCHEMA = 1;
 export const SET_STEPS = 6;
@@ -228,13 +229,14 @@ export function openStores(db, owner, { now = () => Date.now(), defaultSets = {}
     const num = (v) => (Number.isFinite(v) ? v : null);
     return { node: String(r.node).toUpperCase(), route: word(r.route), status: word(r.status), sent: num(r.sent), snr: num(r.snr) };
   };
-  const FIELDS = ['at', 'batch', 'node', 'region', 'command', 'topic', 'code', 'codeName', 'reply', 'verified', 'note', 'road', 'relay'];
+  const FIELDS = ['at', 'batch', 'node', 'region', 'command', 'topic', 'code', 'codeName', 'reply', 'verified', 'note', 'road', 'relay', 'advice'];
   const shape = (event) => {
     const out = { v: SCHEMA };
     for (const f of FIELDS) out[f] = event[f] ?? null;
     out.note = out.note || '';
     out.road = ROADS.includes(out.road) ? out.road : 'mqtt';
     out.relay = out.road === 'relay' ? relayShape(out.relay) : null;
+    out.advice = Array.isArray(out.advice) ? ADVICE.filter((word) => out.advice.includes(word)) : [];   // what silence.js said
     if (out.node) out.node = String(out.node).toUpperCase();
     return out;
   };

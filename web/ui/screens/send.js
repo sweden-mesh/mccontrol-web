@@ -195,7 +195,7 @@ export function resultList(ctx, svc, out, target) {
         h('span', { class: 'tag tag-unsent' }, ctx.t('send.notSent')),
         h('span', { class: 'res-text' }, o.reason ? ctx.t(`send.why.${o.reason.code}`, o.reason.vars) : ''));
     }
-    const x = explain(ctx, svc, o.result, devices.get(o.node), o.road, o.info);
+    const x = explain(ctx, svc, o.result, devices.get(o.node), o.road, o.info, o.event?.advice);
     const how = roadLine(ctx, o);
     return h('li', { class: `res res-${x.kind}` },
       h('span', { class: 'res-name' }, h('a', { href: `#/node/${o.node}` }, o.name)),

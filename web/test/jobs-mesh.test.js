@@ -145,6 +145,20 @@ test('silence over the mesh is silence: no code, recorded as such', async () => 
   assert.equal((await stores.devices.get(N)).lastHeard, null);
 });
 
+test('two direct sends over the mesh without an answer suggest a flood; a flooded one does not count', async () => {
+  const direct = await setup({ companion: { answer: () => null } });      // the companion holds a 1-hop path
+  const send = async (x) => (await x.jobs.send({ command: 'ver', nodes: [N], road: 'mesh' })).outcomes[0];
+  assert.deepEqual((await send(direct)).event.advice, []);
+  const second = await send(direct);
+  assert.ok(second.info.hops >= 0);
+  assert.deepEqual(second.event.advice, ['flood']);
+  assert.equal((await direct.stores.history.list()).length, 2, 'suggested only: nothing more was sent');
+  const flooded = await setup({ companion: { answer: () => null, contacts: { [K]: -1 } } });
+  await send(flooded);
+  assert.deepEqual((await send(flooded)).event.advice, []);
+  assert.equal((await flooded.stores.devices.get(N)).silence.direct, 0);
+});
+
 test('no companion connected, or a check fails: nothing signed, nothing sent', async () => {
   const off = await setup({ connected: false });
   await assert.rejects(off.jobs.send({ command: 'ver', nodes: [N], road: 'mesh' }), (e) => e instanceof JobError && e.code === 'noCompanion');

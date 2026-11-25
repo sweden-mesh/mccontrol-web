@@ -77,13 +77,22 @@ export function when(ctx, iso) {
 // What a result means, in words: { kind, text, help }. kind is ok | refused | silent | forged.
 // Silence over the mesh (road 'mesh') has its own reasons, none of them a refusal. Through a
 // relay (`relay`: { status }) what came back without the node's answer is the relay's status in
-// the spec's words: never "refused", because the node itself has said nothing.
-export function explain(ctx, svc, result, device = null, road = 'mqtt', relay = null) {
-  if (!result && road === 'relay') return { kind: 'silent', text: ctx.t('send.res.silent'), help: relayHelp(ctx, svc, relay?.status ?? null) };
-  if (!result) return { kind: 'silent', text: ctx.t('send.res.silent'), help: ctx.t(road === 'mesh' ? 'road.silentMesh' : 'send.res.silentHelp') };
+// the spec's words: never "refused", because the node itself has said nothing. `advice` is what
+// lib/jobs/silence.js had to say of this send, kept on its history event: after a silence the
+// suggestion of a flood, and on a `get cmd` answer that the node refused for lack of airtime.
+export function explain(ctx, svc, result, device = null, road = 'mqtt', relay = null, advice = null) {
+  // The flood is suggested by the names of the controls that ask for one; nothing is switched or sent.
+  const controls = () => ({ road: ctx.t('road.legend'), relay: ctx.t('road.relay'), route: ctx.t('road.relayRoute'), flood: ctx.t('road.route.flood') });
+  const said = (word) => (!advice?.includes(word) ? '' : ` ${word === 'flood' ? ctx.t(`road.adviceFlood.${road}`, controls()) : ctx.t('road.adviceRefused')}`);
+  const silent = () => `${ctx.t('road.adviceSilent')}${said('flood')}`;
+  if (!result && road === 'relay') {
+    const status = relay?.status ?? null;
+    return { kind: 'silent', text: ctx.t('send.res.silent'), help: relayHelp(ctx, svc, status) + (status === 'no-answer' ? ` ${silent()}` : '') };
+  }
+  if (!result) return { kind: 'silent', text: ctx.t('send.res.silent'), help: road === 'mesh' ? `${ctx.t('road.silentMesh')} ${silent()}` : ctx.t('send.res.silentHelp') };
   if (result.verified === false) return { kind: 'forged', text: ctx.t('send.res.forged'), help: ctx.t('send.res.forgedHelp') };
   const sig = result.verified ? ctx.t('send.res.signed') : ctx.t('send.res.unsigned');
-  if (result.ok) return { kind: 'ok', text: result.reply || 'OK', help: sig };
+  if (result.ok) return { kind: 'ok', text: result.reply || 'OK', help: sig + said('refused') };
   const name = codeName(svc.data.results, result.code);
   let help = codeHelp(svc.data.results, result.code) || ctx.t('send.res.noHelp');
   // not-allowed: say whether the node's firmware (its own `ver`, else what Beacon reports) is
@@ -117,8 +126,8 @@ function relayHelp(ctx, svc, status) {
 export function explainEvent(ctx, svc, e, device = null) {
   if (e.code === null && e.node === null) return { kind: 'summary', text: e.note, help: '' };
   if (e.verified === false) return explain(ctx, svc, { verified: false });
-  if (e.code === null) return explain(ctx, svc, null, null, e.road, e.relay);
-  return explain(ctx, svc, { code: e.code, reply: e.reply, verified: e.verified, ok: e.code === 0, command: e.command }, device);
+  if (e.code === null) return explain(ctx, svc, null, null, e.road, e.relay, e.advice);
+  return explain(ctx, svc, { code: e.code, reply: e.reply, verified: e.verified, ok: e.code === 0, command: e.command }, device, e.road, null, e.advice);
 }
 
 // The words under a result's tag: the command (when given), the reply for an ok, the code

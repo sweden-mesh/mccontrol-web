@@ -438,7 +438,9 @@ test('history in words: which relay, the route, the SNR; the relay\'s status in 
     for (const [code, name] of Object.entries(all.results.forward.statuses).slice(1)) {
       const x = explainEvent(ctx, svc, e(name));
       assert.equal(x.kind, 'silent', name);
-      assert.equal(x.help, lang === 'sv' ? all.results.forward.help_sv[code] : all.results.forward.help[code], name);
+      const spec = lang === 'sv' ? all.results.forward.help_sv[code] : all.results.forward.help[code];
+      // only "no answer" went on the air: it alone gets what the silence can mean
+      assert.equal(x.help, name === 'no-answer' ? `${spec} ${strings['road.adviceSilent']}` : spec, name);
     }
     assert.equal(explainEvent(ctx, svc, e(null)).help, strings['road.relaySilent']);
     assert.equal(explainEvent(ctx, svc, e('answered')).help, strings['road.relayUnread']);
@@ -458,4 +460,63 @@ test("a version as an alive names it (no board prefix) reads like ver's answer",
   assert.equal(rules.meshOnly(short), false);
   assert.equal(rules.speaksMesh(short), true);
   assert.equal(rules.canRelay('lou-19-arrc-observer-1a2b3c4d'), false);
+});
+
+// -- why a command through a relay got no answer, and what to try (silence.js) ---------------
+
+const GET_CMD = (refused) => `> on, counter 5, mesh only, mesh on ok 1 refused ${refused}`;
+const english = () => {
+  const strings = JSON.parse(readFileSync(new URL('../i18n/en.json', import.meta.url), 'utf8'));
+  return { strings, ctx: { t: translator(strings), lang: 'en' }, svc: { data: { results: all.results }, rules } };
+};
+
+test('two direct sends in a row without an answer suggest a flood by its control; an answer ends the count; nothing is sent', async () => {
+  let answer = null;
+  const { jobs, stores, broker } = await setup({ behind: { answer: (c) => answer && { code: 0, reply: `> ${c}` } } });
+  const send = async (route = 'neighbour') => (await jobs.send({ command: 'get radio', nodes: [T], road: 'relay', relay: via(route, { confirmed: true }) })).outcomes[0];
+  assert.deepEqual((await send()).event.advice, []);
+  const second = await send();
+  assert.deepEqual(second.event.advice, ['flood']);
+  assert.equal(broker.forwards.length, 2, 'suggested only');
+  assert.ok(broker.forwards.every((f) => f.route === mcc3.ROUTES.direct), 'the route was not switched');
+  const { strings, ctx, svc } = english();
+  const help = explainEvent(ctx, svc, second.event).help;
+  assert.ok(help.includes(strings['road.adviceSilent']) && help.includes('with Route set to Flood the relay\'s home region'), help);
+  assert.ok(!explainEvent(ctx, svc, (await stores.history.list({ node: T })).at(-1)).help.includes('Two direct sends'));
+  assert.deepEqual((await send('flood')).event.advice, [], 'a flood without an answer is not a direct loss');
+  assert.equal((await stores.devices.get(T)).silence.direct, 0);
+  await send();
+  answer = true;
+  assert.deepEqual((await send()).event.advice, []);
+  assert.equal((await stores.devices.get(T)).silence.direct, 0);
+  answer = null;
+  assert.deepEqual((await send()).event.advice, [], 'counted from one again');
+});
+
+test('a status that sent nothing changes nothing; a silent relay is not counted as a loss', async () => {
+  const off = await setup({ radio: { on: false } });
+  const o = (await off.jobs.send({ command: 'ver', nodes: [T], road: 'relay', relay: via('neighbour') })).outcomes[0];
+  assert.equal(o.info.status, 'off');
+  assert.equal((await off.stores.devices.get(T)).silence, undefined);
+  const quiet = await setup({ radio: null, target: { silence: { direct: 1, base: null, refused: 2 } } });
+  const q = (await quiet.jobs.send({ command: 'ver', nodes: [T], road: 'relay', relay: via('neighbour') })).outcomes[0];
+  assert.equal(q.info.status, null);
+  assert.deepEqual(q.event.advice, []);
+  assert.deepEqual((await quiet.stores.devices.get(T)).silence, { direct: 1, base: null, refused: null });
+});
+
+test('refused rising between two get cmd reads around the silence: the node refused for lack of airtime, said once', async () => {
+  let reply = GET_CMD(2);
+  const { jobs, broker } = await setup({ behind: { answer: () => reply && { code: 0, reply } } });
+  const send = async (command) => (await jobs.send({ command, nodes: [T], road: 'relay', relay: via('neighbour') })).outcomes[0];
+  assert.deepEqual((await send('get cmd')).event.advice, []);
+  reply = null;
+  assert.deepEqual((await send('ver')).event.advice, []);
+  reply = GET_CMD(3);
+  const after = await send('get cmd');
+  assert.deepEqual(after.event.advice, ['refused']);
+  const { strings, ctx, svc } = english();
+  assert.ok(explainEvent(ctx, svc, after.event).help.endsWith(strings['road.adviceRefused']));
+  assert.deepEqual((await send('get cmd')).event.advice, []);
+  assert.equal(broker.forwards.length, 4, 'nothing was sent to find out');
 });

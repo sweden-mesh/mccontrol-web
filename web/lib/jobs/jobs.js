@@ -44,6 +44,7 @@ import { MESH_WAIT_SECS, meshAnswer, meshBody, sendOverMesh as realMeshSend } fr
 import {
   FORWARD_TTL_SECS, RELAY_ROUTES, RELAY_WAIT_SECS, WIRE_ROUTE, autoRelay, hearsTarget, isFlood, relayRefusal,
 } from './relay.js';
+import { MESH_ROADS, advice, refusedCount, step } from './silence.js';
 
 export { JobError } from './checks.js';
 
@@ -135,11 +136,25 @@ export function createJobs({
     return keys;
   }
 
+  // Keep the device's silence state after one send (silence.js) and return what to say beside
+  // its result. `direct`: a mesh-road send followed a stored path; `unknown`: it is not known
+  // whether anything was sent. Uses what was read; sends nothing.
+  async function advise(device, command, result, road, { direct = false, unknown = false } = {}) {
+    const outcome = unknown || result?.verified === false ? 'unknown' : !result ? 'silent' : result.ok ? 'ok' : 'refused';
+    const read = outcome === 'ok' ? refusedCount(command, result.reply) : null;
+    if (!MESH_ROADS.includes(road) && read === null) return [];
+    const kept = (await stores.devices.get(device.node))?.silence || null;
+    const next = step(kept, road, outcome, direct, read);
+    await stores.devices.update(device.node, { silence: next.state });
+    return advice(road, outcome, next.state.direct, next.before, next.after);
+  }
+
   // Store what came back from `device` for `command`: a history event, the device's last
   // result and last heard, a kept read, and its version or name.
-  async function land(device, command, topic, result, batch, note = '', road = 'mqtt', relay = null) {
+  async function land(device, command, topic, result, batch, note = '', road = 'mqtt', relay = null, how = {}) {
     const event = await stores.history.append({
       batch, node: device.node, region: null, command, topic, note, road, relay,
+      advice: how ? await advise(device, command, result, road, how) : [],     // false: nothing went on the air
       code: result ? result.code : null,
       codeName: result && result.code !== null ? codeName(results, result.code) : null,
       reply: result ? result.reply : null,
@@ -233,12 +248,12 @@ export function createJobs({
     });
     const note = why ? `mesh: ${why.code}` : '';
     if (fallback && out.result?.code === 19) {
-      await land(device, command, out.topic, out.result, batch, 'mesh closed: sent over MQTT', 'mesh');
+      await land(device, command, out.topic, out.result, batch, 'mesh closed: sent over MQTT', 'mesh', null, { direct: out.info?.hops >= 0 });
       const fresh = (await stores.devices.get(device.node)) || device;
       const again = await sendMqtt(handle, fresh, command, opts);
       return { ...again, why: { code: 'meshClosed', vars: {} } };
     }
-    const event = await land(device, command, out.topic, out.result, batch, note, 'mesh');
+    const event = await land(device, command, out.topic, out.result, batch, note, 'mesh', null, { direct: out.info?.hops >= 0 });
     return { device, result: out.result, event, v2: false, road: 'mesh', why, info: out.info };
   }
 
@@ -292,13 +307,16 @@ export function createJobs({
     }
     if (r?.name === 'off' && via.alive) await stores.devices.update(via.node, { alive: { ...via.alive, relay: false } });
     const kept = { node: info.relay, route, status: info.status, sent: info.sent, snr: info.snr };
+    // Only 'answered' and 'no-answer' say the relay sent; a relay that said nothing may have.
+    const how = r && !['answered', 'no-answer'].includes(r.name) ? false
+      : { direct: !isFlood(route), unknown: !r || (r.name === 'answered' && !result) };
     if (fallback && result?.code === 19) {
-      await land(device, command, out.topic, result, batch, 'mesh closed: sent over MQTT', 'relay', kept);
+      await land(device, command, out.topic, result, batch, 'mesh closed: sent over MQTT', 'relay', kept, how);
       const fresh = (await stores.devices.get(device.node)) || device;
       const again = await sendMqtt(handle, fresh, command, opts);
       return { ...again, why: { code: 'meshClosed', vars: {} } };
     }
-    const event = await land(device, command, out.topic, result, batch, why ? `relay: ${why.code}` : '', 'relay', kept);
+    const event = await land(device, command, out.topic, result, batch, why ? `relay: ${why.code}` : '', 'relay', kept, how);
     return { device, result, event, v2: false, road: 'relay', why, info };
   }
 
@@ -567,7 +585,7 @@ export function createJobs({
       const existing = await stores.devices.get(node);
       const device = existing || await adopt({ node, key, region: r, name, verified: null });
       await stores.devices.update(device.node, { meshOnly: true });
-      await land(await stores.devices.get(device.node), 'ver', out.topic, out.result, batchId(), 'mesh-only check', 'mesh');
+      await land(await stores.devices.get(device.node), 'ver', out.topic, out.result, batchId(), 'mesh-only check', 'mesh', null, { direct: out.info?.hops >= 0 });
       return { answered: true, result: out.result, device: await stores.devices.get(device.node), info: out.info };
     });
   }
