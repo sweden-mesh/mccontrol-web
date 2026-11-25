@@ -5,6 +5,7 @@
 // region is chosen, IATA-2) or by pasting a whole key. Each row says whether the node is online
 // (its alive opens), offline (its will cleared it) or no longer yours (it opens with another key).
 import { h } from '../dom.js';
+import { dataChanged } from '../tiles/sources.js';   // the page's lists follow a node added, renamed or forgotten here
 import { lowBatteryVolts, notHeardHours } from './settings-store.js';
 import { brokerText } from './key-register.js';
 import { batteryKnown, lastHeard, shortVersion } from '../../lib/jobs/overview.js';
@@ -97,6 +98,7 @@ function discoverForm(ctx, svc, redraw) {
             await svc.jobs.adopt({ node: f.key, key: f.key, region: '', alive: f.alive }, name.value);
             add.replaceWith(h('span', {}, ctx.t('nodes.adopted')));
             redraw();
+            dataChanged('devices');
           } catch (err) { ctx.notify(err.message, { kind: 'error' }); }
         });
         return h('li', {}, h('code', {}, f.node), ' ', h('span', {}, ctx.t(`alive.${f.state}`)), ' ',
@@ -126,6 +128,7 @@ function addForm(ctx, svc, redraw) {
       out.textContent = ctx.t('nodes.added');
       form.reset();
       redraw();
+      dataChanged('devices');
     } catch (err) { out.textContent = err.message; }
   }, { signal: ctx.signal });
   return form;

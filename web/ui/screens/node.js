@@ -5,6 +5,7 @@
 // "All history" link, and for a node that can relay the switch for it. No Send and no results
 // here: the board's command line and HISTORY have both.
 import { h } from '../dom.js';
+import { dataChanged } from '../tiles/sources.js';   // the page's lists follow a node added, renamed or forgotten here
 import { deriveFacts } from '../../lib/store/index.js';
 import { lastHeard, shortVersion } from '../../lib/jobs/overview.js';
 import { updateAvailable } from '../../lib/jobs/releases.js';
@@ -153,6 +154,7 @@ export function editForm(ctx, svc, device, redraw) {
         meshOnly: { yes: true, no: false }[meshOnly.value] ?? null });
       out.textContent = ctx.t('node.saved');
       redraw();
+      dataChanged('devices');
     } catch (err) { out.textContent = err.message; }
   }, { signal: ctx.signal });
   forget.addEventListener('click', async () => {
@@ -162,6 +164,7 @@ export function editForm(ctx, svc, device, redraw) {
     });
     if (!ok) return;
     await svc.stores.devices.remove(device.node);
+    dataChanged('devices');
     ctx.notify(ctx.t('node.forgotten', { name: nameOf(device) }));
     ctx.navigate('#/nodes');
   }, { signal: ctx.signal });
