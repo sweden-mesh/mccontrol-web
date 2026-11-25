@@ -58,14 +58,17 @@ export function relayRefusal(rules, relay, target, now = Date.now()) {
 }
 
 // The owner's nodes that can relay to `target` now, each with what is known of the way:
-// [{ device, hears: true | false | null, heardAt, path: { pathLen, path, at } | null }],
-// those known to hear the target first, then those with a path, by name.
+// [{ device, hears: true | false | null, snr, heardAt, path: { pathLen, path, at } | null }],
+// those known to hear the target first, the strongest signal at the top, then those with a path,
+// then the unchecked, then those whose neighbour list lacked it; by name within each.
 export function relayCandidates(rules, devices, target, now = Date.now()) {
   const rank = (c) => (c.hears === true ? 0 : c.path ? 1 : c.hears === null ? 2 : 3);
+  const signal = (c) => (c.hears === true && Number.isFinite(c.snr) ? c.snr : -Infinity);
   return devices.filter((d) => relayRefusal(rules, d, target, now) === null).map((device) => {
     const finding = target?.relayHears?.[device.node] || null;
-    return { device, hears: finding ? finding.hears : null, heardAt: finding?.at || null, path: target?.relayPaths?.[device.node] || null };
-  }).sort((a, b) => rank(a) - rank(b) || String(a.device.name || a.device.node).localeCompare(String(b.device.name || b.device.node)));
+    return { device, hears: finding ? finding.hears : null, snr: Number.isFinite(finding?.snr) ? finding.snr : null,
+      heardAt: finding?.at || null, path: target?.relayPaths?.[device.node] || null };
+  }).sort((a, b) => rank(a) - rank(b) || signal(b) - signal(a) || String(a.device.name || a.device.node).localeCompare(String(b.device.name || b.device.node)));
 }
 
 // Why no node of the owner's can relay to `target` ({ code, vars }), or null when one can: the

@@ -520,3 +520,15 @@ test('refused rising between two get cmd reads around the silence: the node refu
   assert.deepEqual((await send('get cmd')).event.advice, []);
   assert.equal(broker.forwards.length, 4, 'nothing was sent to find out');
 });
+
+test('relays are listed with the one that heard the target strongest first', () => {
+  const now = Date.parse('2026-11-25T12:00:00Z');
+  const relay = (node, name) => ({ node, key: node.repeat(8), name, alive: { state: 'online', at: '2026-11-25T11:59:00Z', flags: 0x02, relay: true, version: 'lou-20-arrc-observer-0' } });
+  const fake = { canRelay: () => true };
+  const target = { node: 'DDDD0004', relayHears: {
+    AAAA0001: { hears: true, snr: 3.5 }, BBBB0002: { hears: true, snr: 11 }, CCCC0003: { hears: false, snr: null } } };
+  const devices = [relay('AAAA0001', 'alpha'), relay('BBBB0002', 'bravo'), relay('CCCC0003', 'charlie'), relay('EEEE0005', 'echo')];
+  const got = relayCandidates(fake, devices, target, now);
+  assert.deepEqual(got.map((c) => c.device.name), ['bravo', 'alpha', 'echo', 'charlie']);   // 11 dB, 3.5 dB, unchecked, not in its list
+  assert.deepEqual(got.map((c) => c.snr), [11, 3.5, null, null]);
+});

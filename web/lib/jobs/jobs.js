@@ -311,6 +311,12 @@ export function createJobs({
       await stores.devices.update(device.node, { relayPaths: { ...(fresh.relayPaths || {}),
         [via.node]: { pathLen: r.pathLen, path: toHex(r.path, true), at: new Date(now()).toISOString() } } });
     }
+    // An answer to a zero-hop send came straight from the node: this relay hears it, at this signal.
+    if (r?.name === 'answered' && route === 'neighbour') {
+      const fresh = (await stores.devices.get(device.node)) || device;
+      await stores.devices.update(device.node, { relayHears: { ...(fresh.relayHears || {}),
+        [via.node]: { hears: true, snr: info.snr, at: new Date(now()).toISOString() } } });
+    }
     if (r?.name === 'off' && via.alive) await stores.devices.update(via.node, { alive: { ...via.alive, relay: false } });
     const kept = { node: info.relay, route, status: info.status, sent: info.sent, snr: info.snr };
     // Only 'answered' and 'no-answer' say the relay sent; a relay that said nothing may have.

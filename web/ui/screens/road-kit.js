@@ -53,9 +53,9 @@ export function relayPicker(ctx, svc, { onChange = () => {} } = {}) {
   const check = h('button', { type: 'button', class: 'tool' }, t('road.checkNeighbours'));
   const budget = h('button', { type: 'button', class: 'tool' }, t('road.readBudget'));
   const note = h('p', { class: 'hint-line', role: 'status' });
-  const el = h('div', { class: 'stack relay-picker' },
-    field(t('road.relayWhich'), relaySel), field(t('road.relayRoute'), routeSel, t('road.relayHint')),
-    h('div', { class: 'row wrap' }, check, budget), note);
+  const fields = h('div', { class: 'stack' },
+    field(t('road.relayWhich'), relaySel), field(t('road.relayRoute'), routeSel, t('road.relayHint')));
+  const el = h('div', { class: 'stack relay-picker' }, fields, h('div', { class: 'row wrap' }, check, budget), note);
   let device = null;
   let all = [];
   let list = [];
@@ -63,7 +63,7 @@ export function relayPicker(ctx, svc, { onChange = () => {} } = {}) {
   const at = (d) => ({ lat: d?.fleet?.lat, lng: d?.fleet?.lng });
   const current = () => list.find((c) => c.device.node === relaySel.value) || null;
   const routeWords = (c, route) => t(`road.route.${route}`, { hops: pathHops(c.path) ?? 0 });
-  const known = (c) => (c.hears === true ? t('road.hears.yes') : c.path ? t('road.hears.path', { hops: pathHops(c.path) })
+  const known = (c) => (c.hears === true ? (c.snr !== null ? t('road.hears.yesSnr', { snr: Math.round(c.snr * 10) / 10 }) : t('road.hears.yes')) : c.path ? t('road.hears.path', { hops: pathHops(c.path) })
     : c.hears === false ? t('road.hears.no') : c.km !== null ? t('road.hears.guess', { km: Math.round(c.km) }) : t('road.hears.unknown'));
 
   function drawRoutes(keep = null) {
@@ -121,8 +121,19 @@ export function relayPicker(ctx, svc, { onChange = () => {} } = {}) {
     return s.left === null ? t('road.budgetUnknown', { relay }) : t('road.budget', { relay, left: s.left, floods: s.floods });
   }), { signal: ctx.signal });
 
+  let inlineEl = null;
   return {
     el,
+    // The two choosers on one line, for the command area: the relay and the route are then chosen
+    // where the command is typed, and `el` keeps the checks (neighbours, budget) and their answer.
+    inline() {
+      if (inlineEl) return inlineEl;
+      relaySel.setAttribute('aria-label', t('road.relayWhich'));
+      routeSel.setAttribute('aria-label', t('road.relayRoute'));
+      inlineEl = h('span', { class: 'relay-inline' }, relaySel, routeSel);
+      fields.replaceWith(h('p', { class: 'hint-line' }, t('road.relayHint')));
+      return inlineEl;
+    },
     // The same node again keeps what was read and chosen here since (the caller's copy may be older).
     use(d, devices) {
       const same = Boolean(device && d && device.node === d.node);
@@ -136,6 +147,8 @@ export function relayPicker(ctx, svc, { onChange = () => {} } = {}) {
     choice,
     // "Gisebo, direct neighbour (no hops)", or '' while nothing is chosen.
     words() { const c = current(); return c && routeSel.value ? t('road.relayBrief', { relay: nameOf(c.device), route: routeWords(c, routeSel.value) }) : ''; },
+    // A zero-hop send through a relay that has not been checked to hear the node is a guess.
+    unchecked() { const c = current(); return Boolean(c && routeSel.value === 'neighbour' && c.hears !== true); },
     // A flood is asked for each time, with what it costs; true only from the dialog's own button.
     confirmFlood(command) {
       const c = current();
@@ -153,8 +166,14 @@ export function relayPicker(ctx, svc, { onChange = () => {} } = {}) {
 // One line for the NODE tile's command area: the relay and route chosen, as a button that opens
 // the picker in a dialog (as the companion's line opens its chooser). draw() after a change.
 export function relayBrief(ctx, picker) {
-  const button = h('button', { type: 'button', class: 'link-button companion-brief' });
-  const draw = () => { button.textContent = picker.words() || ctx.t('road.relayPick'); };
+  // Beside the two choosers: what the route is worth (a zero-hop send through a relay not checked
+  // to hear the node is a guess), and the button that opens the checks in a dialog.
+  const inline = picker.inline();
+  const doubt = h('span', { class: 'muted relay-doubt' });
+  const button = h('button', { type: 'button', class: 'link-button companion-brief' }, ctx.t('road.relayCheck'));
+  const el = h('span', { class: 'relay-brief' }, inline, doubt, button);
+  const draw = () => { doubt.textContent = picker.unchecked() ? ctx.t('road.unchecked') : ''; };
+  inline.addEventListener('change', draw, { signal: ctx.signal });
   button.addEventListener('click', () => {
     const id = `relay-${count += 1}`;
     const done = h('button', { type: 'button', class: 'button' }, ctx.t('road.relayDone'));
@@ -166,7 +185,7 @@ export function relayBrief(ctx, picker) {
     dialog.showModal();
   }, { signal: ctx.signal });
   draw();
-  return { el: button, draw };
+  return { el, draw };
 }
 
 // The relay's choice for a send, asking first when it is a flood: { node, route, confirmed }, or

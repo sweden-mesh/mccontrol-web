@@ -129,6 +129,10 @@
    height and the tile never scrolls because of it (W-23i). */
 .cmd-companion { display: flex; align-items: center; gap: .5ch; min-height: var(--row); white-space: nowrap; overflow: hidden; }
 .companion-brief { overflow: hidden; text-overflow: ellipsis; }
+/* The relay line: the relay and the route as two choosers where the command is typed. */
+.cmd-companion:has(.relay-brief) { white-space: normal; overflow: visible; align-items: flex-start; flex-wrap: wrap; padding-block: 4px; }
+.relay-brief, .relay-inline { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; min-width: 0; }
+.relay-inline select { max-width: 100%; min-height: var(--row); font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--field-border); border-radius: var(--radius-xs); padding: 2px 6px; }
 
 /* Progress bars: a job is state, not decoration; the fill moves in steps, no animation. */
 .job-line { gap: 8px; }
