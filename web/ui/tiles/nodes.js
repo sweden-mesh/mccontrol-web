@@ -84,7 +84,9 @@ function fill(ctx, svc, body) {
       'aria-current': d.node === selected ? 'true' : null },
     stateMark(ctx, status.state),
     h('span', { class: 'node-name', title: name }, short),
-    h('span', { class: 'node-ver' }, d.ver ? shortVersion(svc.rules, d.ver) : '–'),
+    // The column is narrow: the revision and what the image carries ("lou-20-arrc"); the whole short
+    // version, with "-observer", is the cell's tooltip and the NODE tile's first line.
+    h('span', { class: 'node-ver', title: d.ver ? shortVersion(svc.rules, d.ver) : null }, d.ver ? shortVersion(svc.rules, d.ver).replace(/-observer$/, '') : '–'),
     h('span', { class: 'node-heard' }, heard ? age(ctx, heard, now) : '–'));
     button.addEventListener('click', () => { focusId = d.node; ctx.board.select(ctx.board.selected() === d.node ? null : d.node); });
     return h('li', { class: `node-item${tagged ? ' is-tagged' : ''}`, 'data-state': status.state },

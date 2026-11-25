@@ -14,6 +14,28 @@ identity or radio; the command key changes only by `rekey`, signed by the key in
 
 ![The standard layout: the node list and one node's overview](docs/screenshots/standard-dark-1600.png)
 
+## What you can do with it
+
+- **See your repeaters.** The page finds every lou-20 node of yours that has Wi-Fi by itself, from a
+  sealed message only your key opens, and shows each with its firmware, battery, uptime, neighbours,
+  place on the map and whether it needs attention.
+- **Send it a command and read the answer.** Anything the repeater's own console answers, except
+  what must never be done from afar (identity, radio, erase). The command box suggests commands and
+  says before sending what the node will refuse. A bare code in an answer is explained
+  (`get path.hash.mode` → `2 · 3 bytes per hop…`).
+- **Reach a repeater that has no Wi-Fi.** Through one of your own Wi-Fi repeaters as a relay, or
+  through your companion radio. You pick the relay and the route; a flood asks first.
+- **Mend one that fell off MQTT.** Over the radio you may set its Wi-Fi, switch its command
+  connection back on and set a clock that fell behind.
+- **Update its firmware.** "Update now" asks the node whether an update fits and then lets it
+  fetch it (Wi-Fi nodes, lou-19 and later).
+- **Replace your key on every node**, from the browser, one node at a time.
+- **Try all of it without a node or a key**, on an invented fleet: the demo below.
+
+| A node without Wi-Fi, through a relay | Replacing the key on the nodes |
+|---|---|
+| [![](docs/screenshots/standard-dark-relay.png)](docs/screenshots/standard-dark-relay.png) | [![](docs/screenshots/standard-dark-rekey.png)](docs/screenshots/standard-dark-rekey.png) |
+
 ## Try it without a node or a key
 
 [mccontrol.meshcoresverige.se/?demo=1](https://mccontrol.meshcoresverige.se/?demo=1) opens the same page
@@ -29,18 +51,22 @@ about nodes. A banner says so on every screen, and "Leave the demo" goes back to
 **Standard** (the default): a list of your nodes and one node's detail, in dark or light, with a
 colour-blind mode.
 
-| Light | Commands | History | Phone |
+| All nodes | Light | Commands | History |
 |---|---|---|---|
-| [![](docs/screenshots/standard-light-1600.png)](docs/screenshots/standard-light-1600.png) | [![](docs/screenshots/standard-dark-1280-commands.png)](docs/screenshots/standard-dark-1280-commands.png) | [![](docs/screenshots/standard-dark-1280-history.png)](docs/screenshots/standard-dark-1280-history.png) | [![](docs/screenshots/standard-dark-phone.png)](docs/screenshots/standard-dark-phone.png) |
+| [![](docs/screenshots/standard-dark-overview.png)](docs/screenshots/standard-dark-overview.png) | [![](docs/screenshots/standard-light-1600.png)](docs/screenshots/standard-light-1600.png) | [![](docs/screenshots/standard-dark-1280-commands.png)](docs/screenshots/standard-dark-1280-commands.png) | [![](docs/screenshots/standard-dark-1280-history.png)](docs/screenshots/standard-dark-1280-history.png) |
+
+| Firmware and updates | Add a node by its key | Neighbours | Phone |
+|---|---|---|---|
+| [![](docs/screenshots/standard-dark-firmware.png)](docs/screenshots/standard-dark-firmware.png) | [![](docs/screenshots/standard-dark-add-node.png)](docs/screenshots/standard-dark-add-node.png) | [![](docs/screenshots/standard-dark-neighbours.png)](docs/screenshots/standard-dark-neighbours.png) | [![](docs/screenshots/standard-dark-phone.png)](docs/screenshots/standard-dark-phone.png) |
 
 **Retro**: a board of tiles (NODES, NODE, STATUS, MAP, HISTORY) with a command palette, in
 amber, green, dark or light. Settings switch between the two.
 
 ![The retro board in amber](docs/screenshots/retro-amber-1600.png)
 
-| Palette | Companion | Result | Node details | Neighbours |
+| Through a relay | Palette | Companion | Result | Node details |
 |---|---|---|---|---|
-| [![](docs/screenshots/retro-palette.png)](docs/screenshots/retro-palette.png) | [![](docs/screenshots/retro-companion-chooser.png)](docs/screenshots/retro-companion-chooser.png) | [![](docs/screenshots/retro-result.png)](docs/screenshots/retro-result.png) | [![](docs/screenshots/retro-node-details.png)](docs/screenshots/retro-node-details.png) | [![](docs/screenshots/standard-dark-neighbours.png)](docs/screenshots/standard-dark-neighbours.png) |
+| [![](docs/screenshots/retro-relay.png)](docs/screenshots/retro-relay.png) | [![](docs/screenshots/retro-palette.png)](docs/screenshots/retro-palette.png) | [![](docs/screenshots/retro-companion-chooser.png)](docs/screenshots/retro-companion-chooser.png) | [![](docs/screenshots/retro-result.png)](docs/screenshots/retro-result.png) | [![](docs/screenshots/retro-node-details.png)](docs/screenshots/retro-node-details.png) |
 
 Setup: [key](docs/screenshots/retro-setup-key.png) · [node](docs/screenshots/retro-setup-node.png) ·
 [command server](docs/screenshots/retro-setup-connections.png) · [groups](docs/screenshots/retro-setup-groups.png) ·
@@ -48,8 +74,9 @@ Setup: [key](docs/screenshots/retro-setup-key.png) · [node](docs/screenshots/re
 [display](docs/screenshots/retro-setup-display.png). Green: [board](docs/screenshots/retro-green-1600.png),
 phone: [retro](docs/screenshots/retro-phone.png).
 
-The nodes, names and key in the pictures are invented. `node web/test/smoke/readme-shots.mjs`
-makes them again from the code as it is (headless Chrome, the smoke test's fake fleet).
+The pictures are of the demo: its nodes, names and key are invented, and its banner says so in
+each. `node web/test/smoke/readme-shots.mjs` makes them again from the code as it is (headless
+Chrome).
 
 ## What changed with lou-20
 
@@ -104,11 +131,15 @@ mcc3; mccontrol-spec's wire format has the bytes):
 
 From lou-20 the `rc` and `arrc` images for stock MeshCore boards take commands over the mesh
 alone. Put the key on the node as on any other (`set cmd.pubkey`, `set cmd on`; `get cmd` then
-says `mesh only`). The page never finds such a node by itself. Add it under Add nodes, "Add a
-node by its public key", or let "Mesh-only nodes" look in your companion's contacts and on
-Beacon for candidates and check one with a signed `ver`. Send to it through a relay or through
-your companion; the node's settings have "Mesh only" for a node whose version is not known yet.
-Help's "meshonly" topic has the steps.
+says `mesh only`). The page never finds such a node by itself. Add it under "Find more nodes",
+"Add a node by its public key": the form asks whether the node has Wi-Fi and starts on "No", so
+the node opens on a road that reaches it. Or let "Mesh-only nodes" look in your companion's
+contacts and on Beacon for candidates and check one with a signed `ver`. Send to it through a
+relay or through your companion. Help's "meshonly" topic has the steps.
+
+A stock MeshCore repeater on an nRF52 board can be brought there without a cable: `start ota`
+from an admin login in the MeshCore app, the lou-20 `.zip` over Bluetooth, then the key from the
+same login (`set cmd.pubkey`, `set cmd on`). Done this way on a RAK 4631 on a roof, 2026-11-25.
 
 ## Through a relay
 
@@ -122,21 +153,49 @@ hold the same command key as the node and be in radio reach of it.
   answer is answered `busy`, or dropped unanswered if the two arrive together; the first goes through. Airtime: 5 % of 15 minutes (about 26 commands),
   then 1 % of the next 15 (about 5).
 
-- **You choose the relay and the route.** Direct neighbour (one transmission each way, no
-  hops), direct along a path an earlier answer taught, or a flood. "Check neighbours" asks a
-  relay over MQTT which nodes it hears, which costs no airtime, and marks the relay that hears
-  the node directly. "Read budget" asks what is left of the relay's airtime.
+- **You choose the relay and the route**, in two lists beside the command box. The relays that
+  have heard the node come first, the strongest signal at the top and shown ("hears the node
+  directly, 5.5 dB"); an answer to a direct send records it. The routes: direct neighbour (one
+  transmission each way, no hops), direct along a path an earlier answer taught, or a flood. A
+  direct send through a relay that was never checked says "not checked that it hears the node".
+  "Check the relay…" asks a relay over MQTT which nodes it hears, which costs no airtime, and
+  what is left of its airtime.
 - **A flood asks first, every time.** It costs every node in reach airtime, and a relay allows
   one a minute for 15 minutes, then one in five minutes, and 100 a day.
-- **Auto is careful.** It takes a relay only for a node without MQTT or silent on it for the 15
-  minutes, only when no companion is connected, and only by a way that is no flood. A group,
-  several nodes, a county, a set and the automatic work never go through a relay.
+- **Auto shows what it takes.** While "auto" is chosen, the road it will use has a thick
+  border. For a node without MQTT, or silent on it for the 15 minutes, with no companion
+  connected, that is the relay and route the two lists show; a flood still asks each time. A
+  group, several nodes, a county, a set and the automatic work never go through a relay.
+- **It mends a node that MQTT cannot reach.** Over the radio, and only there, a node takes
+  `set wifi.ssid`, `set wifi.pwd`, `set cmd on` and `time <epoch>`. A node whose clock fell a day
+  behind is refused by the command server ("token expired") and looks dead on MQTT while its radio
+  is fine: `time` through a relay brought one back on 2026-11-25. A node opens its radio road for
+  commands only after 15 minutes without the command server (`cmd.mesh auto`); before that it
+  answers `mesh-closed`.
 - **No answer is not a refusal.** The relay waits two minutes; the node may have run the
   command. A node answers on an airtime budget of its own (5 % of 15 minutes, then 1 %), and a
   command over it gets no answer at all: wait a few minutes; `get cmd` counts it as refused. A
   flooded command is answered after 15 to 30 s, and that answer teaches the way back. History keeps the relay, the route and how well the relay heard the answer.
 - **The relay cannot read it.** The request is sealed and signed for the node, the answer sealed
   to you. A node's details have the switch (`set relay off|own`); relaying is on by default.
+
+## What the status means
+
+A node is **ok** when it has been heard and nothing is wrong, **not known** while nothing has
+been heard from it (also after a command that got no answer), and **needs attention** when it
+was not heard for the set hours (24), its battery is low, its firmware is behind, or its last
+command got no answer. A refused or forged answer is an alert. A command with no answer never
+makes a node "ok".
+
+## Updating a node's firmware
+
+Beside "update available": **Update now**, when the node can take the update over remote
+control (a Wi-Fi node on lou-19 or later). It sends `ota check`, and `ota update` only if the
+node itself answers that an update fits, then asks `ver` until the new version reports in. A
+node on lou-18 or older shows "not over remote control: how to update" there: its firmware
+refuses `ota update` from afar. It can still be told `set ota.auto on`, after which it updates
+itself within about an hour (never between 00 and 06); a lou-16 node was brought to lou-20 that
+way on 2026-11-25. A node without Wi-Fi is updated by cable or Bluetooth.
 
 ## Install it as an app
 

@@ -42,7 +42,7 @@
 /* glyph, name, firmware, heard: one line, no status text (W-28c; the reason is NODE's), no region
    (W-33g: a node's region is in its details only). No battery column (W-26f). The glyph's word is
    read aloud, not shown. The name takes what is left; the firmware drops under 20em. */
-.node-row { grid-template-columns: 2ch minmax(4ch, 1fr) 6ch 6ch; column-gap: 6px; }
+.node-row { grid-template-columns: 2ch minmax(4ch, 1fr) 11ch 6ch; column-gap: 6px; }
 .node-row .mark { display: contents; }
 .node-row .mark .glyph { grid-column: 1; }
 .node-row .mark-word { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
