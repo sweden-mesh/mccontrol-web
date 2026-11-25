@@ -220,6 +220,7 @@ html[data-layout="standard"] body { padding: 0; }
 
 /* "Update now" beside "update available" in the overview, and the update's stages under the facts. */
 .std-update-now { margin-inline-start: 4px; font-weight: 600; }
+.std-update-how { margin-inline-start: 4px; font-size: .8125rem; }
 .std-update-out:empty { display: none; }
 .std-update-out { margin-top: 8px; font-size: .875rem; }
 

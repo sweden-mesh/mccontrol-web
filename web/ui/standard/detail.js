@@ -157,12 +157,16 @@ function overview(ctx, svc, device, st, release, onPick, onTab) {
   const updateOut = h('div', { class: 'std-update-out', 'aria-live': 'polite' });
   const updateNow = up && canUpdate(svc, device, release)
     ? h('button', { type: 'button', class: 'link-button std-update-now' }, h('span', { 'aria-hidden': 'true' }, '↗ '), ctx.t('update.now')) : null;
+  // An update is out but this node cannot take it over remote control (its firmware does not
+  // admit `ota update` there, or it has no Wi-Fi): say so, and lead to the Firmware tab's reason.
+  const byHand = up && !updateNow ? h('button', { type: 'button', class: 'link-button std-update-how' }, ctx.t('update.byHandShort')) : null;
+  byHand?.addEventListener('click', () => onTab('firmware'), { signal: ctx.signal });
   updateNow?.addEventListener('click', () => runUpdate(ctx, svc, device, release, { out: updateOut, control: updateNow, redraw: () => dataChanged('devices') }), { signal: ctx.signal });
   const statusPanel = panel('std-p-status', ctx.t('std.status'),
     h('p', { class: 'std-state' }, stateMark(ctx, st.state, why || silent || ctx.t(`tile.state.${st.state}`))),
     h('dl', { class: 'std-dl' },
       h('dt', {}, ctx.t('std.firmware')), h('dd', {}, h('code', {}, device.ver ? shortVersion(svc.rules, device.ver) : '–'),
-        up ? [' ', h('span', { class: 'std-tag' }, ctx.t('update.available')), updateNow ? [' ', updateNow] : null] : up === false ? [' ', h('span', { class: 'muted' }, ctx.t('std.upToDate'))] : null),
+        up ? [' ', h('span', { class: 'std-tag' }, ctx.t('update.available')), updateNow ? [' ', updateNow] : byHand ? [' ', byHand] : null] : up === false ? [' ', h('span', { class: 'muted' }, ctx.t('std.upToDate'))] : null),
       h('dt', {}, ctx.t('std.battery')), h('dd', {}, volts(ctx.t, fleet.batteryMv)),
       h('dt', {}, ctx.t('std.uptime')), h('dd', {}, uptimeText(ctx, fleet.uptimeSecs)),
       h('dt', {}, nb), nbValue),
