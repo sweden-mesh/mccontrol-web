@@ -42,6 +42,22 @@ test("a release candidate's revision is not the feature rc", () => {
   assert.equal(rules.features('nrf52840-v1.18.0-lou-20-rc-9ccbb597'), 'rc');
 });
 
+// lou-21: an Observer node has one image. It keeps `arrc` in its name because everything here is
+// read from that tag; a name without it would admit no command at all.
+test('the one Observer image of lou-21 reads as auto-reply and remote control', () => {
+  const full = 'esp32s3-v1.18.0-lou-21-arrc-observer-1a2b3c4';
+  assert.equal(rules.revision(full), 21);
+  assert.equal(rules.features(full), 'arrc');
+  assert.equal(rules.admits(full, 'ver'), true);
+  assert.equal(rules.admits(full, 'ota update'), true);
+  assert.equal(rules.meshOnly(full), false);
+  assert.equal(rules.canRelay(full), true);
+  assert.equal(rules.meshOnly('nrf52840-v1.18.0-lou-21-arrc-1a2b3c4'), true);
+  const untagged = 'esp32s3-v1.18.0-lou-21-observer-1a2b3c4';
+  assert.equal(rules.features(untagged), '');
+  assert.equal(rules.admits(untagged, 'ver'), false);     // why the tag stays
+});
+
 test('firmware rules per version', () => {
   for (const f of C.firmware) {
     const v = f.version;
