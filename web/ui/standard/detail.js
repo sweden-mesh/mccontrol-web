@@ -188,6 +188,16 @@ function overview(ctx, svc, device, st, release, onPick, onTab) {
     const neighbourIds = new Set(myLinks.map(([, b]) => b.id));
     const ownNeighbours = mine.filter((m) => m.row && neighbourIds.has(m.row.id));
     const frame = me && Number.isFinite(me.lat) ? [me, ...myLinks.map(([, b]) => b)] : null;
+    // A node without a known position: not an empty panel, but the map greyed, framed by every
+    // position that is known (the owner's other nodes), with a line saying so.
+    const placed = mine.filter((m) => Number.isFinite(m.lat) && Number.isFinite(m.lng));
+    if (!frame && placed.length) {
+      mapSlot.replaceChildren(mapView(ctx, {
+        mine: placed, others: model.others, links: model.links.map(([a, b]) => [a, b]), onPick, frame: placed,
+        label: ctx.t('std.mapAll'), note: ctx.t('std.mapNoPosition', { name: nameOf(device) }),
+      }));
+      return;
+    }
     mapSlot.replaceChildren(mapView(ctx, {
       mine: [me, ...ownNeighbours].filter(Boolean), others: myLinks.map(([, b]) => b).filter((b) => !ownNeighbours.some((m) => m.row?.id === b.id)),
       links: myLinks, selected: device.node, onPick, frame: frame || [], label: ctx.t('std.mapNode', { name: nameOf(device) }),

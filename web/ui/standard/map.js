@@ -78,10 +78,12 @@ function markerEl(ctx, m, selected, onPick) {
 
 const token = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim() || '#888';
 
-export function mapView(ctx, { mine = [], others = [], links = [], selected = null, onPick = null, frame = null, label }) {
+// `note`: the map is not about the node asked for (it has no position): drawn greyed, with the
+// note over it saying what it shows instead.
+export function mapView(ctx, { mine = [], others = [], links = [], selected = null, onPick = null, frame = null, label, note = null }) {
   const box = h('div', { class: 'std-map', role: 'region', 'aria-label': label });
   const credit = h('p', { class: 'std-map-credit' });
-  const wrap = h('div', { class: 'std-map-wrap' }, box, credit);
+  const wrap = h('div', { class: `std-map-wrap${note ? ' is-dim' : ''}` }, note ? h('p', { class: 'std-map-note' }, note) : null, box, credit);
   const points = (frame || mine).filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng));
   if (!points.length) {
     box.replaceChildren(h('p', { class: 'muted std-map-empty' }, ctx.t('tile.mapNoPositions')));

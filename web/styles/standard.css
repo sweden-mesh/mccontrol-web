@@ -222,3 +222,9 @@ html[data-layout="standard"] body { padding: 0; }
 .std-update-now { margin-inline-start: 4px; font-weight: 600; }
 .std-update-out:empty { display: none; }
 .std-update-out { margin-top: 8px; font-size: .875rem; }
+
+/* The map for a node without a position: greyed, with a line over it saying what it shows. */
+.std-map-wrap.is-dim { position: relative; }
+.std-map-wrap.is-dim .std-map { filter: grayscale(1); opacity: .5; }
+.std-map-note { position: absolute; inset: 8px 8px auto 8px; z-index: 2; margin: 0; padding: 6px 10px; max-width: none;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-xs); font-size: .875rem; }

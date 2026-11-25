@@ -192,6 +192,17 @@ export function roadSwitch(ctx, nodeId) {
     const r = radios.find((x) => x.value === v);
     if (r) { r.disabled = on; r.parentElement.title = on ? why : ''; }
   };
+  // While "auto" is chosen: the road it takes now is marked (a thick border, and said in words to
+  // a screen reader); null marks none.
+  el.setUsing = (v) => {
+    for (const r of radios) {
+      const on = r.value === v && r.value !== 'auto';
+      r.parentElement.toggleAttribute('data-using', on);
+      const span = r.parentElement.querySelector('span');
+      span.textContent = ctx.t(`tile.road.${r.value}`);
+      if (on) span.append(h('span', { class: 'visually-hidden' }, ` (${ctx.t('road.autoUses')})`));
+    }
+  };
   return el;
 }
 
@@ -243,6 +254,19 @@ export function commandLine(ctx, svc, nodeId) {
     return { ...p, block: skip.length === to.length ? skip[0][1] : null, skip, refuse };
   };
 
+  // What "auto" takes now for the one target: 'mqtt', 'mesh' or 'relay'; null when another road is
+  // chosen or several nodes are addressed. A node reached over the mesh with no companion
+  // connected goes through a relay when a node of the owner's can relay (operator 2026-11-25): the
+  // relay and route are the ones shown in the two choosers, and a flood still asks each time.
+  function autoRoad() {
+    const to = targets();
+    if (road.value !== 'auto' || to.length !== 1) return null;
+    let via;
+    try { via = verdict().road?.road || (svc.rules.deviceMeshOnly(to[0]) ? 'mesh' : 'mqtt'); } catch { return null; }
+    if (via === 'mesh' && !connectedCompanion() && picker.offered() && picker.choice()) return 'relay';
+    return via;
+  }
+
   // Fill the picker for the one target and say whether the relay road is there to take.
   function relayOffered() {
     const to = targets();
@@ -279,7 +303,7 @@ export function commandLine(ctx, svc, nodeId) {
     if (to.length === 1 && p.admits === false) {
       return { text: p.lacks ? ctx.t('send.lacks', { feature: p.lacks, version: to[0].ver }) : ctx.t('send.notAdmitted', { version: to[0].ver, needs: p.needs || '?' }), kind: 'warn' };
     }
-    if (to.length === 1 && p.road?.road === 'relay') {
+    if (to.length === 1 && (p.road?.road === 'relay' || autoRoad() === 'relay')) {
       return picker.choice() ? { text: ctx.t('road.willRelay', { how: picker.words() }), kind: '' } : { text: ctx.t('road.relayPick'), kind: 'invalid' };
     }
     // What auto does with no companion: a relay, when one reaches the node without a flood.
@@ -310,7 +334,9 @@ export function commandLine(ctx, svc, nodeId) {
     input.setAttribute('aria-invalid', kind === 'invalid' ? 'true' : 'false');
     send.disabled = running || kind === 'invalid' || !input.value.trim();
     const to = targets();
-    const viaRelay = road.value === 'relay';
+    const using = autoRoad();
+    road.setUsing(using);
+    const viaRelay = road.value === 'relay' || using === 'relay';
     const show = !viaRelay && (road.value !== 'mqtt' || to.some((d) => svc.rules.deviceMeshOnly(d)));
     if (show && !companion) companion = companionBrief(ctx);
     companionSlot.replaceChildren(...(viaRelay ? [h('span', { class: 'muted' }, ctx.t('tile.line.relay'), ' '), brief.el]
@@ -352,8 +378,10 @@ export function commandLine(ctx, svc, nodeId) {
       });
       if (!ok) return;
     }
-    const relay = road.value === 'relay' ? await relayForSend(picker, p.command) : null;
-    if (road.value === 'relay' && !relay) return;
+    // Auto through a relay is sent as the relay road, with the relay and route the choosers show.
+    const sendRoad = autoRoad() === 'relay' ? 'relay' : road.value;
+    const relay = sendRoad === 'relay' ? await relayForSend(picker, p.command) : null;
+    if (sendRoad === 'relay' && !relay) return;
     running = true;
     send.disabled = true;
     // The progress is HISTORY' job bar; the answers are HISTORY' rows.
@@ -365,7 +393,7 @@ export function commandLine(ctx, svc, nodeId) {
     input.value = '';
     try {
       const res = await svc.jobs.send({
-        command: p.command, nodes: to.map((d) => d.node), road: road.value, relay,
+        command: p.command, nodes: to.map((d) => d.node), road: sendRoad, relay,
         onProgress: (st) => {
           const fraction = st.total ? st.elapsed / st.total : null;
           job.progress(fraction, ctx.t('send.waitNode', { name: st.name, i: (st.index ?? 0) + 1, of: st.count ?? to.length }));
