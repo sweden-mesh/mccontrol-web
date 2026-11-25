@@ -1,6 +1,6 @@
 # mccontrol-web
 
-mccontrol in the browser, for the people who run MeshCore Observer repeaters: sign a command
+mccontrol in the browser, for the people who run MeshCore repeaters running lou firmware: sign a command
 with a key kept in the browser, send it to one repeater or several over MQTT, or over the mesh
 through your own companion radio (USB or Bluetooth), and see what came back, with a history per
 node. Live at [mccontrol.meshcoresverige.se](https://mccontrol.meshcoresverige.se).
@@ -10,7 +10,7 @@ The key is made or imported in the browser, stored encrypted under a passphrase,
 anywhere except inside a signature or a backup file you save yourself.
 
 What it is not: not the terminal tool, not a command server, not firmware. It never changes a repeater's
-key, identity or radio (the deny list keeps those to the serial cable).
+identity or radio; the command key changes only by `rekey`, signed by the key in use.
 
 ![The standard layout: the node list and one node's overview](docs/screenshots/standard-dark-1600.png)
 
