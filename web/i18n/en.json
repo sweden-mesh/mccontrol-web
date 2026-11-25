@@ -96,6 +96,7 @@
   "stats.field.firmware": "Firmware",
   "stats.source": "Source: Beacon. Every number is as old as the node's last status.",
   "dash.att.notHeard": "not heard on MQTT for {hours} h",
+  "dash.att.noAnswer": "no answer to the last command ({command})",
   "battery.na": "Not available",
   "dash.att.battery": "battery {volts} V",
   "dash.att.refused": "refused {command}: {code}",

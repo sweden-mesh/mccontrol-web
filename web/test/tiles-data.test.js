@@ -26,6 +26,10 @@ test('a node is ok, needs attention, refused or not known', () => {
   assert.equal(silent.state, 'unknown');
   assert.equal(silent.unanswered, 'ver');
   assert.equal(nodeStatus({ node: 'A', lastResult: { at: iso(5), command: 'ver', code: 0, verified: true } }, opts).state, 'ok');
+  // heard before, and the last command got no answer: needs attention, and says which command
+  const gone = nodeStatus({ node: 'A', lastHeard: iso(60), lastResult: { at: iso(5), command: 'get name', code: null, verified: null } }, opts);
+  assert.equal(gone.state, 'warn');
+  assert.deepEqual(gone.reasons.map((r) => [r.kind, r.vars.command]), [['noAnswer', 'get name']]);
   const quiet = nodeStatus({ node: 'A', lastHeard: iso(60 * 30) }, opts);
   assert.equal(quiet.state, 'warn');
   assert.equal(quiet.reasons[0].kind, 'notHeard');

@@ -41,7 +41,11 @@ export function needsAttention(devices, { now, hours, thresholdMv, release = nul
   }
   for (const d of devices) {
     const r = d.lastResult;
-    if (r && r.verified === false) out.push({ node: d.node, name: name(d), kind: 'forged', vars: { command: r.command }, at: Date.parse(r.at) });
+    // The last command got no answer, from a node that has been heard before: it may be gone, or
+    // the answer was lost. (A node never heard stays "not known": there is nothing to compare with.)
+    if (r && r.code === null && r.verified !== false && lastHeard(d) !== null) {
+      out.push({ node: d.node, name: name(d), kind: 'noAnswer', vars: { command: r.command }, at: Date.parse(r.at) });
+    } else if (r && r.verified === false) out.push({ node: d.node, name: name(d), kind: 'forged', vars: { command: r.command }, at: Date.parse(r.at) });
     else if (r && r.code !== null && r.code !== 0) {
       out.push({ node: d.node, name: name(d), kind: 'refused', vars: { command: r.command, code: r.codeName || String(r.code) }, at: Date.parse(r.at) });
     }

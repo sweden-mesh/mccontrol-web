@@ -282,7 +282,9 @@ test('overview: attention in order, counts, recent since the last visit', async 
   assert.equal(devices.length, 12);
   const items = needsAttention(devices, { now, hours: 24, thresholdMv: 3500, release: { tag: 'v1.18.0-lou-18' }, rules });
   const kinds = items.map((i) => i.kind);
-  assert.deepEqual([...new Set(kinds)], ['notHeard', 'battery', 'refused', 'outdated']);
+  // not heard, battery, then the last results (no answer, refused), then outdated firmware
+  assert.deepEqual([...new Set(kinds)].sort(), ['battery', 'noAnswer', 'notHeard', 'outdated', 'refused']);
+  assert.ok(kinds.indexOf('battery') < kinds.indexOf('noAnswer') && kinds.lastIndexOf('refused') < kinds.indexOf('outdated'));
   assert.equal(items.find((i) => i.kind === 'notHeard').name, 'SE-JKG-Lekeryd');
   assert.deepEqual(items.filter((i) => i.kind === 'battery').map((i) => i.name).sort(), ['SE-JKG-Jöransberg', 'SE-JKG-Norrängen']);
   const c = fleetCounts(devices, { now, hours: 24, rules });
