@@ -13,7 +13,7 @@ import { refreshFleet } from '../lib/jobs/fleet.js';
 import { beaconClient } from '../lib/stats/beacon-client.js';
 
 const BASE = 'https://beacon.example/api/v1';
-import { fleetCounts, needsAttention, recentSince } from '../lib/jobs/overview.js';
+import { fleetCounts, needsAttention, recentSince, shortVersion } from '../lib/jobs/overview.js';
 import { csvCell, toCsv } from '../ui/screens/history.js';
 import { data } from './protocol-helpers.js';
 import { fakeRing, fakeTransport, FIXTURE_NODES, fixtureBehaviour, seedFixture } from './jobs-fakes.js';
@@ -191,6 +191,40 @@ test('firmware update: refused before lou-19, which does not admit ota update; f
   assert.equal(res.version, 'v1.18.0-lou-20-arrc-observer-0');
   assert.deepEqual(stages, ['asking', 'restarting', 'checking', 'checking', 'done']);
   assert.equal((await fresh.stores.devices.get('AAAA0001')).ver, 'v1.18.0-lou-20-arrc-observer-0');
+});
+
+test('firmware update with check: ota check first, and ota update only when the node says an update fits', async () => {
+  const sent = [];
+  const make = (checkReply) => setup({ behaviour: {
+    AAAA0001: { answer: (c) => {
+      sent.push(c);
+      if (c === 'ota check') return { code: 0, reply: checkReply };
+      if (c === 'ota update') return { code: 0, reply: 'OK - updating' };
+      return { code: 0, reply: '> v1.18.0-lou-20-arrc-observer-0' };
+    } },
+  } });
+  const no = await make('> up to date: lou-19');
+  await no.stores.devices.update('AAAA0001', { ver: LOU19 });
+  const none = await no.jobs.update({ node: 'AAAA0001', target: 'v1.18.0-lou-20', pollSecs: 0, check: true });
+  assert.equal(none.ok, false);
+  assert.equal(none.reason.code, 'noUpdate');
+  assert.deepEqual(sent, ['ota check']);                         // nothing was flashed
+
+  sent.length = 0;
+  const yes = await make('update available: lou-19 -> lou-20 (rev 19 -> 20)');
+  await yes.stores.devices.update('AAAA0001', { ver: LOU19 });
+  const stages = [];
+  const res = await yes.jobs.update({ node: 'AAAA0001', target: 'v1.18.0-lou-20', pollSecs: 0, check: true, onStage: (st) => stages.push(st.stage) });
+  assert.equal(res.ok, true);
+  assert.deepEqual(sent.slice(0, 2), ['ota check', 'ota update']);
+  assert.equal(stages[0], 'otaCheck');
+});
+
+test('a version shortens the same way from ver and from an alive message', () => {
+  assert.equal(shortVersion(rules, 'esp32s3-v1.18.0-lou-20-arrc-observer-9c6c0a0 (Build: 24 Nov 2026)'), 'lou-20');
+  assert.equal(shortVersion(rules, 'lou-20-arrc-observer-9c6c0a0'), 'lou-20');          // an alive message's
+  assert.equal(shortVersion(rules, 'lou-20rc-arrc-observer-60407864'), 'lou-20rc');     // a release candidate keeps its mark
+  assert.equal(shortVersion(rules, 'v1.18.0-lou-18'), 'lou-18');
 });
 
 test('releases: the newest real release, cached for an hour; the mark compares revisions', async () => {

@@ -14,13 +14,13 @@ import { updateAvailable } from '../../lib/jobs/releases.js';
 import { lowBatteryVolts, notHeardHours } from '../screens/settings-store.js';
 import { explainEvent, nameOf, volts } from '../screens/node-kit.js';
 import * as historyScreen from '../screens/history.js';
-import { editForm, factList, firmwareBlock, nodeFacts, REGION_SET } from '../screens/node.js';
+import { canUpdate, editForm, factList, firmwareBlock, nodeFacts, REGION_SET, runUpdate } from '../screens/node.js';
 import { runSetPanel } from '../screens/sets.js';
 import { commandLine } from '../tiles/node-view.js';
 import { age, clockTime, stateMark } from '../tiles/kit.js';
 import { mapModel, nodeRegions, nodeStatus } from '../tiles/data.js';
 import { areaNodes } from '../tiles/map.js';
-import { jobs, onDataChanged, onJobs } from '../tiles/sources.js';
+import { dataChanged, jobs, onDataChanged, onJobs } from '../tiles/sources.js';
 import { mapView } from './map.js';
 import { parseNeighbors } from './neighbours-data.js';
 
@@ -150,14 +150,21 @@ function overview(ctx, svc, device, st, release, onPick, onTab) {
   const stats = h('button', { type: 'button', class: 'tool std-small' }, ctx.t('tile.stats'));
   stats.addEventListener('click', () => ctx.navigate(`#stats/${device.node}`), { signal: ctx.signal });
   const fleet = device.fleet || {};
+  // "Update now" beside "update available", when this node can take the update over the control
+  // plane: it asks the node first (`ota check`) and updates only when the node says one fits.
+  const updateOut = h('div', { class: 'std-update-out', 'aria-live': 'polite' });
+  const updateNow = up && canUpdate(svc, device, release)
+    ? h('button', { type: 'button', class: 'link-button std-update-now' }, h('span', { 'aria-hidden': 'true' }, '↗ '), ctx.t('update.now')) : null;
+  updateNow?.addEventListener('click', () => runUpdate(ctx, svc, device, release, { out: updateOut, control: updateNow, redraw: () => dataChanged('devices') }), { signal: ctx.signal });
   const statusPanel = panel('std-p-status', ctx.t('std.status'),
     h('p', { class: 'std-state' }, stateMark(ctx, st.state, why || ctx.t(`tile.state.${st.state}`))),
     h('dl', { class: 'std-dl' },
       h('dt', {}, ctx.t('std.firmware')), h('dd', {}, h('code', {}, device.ver ? shortVersion(svc.rules, device.ver) : '–'),
-        up ? [' ', h('span', { class: 'std-tag' }, ctx.t('update.available'))] : up === false ? [' ', h('span', { class: 'muted' }, ctx.t('std.upToDate'))] : null),
+        up ? [' ', h('span', { class: 'std-tag' }, ctx.t('update.available')), updateNow ? [' ', updateNow] : null] : up === false ? [' ', h('span', { class: 'muted' }, ctx.t('std.upToDate'))] : null),
       h('dt', {}, ctx.t('std.battery')), h('dd', {}, volts(ctx.t, fleet.batteryMv)),
       h('dt', {}, ctx.t('std.uptime')), h('dd', {}, uptimeText(ctx, fleet.uptimeSecs)),
       h('dt', {}, nb), nbValue),
+    updateOut,
     h('p', { class: 'std-actions' }, stats));
   events.then((list) => {
     const last = list.find((e) => e.command === 'neighbors' && e.code === 0 && e.reply);

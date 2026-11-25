@@ -705,7 +705,9 @@ export function createJobs({
   // or `maxSecs` pass. onStage({ stage: 'asking' | 'restarting' | 'checking' | 'done', ... }).
   // Resolves to { ok, version, reason? }. Refused before signing when the deny list or the
   // node's firmware does not admit `ota update`.
-  async function update({ node, target, onStage, signal, pollSecs = 30, maxSecs = 900 } = {}) {
+  // `check`: first `ota check`, which flashes nothing; only when the node itself answers "update
+  // available" does `ota update` follow. Else { ok: false, reason: { code: 'noUpdate' }, reply }.
+  async function update({ node, target, onStage, signal, pollSecs = 30, maxSecs = 900, check = false } = {}) {
     const device = await stores.devices.get(node);
     if (!device) throw new JobError('noNode', { node }, `no node ${node}`);
     const command = 'ota update';
@@ -718,6 +720,14 @@ export function createJobs({
     const batch = batchId();
     return withKey(async (handle) => {
       const keys = await keysOf();
+      if (check) {
+        onStage?.({ stage: 'otaCheck' });
+        const asked = await sendOne(handle, device, 'ota check', { batch, keys, signal });
+        if (!asked.result?.ok) return { ok: false, version: device.ver, result: asked.result };
+        if (!/update available/i.test(asked.result.reply || '')) {
+          return { ok: false, version: device.ver, reason: { code: 'noUpdate' }, reply: valueOf(asked.result.reply) || asked.result.reply };
+        }
+      }
       onStage?.({ stage: 'asking' });
       const first = await sendOne(handle, device, command, { batch, keys, signal, note: `update to ${target}` });
       if (!first.result?.ok) return { ok: false, version: device.ver, result: first.result };

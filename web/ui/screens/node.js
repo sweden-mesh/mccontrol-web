@@ -39,6 +39,44 @@ export function factList(ctx, svc, device, events) {
     Object.entries(raw).flatMap(([cmd, r]) => row(cmd, r.reply.length > 120 ? `${r.reply.slice(0, 120)}…` : r.reply, r)));
 }
 
+// Whether this node can take `release` over the control plane now: an update is out, the deny
+// list and the node's firmware admit `ota update`.
+export function canUpdate(svc, device, release) {
+  if (!device?.ver || !updateAvailable(svc.rules, device.ver, release)) return false;
+  return !blocker(svc.rules, { command: 'ota update', device }) && svc.rules.admits(device.ver, 'ota update');
+}
+
+// The update, as the owner runs it: a dialog that says what it costs, `ota check`, then
+// `ota update` when the node says an update fits, then `ver` until it reports the new version.
+// `out` shows the stages; `control` is disabled meanwhile.
+export async function runUpdate(ctx, svc, device, release, { out, control = null, redraw = () => {} }) {
+  const ok = await confirm(ctx, {
+    title: ctx.t('update.confirmTitle', { name: nameOf(device) }),
+    lines: [ctx.t('update.confirmBody', { from: shortVersion(svc.rules, device.ver), to: release.tag })],
+    confirmLabel: ctx.t('update.confirmButton'),
+    danger: true,
+  });
+  if (!ok) return;
+  if (control) control.disabled = true;
+  const bar = progressLine();
+  put(out, bar.el);
+  try {
+    const res = await svc.jobs.update({
+      node: device.node, target: release.tag, signal: ctx.signal, check: true,
+      onStage: (s) => bar.set(s.total ? s.elapsed / s.total : null, ctx.t(`update.stage.${s.stage}`, { secs: s.elapsed ?? 0, version: s.version ?? '' })),
+    });
+    const msg = res.ok ? ctx.t('update.done', { version: res.version })
+      : res.result ? ctx.t('update.refused', { code: res.result.code })
+        : res.reason?.code === 'noUpdate' ? ctx.t('update.stage.noUpdate', { reply: res.reply || '' })
+          : ctx.t(`update.stage.${res.reason?.code || 'timeout'}`, { version: res.version || '?' });
+    put(out, h('p', { role: 'status' }, msg));
+    ctx.notify(msg, { kind: res.ok ? 'info' : 'warning' });
+    if (res.ok) redraw();
+  } catch (err) {
+    put(out, h('p', { class: 'err', role: 'alert' }, err.code === 'locked' ? lockedNote(ctx) : err.message));
+  } finally { if (control) control.disabled = false; }
+}
+
 // W-19: the version, the mark, and the update with its stages.
 export function firmwareBlock(ctx, svc, device, release, page, redraw) {
   const wrap = h('div', { class: 'stack' });
@@ -61,32 +99,7 @@ export function firmwareBlock(ctx, svc, device, release, page, redraw) {
   }
   const button = h('button', { type: 'button', class: 'button' }, ctx.t('update.button', { latest: release.tag }));
   const out = h('div', { 'aria-live': 'polite' });
-  button.addEventListener('click', async () => {
-    const ok = await confirm(ctx, {
-      title: ctx.t('update.confirmTitle', { name: nameOf(device) }),
-      lines: [ctx.t('update.confirmBody', { from: shortVersion(svc.rules, device.ver), to: release.tag })],
-      confirmLabel: ctx.t('update.confirmButton'),
-      danger: true,
-    });
-    if (!ok) return;
-    button.disabled = true;
-    const bar = progressLine();
-    put(out, bar.el);
-    try {
-      const res = await svc.jobs.update({
-        node: device.node, target: release.tag, signal: ctx.signal,
-        onStage: (s) => bar.set(s.total ? s.elapsed / s.total : null, ctx.t(`update.stage.${s.stage}`, { secs: s.elapsed ?? 0, version: s.version ?? '' })),
-      });
-      const msg = res.ok ? ctx.t('update.done', { version: res.version })
-        : res.result ? ctx.t('update.refused', { code: res.result.code })
-          : ctx.t(`update.stage.${res.reason?.code || 'timeout'}`, { version: res.version || '?' });
-      put(out, h('p', { role: 'status' }, msg));
-      ctx.notify(msg, { kind: res.ok ? 'info' : 'warning' });
-      if (res.ok) redraw();
-    } catch (err) {
-      put(out, h('p', { class: 'err', role: 'alert' }, err.code === 'locked' ? lockedNote(ctx) : err.message));
-    } finally { button.disabled = false; }
-  }, { signal: ctx.signal });
+  button.addEventListener('click', () => runUpdate(ctx, svc, device, release, { out, control: button, redraw }), { signal: ctx.signal });
   wrap.append(h('div', { class: 'row' }, button), out);
   return wrap;
 }

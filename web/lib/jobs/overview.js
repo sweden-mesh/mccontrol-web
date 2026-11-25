@@ -79,10 +79,12 @@ export function fleetCounts(devices, { now, hours, rules }) {
   return { total: devices.length, regions: [...regions].sort(byCount), heard, quiet, unknown, versions: [...versions].sort(byCount), results };
 }
 
-// "lou-18" or "ar-10" from a whole version line; the line itself when it has no revision.
+// "lou-18" or "ar-10" from a whole version line; the line itself when it has no revision. The
+// line of `ver` starts "esp32s3-v1.18.0-lou-20-…", the one in an alive message "lou-20-…": both
+// shorten the same way. A release candidate keeps its mark ("lou-20rc").
 export function shortVersion(rules, version) {
   if (!version) return null;
-  const m = /-(lou|ar)-(\d+)/i.exec(version);
+  const m = /(?:^|-)(lou|ar)-(\d+(?:rc\d*)?)/i.exec(version);
   if (m) return `${m[1].toLowerCase()}-${m[2]}`;
   return rules.revision(version) === null ? version.slice(0, 24) : version;
 }

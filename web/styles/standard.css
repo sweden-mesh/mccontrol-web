@@ -217,3 +217,8 @@ html[data-layout="standard"] body { padding: 0; }
 #statusline .layout-switch { min-height: 32px; width: 32px; padding: 0; margin-inline-start: 8px; flex: 0 0 auto; }
 #statusline .layout-switch .icon { width: 1.1em; height: 1.1em; display: block; }
 @media (width < 45em), (pointer: coarse) { #statusline .layout-switch { min-height: var(--tap); width: var(--tap); } }
+
+/* "Update now" beside "update available" in the overview, and the update's stages under the facts. */
+.std-update-now { margin-inline-start: 4px; font-weight: 600; }
+.std-update-out:empty { display: none; }
+.std-update-out { margin-top: 8px; font-size: .875rem; }
