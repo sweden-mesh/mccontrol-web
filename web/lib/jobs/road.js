@@ -37,7 +37,10 @@ export function mqttHeardAt(device, seen = null) {
 // otherwise the relay when there is one, else auto (W-26b, operator 2026-11-18: an MQTT node would only answer mesh-closed; W-49). A remembered
 // relay road holds only while a node of the owner's can relay (`relay`).
 export function startRoad({ remembered = null, companion = false, meshOnly = false, relay = false } = {}) {
-  if (ROADS.includes(remembered) && !(meshOnly && remembered === 'mqtt') && !(remembered === 'relay' && !relay)) return remembered;
+  // A remembered road holds while it can carry a command: not MQTT to a node without it, not a
+  // relay when none can relay, and not the companion's mesh road when no companion is connected.
+  if (ROADS.includes(remembered) && !(meshOnly && remembered === 'mqtt') && !(remembered === 'relay' && !relay)
+    && !(remembered === 'mesh' && !companion)) return remembered;
   if (!meshOnly) return 'mqtt';
   // No companion: the relay, when a node of the owner's can relay, so Send has a road that works
   // and the owner sees which node carries it and how. Auto would name a companion that is not there.

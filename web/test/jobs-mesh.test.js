@@ -187,6 +187,11 @@ test('the road the selector starts on: remembered, else mesh with a companion, e
   assert.equal(startRoad({ meshOnly: true }), 'auto');
   assert.equal(startRoad({ meshOnly: true, relay: true }), 'relay');   // no companion: a road that works (W-49)
   assert.equal(startRoad({ companion: true, meshOnly: true, relay: true }), 'mesh');
+  // a remembered mesh road without a companion is a dead end: the relay, else auto, else MQTT
+  assert.equal(startRoad({ remembered: 'mesh', meshOnly: true, relay: true }), 'relay');
+  assert.equal(startRoad({ remembered: 'mesh', meshOnly: true }), 'auto');
+  assert.equal(startRoad({ remembered: 'mesh' }), 'mqtt');
+  assert.equal(startRoad({ remembered: 'mesh', companion: true }), 'mesh');
   assert.equal(startRoad({ remembered: 'mqtt', companion: true }), 'mqtt');
   assert.equal(startRoad({ remembered: 'auto' }), 'auto');
   assert.equal(startRoad({ remembered: 'mqtt', meshOnly: true, companion: true }), 'mesh');

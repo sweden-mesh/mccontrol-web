@@ -359,6 +359,10 @@ export function commandLine(ctx, svc, nodeId) {
     // The progress is HISTORY' job bar; the answers are HISTORY' rows.
     const label = `${p.command} → ${to.length === 1 ? nameOf(to[0]) : ctx.t('tile.nNodes', { n: to.length })}`;
     const job = startJob({ label, command: p.command, nodes: to.map((d) => d.node) });
+    // The box empties when the command is sent, not when the answer comes (over the mesh that can
+    // be a minute). If nothing could be sent, the text comes back so it need not be typed again.
+    const typed = input.value;
+    input.value = '';
     try {
       const res = await svc.jobs.send({
         command: p.command, nodes: to.map((d) => d.node), road: road.value, relay,
@@ -370,8 +374,8 @@ export function commandLine(ctx, svc, nodeId) {
       if (res.outcomes.some((o) => o.sent && o.road !== 'mesh')) reportBroker({ ok: true });
       ctx.announce(ctx.t('send.doneSummary', { answered: res.answered, asked: res.asked }));
       if (taggedIds().length && res.outcomes.every((o) => o.sent)) clearTags();
-      input.value = '';
     } catch (err) {
+      if (!input.value) input.value = typed;
       if (err?.code === 'broker' || (!err?.code && !(err instanceof CompanionError))) reportBroker({ ok: false, detail: err.message });
       const text = err.code === 'locked' ? ctx.t('send.locked')
         : err instanceof CompanionError ? ctx.t('send.why.companion', { detail: err.message })

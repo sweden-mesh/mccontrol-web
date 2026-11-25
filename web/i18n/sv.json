@@ -601,7 +601,7 @@
   "send.why.meshTooLong": "över meshen är ett kommando högst {max} byte; det här är {bytes}",
   "send.why.meshNoKey": "meshvägen behöver hela den publika nyckeln för {name}; hitta noden för att lära den",
   "send.why.meshOldFirmware": "{name} kör {version}; meshvägen kräver lou-19 med kontrollplanet (rc)",
-  "send.why.noCompanion": "ingen companion är ansluten: anslut den först",
+  "send.why.noCompanion": "ingen companion är ansluten: anslut den först, eller välj vägen ”relay” för att skicka genom en av dina noder med MQTT",
   "send.why.companion": "companion: {detail}",
   "send.why.badRoad": "välj en väg: Auto, MQTT, Mesh eller ett relä",
   "send.why.relayOne": "ett relä tar ett kommando till en nod i taget, skickat för hand",

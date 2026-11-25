@@ -601,7 +601,7 @@
   "send.why.meshTooLong": "over the mesh a command is at most {max} bytes; this one is {bytes}",
   "send.why.meshNoKey": "the mesh road needs the whole public key of {name}; discover the node to learn it",
   "send.why.meshOldFirmware": "{name} runs {version}; the mesh road needs lou-19 with the control plane (rc)",
-  "send.why.noCompanion": "no companion is connected: connect it first",
+  "send.why.noCompanion": "no companion is connected: connect it first, or choose the road \"relay\" to send through one of your nodes with MQTT",
   "send.why.companion": "the companion: {detail}",
   "send.why.badRoad": "choose a road: Auto, MQTT, Mesh or a relay",
   "send.why.relayOne": "a relay takes a command to one node at a time, sent by hand",
