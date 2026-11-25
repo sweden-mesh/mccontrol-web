@@ -10,7 +10,7 @@ import { openStores } from '../lib/store/index.js';
 import { rulesFrom } from '../lib/protocol/rules.js';
 import { createJobs } from '../lib/jobs/jobs.js';
 import { blocker } from '../lib/jobs/checks.js';
-import { areaOf, oldRegion, scheme, shuffled } from '../lib/jobs/scheme.js';
+import { areaOf, oldLoginSuspected, oldRegion, scheme, shuffled } from '../lib/jobs/scheme.js';
 import { newSession } from '../lib/protocol/plane.js';
 import * as mcc3 from '../lib/protocol/mcc3.js';
 import { openCompanion } from '../lib/mesh/companion.js';
@@ -61,6 +61,13 @@ async function setup({ nodes = [{ handle: node, commandKey: owner.publicKeyHex }
 
 test('the scheme per node: an alive that opens, or lou-20 and later, is mcc3; else the old IATA scheme', () => {
   assert.equal(scheme(rules, { ver: LOU20 }), 'mcc3');
+  // a lou-20 Wi-Fi node found by the old scheme, with no alive of its own ever seen: its command
+  // slot is most likely still on the old login, and only the old scheme reaches it
+  assert.equal(scheme(rules, { ver: LOU20, region: 'JKG' }), 'old');
+  assert.equal(oldLoginSuspected(rules, { ver: LOU20, region: 'JKG' }), true);
+  assert.equal(scheme(rules, { ver: LOU20, region: 'JKG', alive: { state: 'online' } }), 'mcc3');
+  assert.equal(scheme(rules, { ver: LOU20.replace('lou-20', 'lou-21'), region: 'JKG' }), 'mcc3');   // lou-21 repairs itself
+  assert.equal(oldLoginSuspected(rules, { ver: LOU20, region: '' }), false);
   assert.equal(scheme(rules, { ver: LOU19 }), 'old');
   assert.equal(scheme(rules, { ver: null }), 'old');
   assert.equal(scheme(rules, { ver: LOU19, alive: { state: 'online' } }), 'mcc3');

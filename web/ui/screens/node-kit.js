@@ -102,7 +102,14 @@ export function explain(ctx, svc, result, device = null, road = 'mqtt', relay = 
     const status = relay?.status ?? null;
     return { kind: 'silent', text: ctx.t('send.res.silent'), help: relayHelp(ctx, svc, status) + (status === 'no-answer' ? ` ${silent()}` : '') };
   }
-  if (!result) return { kind: 'silent', text: ctx.t('send.res.silent'), help: road === 'mesh' ? `${ctx.t('road.silentMesh')} ${silent()}` : ctx.t('send.res.silentHelp') };
+  if (!result) {
+    if (road === 'mesh') return { kind: 'silent', text: ctx.t('send.res.silent'), help: `${ctx.t('road.silentMesh')} ${silent()}` };
+    // Silent over MQTT while Beacon heard its radio within the hour: the node is up but off the
+    // command server. A clock that fell behind does that (its logins are refused as expired).
+    const seen = Date.parse(device?.fleet?.seen || '');
+    const onAir = Number.isFinite(seen) && Date.now() - seen < 3600000 && !svc.rules.deviceMeshOnly(device);
+    return { kind: 'silent', text: ctx.t('send.res.silent'), help: `${ctx.t('send.res.silentHelp')}${onAir ? ` ${ctx.t('send.res.clockHint')}` : ''}` };
+  }
   if (result.verified === false) return { kind: 'forged', text: ctx.t('send.res.forged'), help: ctx.t('send.res.forgedHelp') };
   const sig = result.verified ? ctx.t('send.res.signed') : ctx.t('send.res.unsigned');
   if (result.ok) {

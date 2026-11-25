@@ -102,7 +102,8 @@ test("only the IATA codes of the list's own lou-19-or-older nodes are searched t
   const { d, jobs, stores } = await setup({ GOT: [] }, { rules });
   await stores.devices.add({ node: 'AB6B9285', region: 'GOT', name: 'Far' });
   await stores.devices.add({ node: 'CD6B9285', key: `CD6B9285${'1'.repeat(56)}`, region: 'STO', name: 'New' });
-  await stores.devices.update('CD6B9285', { ver: 'v1.18.0-lou-20-arrc-observer-1' });
+  // a lou-20 node whose alive has been seen speaks mcc3 (one without an alive is taken to be on the old login)
+  await stores.devices.update('CD6B9285', { ver: 'v1.18.0-lou-20-arrc-observer-1', alive: { state: 'online', at: new Date().toISOString() } });
   await stores.devices.add({ node: 'EF6B9285', key: `EF6B9285${'1'.repeat(56)}`, region: '', name: 'Fleet' });
   await stores.devices.update('EF6B9285', { fleet: { iatas: ['VXO'] } });
   await d.run();

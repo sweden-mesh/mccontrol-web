@@ -15,9 +15,21 @@ export function speaksMcc3(rules, version) {
   return rev !== null && rev !== undefined && rev >= MCC3_FROM;
 }
 
+// A lou-20 node that most likely still logs in to the command server the old way: it has Wi-Fi,
+// was found by the old scheme (an IATA code is stored for it), and no alive message of its own has
+// ever been seen. Its command slot predates lou-17 (a password login), the server refuses the new
+// topics to it, and only the old scheme reaches it, which lou-20 still takes. Seen on two nodes on
+// 2026-11-25. lou-21 repairs the slot at start, so this is lou-20 alone.
+export function oldLoginSuspected(rules, device) {
+  if (!device?.ver || rules.revision(device.ver) !== MCC3_FROM) return false;
+  if (device.alive || rules.deviceMeshOnly(device)) return false;
+  return /^[A-Za-z0-9]{2,8}$/.test(String(device.region || '').trim());
+}
+
 export function scheme(rules, device) {
   const alive = device?.alive;
   if (alive && alive.state !== 'not-yours') return 'mcc3';
+  if (oldLoginSuspected(rules, device)) return 'old';
   if (speaksMcc3(rules, device?.ver)) return 'mcc3';
   // Added by its key, nothing read from it yet (a node without MQTT cannot say its version before
   // the first command reaches it) and no IATA code of its own: the first command goes the new way.

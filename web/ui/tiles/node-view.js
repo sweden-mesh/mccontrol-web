@@ -28,7 +28,7 @@ import { companionBrief, relayBrief, relayForSend, relayPicker } from '../screen
 import { autoRelay } from '../../lib/jobs/relay.js';
 import { companion as connectedCompanion, onCompanion } from '../companion-session.js';
 import { startRoad } from '../../lib/jobs/road.js';
-import { scheme } from '../../lib/jobs/scheme.js';
+import { oldLoginSuspected, scheme } from '../../lib/jobs/scheme.js';
 import { nodeFacts } from '../screens/node.js';
 import { whyText } from '../screens/send.js';
 import { tagged as taggedIds, onBoardChange, clearTags } from '../board-state.js';
@@ -301,7 +301,13 @@ export function commandLine(ctx, svc, nodeId) {
     if (p.incomplete) return { text: needsText(p.incomplete), kind: 'invalid' };
     if (p.caution) return { text: `${ctx.t('send.caution')} ${p.caution}`, kind: 'warn' };
     if (to.length === 1 && p.admits === false) {
-      return { text: p.lacks ? ctx.t('send.lacks', { feature: p.lacks, version: to[0].ver }) : ctx.t('send.notAdmitted', { version: to[0].ver, needs: p.needs || '?' }), kind: 'warn' };
+      // The version is what was last read: a node updated since would be judged by its old one.
+      const text = p.lacks ? ctx.t('send.lacks', { feature: p.lacks, version: to[0].ver }) : ctx.t('send.notAdmitted', { version: to[0].ver, needs: p.needs || '?' });
+      return { text: `${text} ${ctx.t('send.maybeUpdated')}`, kind: 'warn' };
+    }
+    // A lou-20 node still on the old login: it is spoken to the old way, and the owner is told why.
+    if (to.length === 1 && road.value !== 'relay' && road.value !== 'mesh' && oldLoginSuspected(svc.rules, to[0])) {
+      return { text: ctx.t('send.oldLogin'), kind: 'warn' };
     }
     if (to.length === 1 && (p.road?.road === 'relay' || autoRoad() === 'relay')) {
       return picker.choice() ? { text: ctx.t('road.willRelay', { how: picker.words() }), kind: '' } : { text: ctx.t('road.relayPick'), kind: 'invalid' };
