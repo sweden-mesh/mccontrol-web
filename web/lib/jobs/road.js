@@ -34,12 +34,14 @@ export function mqttHeardAt(device, seen = null) {
 
 // The road the node view's selector starts on: the node's own last choice (W-26c), else MQTT for a
 // node that has it, else (a node without MQTT) the mesh while a companion is connected and auto
-// otherwise (W-26b, operator 2026-11-18: an MQTT node would only answer mesh-closed). A remembered
+// otherwise the relay when there is one, else auto (W-26b, operator 2026-11-18: an MQTT node would only answer mesh-closed; W-49). A remembered
 // relay road holds only while a node of the owner's can relay (`relay`).
 export function startRoad({ remembered = null, companion = false, meshOnly = false, relay = false } = {}) {
   if (ROADS.includes(remembered) && !(meshOnly && remembered === 'mqtt') && !(remembered === 'relay' && !relay)) return remembered;
   if (!meshOnly) return 'mqtt';
-  return companion ? 'mesh' : 'auto';
+  // No companion: the relay, when a node of the owner's can relay, so Send has a road that works
+  // and the owner sees which node carries it and how. Auto would name a companion that is not there.
+  return companion ? 'mesh' : relay ? 'relay' : 'auto';
 }
 
 export function chooseRoad(rules, { device = null, command = '', via = 'mqtt', meshAfterMins = MESH_AFTER_MINS, heardAt = null, now = Date.now() } = {}) {

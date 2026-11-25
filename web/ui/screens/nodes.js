@@ -116,15 +116,20 @@ function addForm(ctx, svc, redraw) {
   const key = h('input', { type: 'text', autocomplete: 'off', spellcheck: 'false', class: 'mono' });
   const name = h('input', { type: 'text', autocomplete: 'off' });
   const out = h('p', { 'aria-live': 'polite' });
+  // A bare key does not say whether the node has MQTT. A lou-20 node with MQTT is found by itself,
+  // so a node added here is most often mesh only: that is the start, and the owner says otherwise.
+  const uplink = h('select', {}, ['mesh', 'mqtt'].map((v) => h('option', { value: v }, ctx.t(`nodes.uplink.${v}`))));
   const form = h('form', { class: 'stack' },
     field(ctx.t('nodes.key'), key, ctx.t('nodes.keyHint')),
-    field(ctx.t('nodes.name'), name), h('div', { class: 'row' }, h('button', { type: 'submit', class: 'button' }, ctx.t('nodes.add'))), out);
+    field(ctx.t('nodes.name'), name),
+    field(ctx.t('nodes.uplink'), uplink, ctx.t('nodes.uplinkHint')), h('div', { class: 'row' }, h('button', { type: 'submit', class: 'button' }, ctx.t('nodes.add'))), out);
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     try {
       const k = key.value.replace(/\s+/g, '').toUpperCase();
       if (!/^[0-9A-F]{64}$/.test(k)) throw new Error(ctx.t('nodes.wholeKey'));
       await svc.stores.devices.add({ node: k, key: k, region: '', name: name.value });
+      await svc.stores.devices.update(k.slice(0, 8), { meshOnly: uplink.value === 'mesh' });
       out.textContent = ctx.t('nodes.added');
       form.reset();
       redraw();
