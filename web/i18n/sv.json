@@ -939,7 +939,7 @@
   "std.all": "Alla {n}",
   "std.attention": "Behöver åtgärd {n}",
   "std.findMore": "Hitta fler noder",
-  "std.noNodes": "Inga noder än. Lås upp din nyckel så hittar mccontrol dem, eller lägg till en med nyckeln.",
+  "std.noNodes": "Inga noder än. mccontrol letar själv medan din nyckel är upplåst, och ”Hitta fler noder” letar nu. En nod utan MQTT läggs till med nyckeln.",
   "std.yourNodes": "Dina noder",
   "std.pickNode": "{n} noder. Välj en i listan för att se den och skicka kommandon till den.",
   "std.location": "Plats",

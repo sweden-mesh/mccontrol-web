@@ -11,8 +11,12 @@ body {
   font: 1rem/1.5 var(--font-body);
   accent-color: var(--accent);
   min-height: 100dvh;
-  display: grid; grid-template-rows: auto 1fr auto;
+  /* A column: the page between header and footer takes what is left, whatever else stands above
+     it (the demo's banner). As grid rows the spare height went to the second child, which with
+     the banner was the status line. */
+  display: flex; flex-direction: column;
 }
+body > main { flex: 1 0 auto; }
 code, pre, kbd, samp { font-family: var(--font-mono); }
 h1, h2, h3 { font-family: var(--font-head); letter-spacing: -.01em; line-height: 1.2; }
 h1 { font-size: clamp(1.4rem, 1.2rem + 1vw, 1.9rem); margin: 1rem 0 .75rem; }
@@ -116,7 +120,12 @@ main:focus { outline: none; }
     height: 100%; min-height: 32rem;
   }
   .tile { min-height: 0; display: flex; flex-direction: column; }
-  .tile-body { flex: 1; min-height: 0; overflow: auto; }
+  /* Positioned, so the hidden screen-reader texts inside (position: absolute) scroll with the
+     tile and do not make the page taller than the window. */
+  .tile-body { flex: 1; min-height: 0; overflow: auto; position: relative; }
+  /* The window's height is the body's, so "100%" above has something to be a share of. */
+  html[data-layout="retro"] body { height: 100dvh; }
+  html[data-layout="retro"] body > main { flex: 1 1 0; min-height: 0; }
 }
 /* From 1600 px: HISTORY under NODE, across NODE and the right column. */
 @media (width >= 100em) {

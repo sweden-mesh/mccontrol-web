@@ -72,7 +72,7 @@ html[data-layout="standard"] body { padding: 0; }
 .std-back { display: none; }
 @media (width >= 45em) {
   html[data-layout="standard"] body { height: 100dvh; }
-  html[data-layout="standard"] main { height: 100%; }
+  html[data-layout="standard"] main { flex: 1 1 0; min-height: 0; }
   .std { height: 100%; min-height: 0; }
   .std-aside, .std-main { overflow: auto; }
 }

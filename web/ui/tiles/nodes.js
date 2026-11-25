@@ -86,7 +86,7 @@ function fill(ctx, svc, body) {
     h('span', { class: 'node-name', title: name }, short),
     h('span', { class: 'node-ver' }, d.ver ? shortVersion(svc.rules, d.ver) : '–'),
     h('span', { class: 'node-heard' }, heard ? age(ctx, heard, now) : '–'));
-    button.addEventListener('click', () => { focusId = d.node; ctx.board.select(d.node); });
+    button.addEventListener('click', () => { focusId = d.node; ctx.board.select(ctx.board.selected() === d.node ? null : d.node); });
     return h('li', { class: `node-item${tagged ? ' is-tagged' : ''}`, 'data-state': status.state },
       h('label', { class: 'tag-hit' }, box),
       button, statusHint(ctx, button, status));

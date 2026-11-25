@@ -68,6 +68,15 @@ export function closeModal() {
   if (depth > 0) {
     toBoard = true;
     history.go(-depth);
+    // The walk back must end at the board. If the browser has no such entry (nothing happens), or
+    // the walk lands somewhere unexpected, close here: a flag left set would keep every later
+    // modal from opening.
+    setTimeout(() => {
+      if (!toBoard) return;
+      toBoard = false;
+      history.replaceState(null, '', location.pathname + location.search);
+      hideFrame();
+    }, 500);
   } else {
     history.replaceState(null, '', location.pathname + location.search);
     hideFrame();
@@ -123,7 +132,10 @@ export function routeModal(target, { force = false } = {}) {
   const depth = stampDepth(true);
   if (toBoard) {
     // Walking back reached the modal the page was opened on: replace it with the board.
-    if (depth === 0) { toBoard = false; history.replaceState(null, '', location.pathname + location.search); hideFrame(); }
+    // Whatever entry the walk reached, it ends here: the modal there is replaced with the board.
+    toBoard = false;
+    history.replaceState(null, '', location.pathname + location.search);
+    hideFrame();
     return null;
   }
   const { name, args } = target;

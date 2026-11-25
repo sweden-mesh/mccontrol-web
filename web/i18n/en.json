@@ -939,7 +939,7 @@
   "std.all": "All {n}",
   "std.attention": "Needs attention {n}",
   "std.findMore": "Find more nodes",
-  "std.noNodes": "No nodes yet. Unlock your key and mccontrol finds them, or add one by its key.",
+  "std.noNodes": "No nodes yet. mccontrol looks for them by itself while your key is unlocked, and \"Find more nodes\" looks now. A node without MQTT is added by its key.",
   "std.yourNodes": "Your nodes",
   "std.pickNode": "{n} nodes. Choose one in the list to see it and send it commands.",
   "std.location": "Location",

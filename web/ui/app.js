@@ -242,6 +242,15 @@ async function start() {
   onKeysChange(() => drawKeyBar($('keys'), t));
   onStatusChange(() => drawStatusLine($('status-items'), t));
   onKeyState(drawKey);
+  // The layout is drawn for one key (its nodes, its stores). A key made, imported or replaced
+  // after the first draw needs the layout drawn again, or the page stays empty behind the dialog.
+  let drawnKey = keyState().publicKeyHex;
+  onKeyState(() => {
+    const now = keyState().publicKeyHex;
+    if (now === drawnKey) return;
+    drawnKey = now;
+    drawLayout();
+  });
   // Locking (auto-lock too) closes whatever is open behind the gate; unlocking leaves the way on
   // to the unlock screen, which goes on by itself (to the board and so to gateReturn, or to a new
   // key's tab).

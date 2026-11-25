@@ -16,7 +16,7 @@ import { provideKeySource } from '../key-state.js';
 import { provideKeyring } from './node-services.js';
 
 const EMPTY = Object.freeze({ exists: false, locked: true, publicKeyHex: null, source: null,
-  backup: null, autoLockMinutes: 15, fingerprint: false, persist: null, passphraseChanged: null, rekey: null, replaced: [] });
+  backup: null, autoLockMinutes: null, fingerprint: false, persist: null, passphraseChanged: null, rekey: null, replaced: [] });
 
 let ring = null;
 let status = EMPTY;

@@ -76,7 +76,18 @@ export function render(ctx) {
   // A made or imported key goes to the key tab (its backup is the owner's job); an unlock goes
   // back where it was asked for, and to the board when nothing asked (W-23f: the status line's
   // and STATUS's "Unlock" must not leave Setup open over the board).
-  const finish = () => ctx.navigate(target.next || '#/key');
+  // The page's gate opens when the key's new status has arrived, a moment after create() or
+  // importKey() resolves: going on before that is turned back to this screen by the gate, and the
+  // dialog then stays open over an unlocked page. So wait for the status, then go.
+  const whenUnlocked = (then) => {
+    const ready = () => { const st = keyStatus(); return st.exists && !st.locked; };
+    if (ready()) { queueMicrotask(then); return; }
+    const stop = onKeyStatus(() => { if (ready()) { stop(); queueMicrotask(then); } });
+    ctx.signal.addEventListener('abort', stop, { once: true });
+  };
+  // A made key goes to the key tab, where its copy is kept. An imported key has a copy already:
+  // it goes to the board, where its nodes are looked for.
+  const finish = (made = true) => whenUnlocked(() => ctx.navigate(target.next || (made ? '#/key' : '')));
   // Once, however the key was unlocked (here, a fingerprint, or by any other means while the
   // gate showed this step): the page goes on, to what was asked for before the gate (app.js).
   let step = null;
@@ -210,7 +221,7 @@ export function render(ctx) {
         await ring.importKey(text, pass, { replace: target.replace });
         text = '';
         paste.value = '';
-        finish();
+        finish(false);
       } catch (ex) {
         err.textContent = /passphrase is wrong/.test(ex.message) ? t('unlock.wrong') : ex.message;
       } finally { busy(submit, false); }

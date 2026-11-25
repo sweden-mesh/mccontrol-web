@@ -147,13 +147,15 @@ export function drawStandard(main, base) {
       detail.replaceChildren(back, view);
       if (focus) queueMicrotask(() => view.querySelector?.('.std-tab[aria-selected="true"]')?.focus());
     };
-    function pick(id) {
+    function pick(picked) {
+      // A click on the selected node clears the selection: back to the overview of all nodes.
+      const id = picked && picked === shown ? null : picked;
       if (id !== shown) tab = 'overview';
       shown = id;
       setSelected(id);
       list.select(id);
       drawDetail();
-      if (matchMedia(NARROW).matches) { body.dataset.view = 'detail'; detail.scrollIntoView({ block: 'start' }); detail.querySelector('h1')?.focus?.(); }
+      if (id && matchMedia(NARROW).matches) { body.dataset.view = 'detail'; detail.scrollIntoView({ block: 'start' }); detail.querySelector('h1')?.focus?.(); }
     }
     const list = nodeList(ctx, svc, { selected: selected(), onPick: pick });
     aside.replaceChildren(list.el);

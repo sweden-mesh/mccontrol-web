@@ -159,6 +159,9 @@ test('importing a bare seed file, and a changed backup', async () => {
 test('auto-lock after the chosen idle time; activity restarts it', async () => {
   const { ring: r, clock } = ring();
   await r.create(PASS);
+  clock.advance(48 * 60 * MIN);                                  // the default: until the tab closes
+  assert.ok(r.handle());
+  await r.setAutoLock(15);
   clock.advance(14 * MIN);
   assert.ok(r.handle());
   r.touch();
@@ -187,6 +190,7 @@ test('a sleeping tab whose timer never fired locks on the next touch', async () 
   const frozen = { ...clock, setTimeout: () => 0, clearTimeout: () => {} };
   const { ring: r } = ring({ clock: frozen });
   await r.create(PASS);
+  await r.setAutoLock(15);
   clock.advance(16 * MIN);
   assert.ok(r.handle());
   r.touch();

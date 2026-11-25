@@ -44,7 +44,8 @@ import { fromHex, fromUtf8, toHex, utf8 } from '../bytes.js';
 
 export { MIN_PASSPHRASE } from './backup.js';
 export const AUTO_LOCK_CHOICES = Object.freeze([5, 15, 60, null]);
-export const DEFAULT_AUTO_LOCK = 15;
+// Until the tab closes (operator 2026-11-25): a timed lock is the owner's choice in Setup.
+export const DEFAULT_AUTO_LOCK = null;
 
 const realClock = Object.freeze({
   now: () => Date.now(),
