@@ -519,7 +519,7 @@
   "road.help": "Repair a node over the mesh",
   "road.relayWhich": "Relay",
   "road.relayRoute": "Route",
-  "road.relayHint": "A relay is one of your own Observer nodes on MQTT, with the same command key as the node and in radio reach of it. It sends the command by radio and returns the answer. It takes one command at a time and has an airtime budget: about 26 commands in 15 minutes, then 5 in the next 15. A second one sent before the first is on the air replaces it, and the first is never answered.",
+  "road.relayHint": "A relay is one of your own Observer nodes on MQTT, with the same command key as the node and in radio reach of it. It sends the command by radio and returns the answer. It takes one command at a time and has an airtime budget: about 26 commands in 15 minutes, then 5 in the next 15. A second one sent while the first waits for its answer is refused as busy, or gets no answer; the first goes through.",
   "road.route.neighbour": "Direct neighbour (no hops)",
   "road.route.path": "Direct along the stored path ({hops} hops)",
   "road.route.flood": "Flood the relay's home region",

@@ -110,8 +110,8 @@ has **Through a relay** when the command goes to one node and a node of yours ca
 Observer image of lou-20 or later whose alive is fresh and says relaying is on. The relay must
 hold the same command key as the node and be in radio reach of it.
 
-- **One command at a time, on a budget.** A second command sent before the first is on the air
-  replaces it, and the first is never answered. Airtime: 5 % of 15 minutes (about 26 commands),
+- **One command at a time, on a budget.** A second command sent while the first waits for its
+  answer is answered `busy`, or dropped unanswered if the two arrive together; the first goes through. Airtime: 5 % of 15 minutes (about 26 commands),
   then 1 % of the next 15 (about 5).
 
 - **You choose the relay and the route.** Direct neighbour (one transmission each way, no

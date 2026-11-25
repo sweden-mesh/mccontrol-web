@@ -519,7 +519,7 @@
   "road.help": "Laga en nod över meshen",
   "road.relayWhich": "Relä",
   "road.relayRoute": "Rutt",
-  "road.relayHint": "Ett relä är en av dina egna Observer-noder på MQTT, med samma nyckel som noden och inom radioräckvidd från den. Den sänder kommandot över radio och skickar tillbaka svaret. Den tar ett kommando i taget och har en budget i sändningstid: ungefär 26 kommandon på 15 minuter, sedan 5 under de nästa 15. Skickar du ett till innan det första sänts ersätts det första och får inget svar.",
+  "road.relayHint": "Ett relä är en av dina egna Observer-noder på MQTT, med samma nyckel som noden och inom radioräckvidd från den. Den sänder kommandot över radio och skickar tillbaka svaret. Den tar ett kommando i taget och har en budget i sändningstid: ungefär 26 kommandon på 15 minuter, sedan 5 under de nästa 15. Skickar du ett till medan det första väntar på svar nekas det som upptaget, eller får inget svar. Det första går fram.",
   "road.route.neighbour": "Direkt granne (inga hopp)",
   "road.route.path": "Direkt längs den sparade vägen ({hops} hopp)",
   "road.route.flood": "Flooda reläets hemregion",
