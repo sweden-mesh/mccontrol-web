@@ -8,7 +8,8 @@ export function h(tag, attrs = {}, ...children) {
     if (name.startsWith('on')) throw new Error('attach listeners with addEventListener');
     el.setAttribute(name, value === true ? '' : String(value));
   }
-  for (const child of children.flat()) {
+  // Nested lists of any depth are flattened: a list inside a list would else be written out as text.
+  for (const child of children.flat(Infinity)) {
     if (child == null || child === false) continue;
     el.append(child instanceof Node ? child : document.createTextNode(String(child)));
   }

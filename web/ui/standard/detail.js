@@ -166,7 +166,7 @@ function overview(ctx, svc, device, st, release, onPick, onTab) {
     h('p', { class: 'std-state' }, stateMark(ctx, st.state, why || silent || ctx.t(`tile.state.${st.state}`))),
     h('dl', { class: 'std-dl' },
       h('dt', {}, ctx.t('std.firmware')), h('dd', {}, h('code', {}, device.ver ? shortVersion(svc.rules, device.ver) : '–'),
-        up ? [' ', h('span', { class: 'std-tag' }, ctx.t('update.available')), updateNow ? [' ', updateNow] : byHand ? [' ', byHand] : null] : up === false ? [' ', h('span', { class: 'muted' }, ctx.t('std.upToDate'))] : null),
+        up ? [' ', h('span', { class: 'std-tag' }, ctx.t('update.available')), ...(updateNow ? [' ', updateNow] : byHand ? [' ', byHand] : [])] : up === false ? [' ', h('span', { class: 'muted' }, ctx.t('std.upToDate'))] : null),
       h('dt', {}, ctx.t('std.battery')), h('dd', {}, volts(ctx.t, fleet.batteryMv)),
       h('dt', {}, ctx.t('std.uptime')), h('dd', {}, uptimeText(ctx, fleet.uptimeSecs)),
       h('dt', {}, nb), nbValue),
