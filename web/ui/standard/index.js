@@ -84,7 +84,7 @@ function footer(ctx, signal) {
     const inner = [h('span', { class: 'glyph', 'aria-hidden': 'true' }, GLYPH[state === 'running' ? 'unknown' : state] || GLYPH.unknown), ' ',
       h('span', {}, ctx.t(`std.foot.${name}`), ' ', word)];
     if (state !== 'alert') return h('li', { 'data-state': state, title }, inner);
-    const copy = h('button', { type: 'button', class: 'std-foot-copy', title: [title, ctx.t('report.hint')].filter(Boolean).join(' · ') }, inner);
+    const copy = h('button', { type: 'button', class: 'std-foot-copy', title: [ctx.t('report.hint'), title].filter(Boolean).join(' · ') }, inner);
     copy.addEventListener('click', () => copyReport(ctx));
     return h('li', { 'data-state': state }, copy);
   };

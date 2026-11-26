@@ -1054,7 +1054,7 @@
   "node.regionHome": "hemregion {region}",
   "report.copied": "Statusraderna är kopierade. Klistra in dem när du ber om hjälp.",
   "report.refused": "Webbläsaren nekade urklipp. Markera och kopiera detta:",
-  "report.hint": "Klicka för att kopiera alla statusrader",
+  "report.hint": "Klicka för att kopiera felsökningsmeddelande",
   "relay.title": "Relä",
   "relay.on": "Den här noden är relä för dina kommandon till noder i närheten.",
   "relay.off": "Reläfunktionen är avstängd på den här noden.",
