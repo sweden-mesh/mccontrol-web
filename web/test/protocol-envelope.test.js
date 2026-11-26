@@ -30,7 +30,7 @@ test('the constants are the ones Python exports', () => {
     mcc3_forward: {
       kind: M3.KIND.forward, result_kind: M3.KIND.forward_result, hkdf_info: M3.INFO.fwd, flag_zero_hop: M3.FLAG_ZERO_HOP,
       alive_flag_relay: M3.ALIVE_FLAG_RELAY, size: M3.FORWARD_SIZE, result_size: M3.FORWARD_RESULT_SIZE, path: M3.FORWARD_PATH,
-      body: M3.FORWARD_BODY, min_body: M3.FORWARD_MIN_BODY, body_subtypes: [M3.MESH_V1_SUBTYPE, M3.MESH_SUBTYPE],
+      body: M3.FORWARD_BODY, min_body: M3.FORWARD_MIN_BODY, body_subtypes: [M3.MESH_V1_SUBTYPE, M3.MESH_SUBTYPE], body_subtypes_from: { 'lou-21': [M3.MESH_SUBTYPE] },
       result_plaintext: M3.FORWARD_RESULT_PLAIN, result_path: M3.FORWARD_RESULT_PATH, max_response: M3.FORWARD_MAX_RESPONSE,
       routes: { ...M3.ROUTES }, statuses: [...M3.FORWARD_STATUSES], sent: { ...M3.SENT }, snr_none: M3.SNR_NONE,
       path_none: M3.PATH_NONE, max_ttl_secs: M3.FORWARD_MAX_TTL,

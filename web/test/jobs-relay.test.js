@@ -115,13 +115,15 @@ test('the zero-hop flag: only with no hops and a 0xC2 target', async () => {
   }
   assert.deepEqual(broker.forwards.map((f) => [f.route, f.pathLen, f.body[1], f.requests[0].flags]),
     [[0, 0, 2, 2], [0, 2, 0, 0], [1, 0, 0, 0], [2, 0, 0, 0]]);
-  // lou-19 behind the relay: the 0xC1 request, which has no flags, answered in the clear
+  // lou-19 behind the relay: refused before anything is sent (lou-21's relay drops the 0xC1 request)
   const old = await setup({ target: { ver: ONLY19 }, behind: { lou20: false } });
-  const out = await old.jobs.send({ command: 'get name', nodes: [T], road: 'relay', relay: via('neighbour') });
-  assert.equal(old.broker.forwards[0].body[0], 0xc1);
-  assert.equal(old.broker.forwards[0].body.length, 73 + 'get name'.length);
-  assert.equal(out.outcomes[0].result.reply, '> get name');
-  assert.equal(out.outcomes[0].info.status, 'answered');
+  await assert.rejects(old.jobs.send({ command: 'get name', nodes: [T], road: 'relay', relay: via('neighbour') }),
+    (e) => e.code === 'relayOldTarget');
+  assert.equal(old.broker.forwards.length, 0);
+  // lou-20 that still logs in the old way reads 0xC2 on the air all the same
+  const login = await setup({ target: { ver: 'esp32-v1.18.0-lou-20-arrc-observer-1a2b3c4d', region: 'JKG', alive: null } });
+  await login.jobs.send({ command: 'get name', nodes: [T], road: 'relay', relay: via('neighbour') });
+  assert.equal(login.broker.forwards[0].body[0], 0xc2);
 });
 
 test('each status of a forward result; no answer is silence, never a refusal', async () => {

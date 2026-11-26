@@ -34,10 +34,9 @@
 import { configFor, discover as realDiscover, send as realSend, DISCOVERY_COMMAND } from '../protocol/transport.js';
 import { forwardMcc3 as realForwardMcc3, newer, scanAlive as realScanAlive, sendMcc3 as realSendMcc3 } from '../protocol/plane.js';
 import { FLAG_ZERO_HOP, commandTopic as mcc3Topic, deriveKeys } from '../protocol/mcc3.js';
-import { meshTopic } from '../protocol/mesh.js';
 import { DEFAULT_TTL_SECS } from '../protocol/constants.js';
 import { fromHex, toHex } from '../bytes.js';
-import { actSpacing, areaOf, oldRegion, scheme, shuffled } from './scheme.js';
+import { actSpacing, areaOf, oldRegion, scheme, shuffled, speaksMcc3 } from './scheme.js';
 import { commandTopic } from '../protocol/topics.js';
 import { codeName } from '../protocol/results.js';
 import { blocker, fillSteps, JobError, meshBlocker } from './checks.js';
@@ -276,10 +275,16 @@ export function createJobs({
     if (isFlood(route) && relay.confirmed !== true) throw new JobError('relayFloodConfirm', {}, 'a flood through a relay is confirmed each time');
     const stored = route === 'path' ? device.relayPaths?.[via.node] : null;
     if (route === 'path' && !stored) throw new JobError('relayNoPath', { name: label(via) }, 'no path is stored for this relay');
-    const sealed = scheme(rules, device) === 'mcc3';
+    // A relay carries the lou-20 request (0xC2) only: lou-21's relay refuses the older 0xC1, whose
+    // only targets ran a firmware that was never released. What counts is what the target's
+    // firmware reads on the air, not how it logs in: a lou-20 node still on the old login takes
+    // a 0xC2 request too.
+    if (scheme(rules, device) !== 'mcc3' && !speaksMcc3(rules, device.ver)) {
+      throw new JobError('relayOldTarget', { name: label(device) }, 'a relay reaches a node on lou-20 or later only');
+    }
     const key = wholeKey(device);
     const relayKey = wholeKey(via);
-    const keys = sealed ? await keysFor(handle, key) : null;
+    const keys = await keysFor(handle, key);
     // While the key is being replaced (rekey.js) the relay may be on the other key than the one
     // that signs for the target: the hop is sealed with the key the relay is on. That key's shared
     // secret is not this key's to cache.
@@ -287,9 +292,9 @@ export function createJobs({
     const relayKeys = hop === handle ? await keysFor(handle, relayKey) : deriveKeys(hop.sharedSecret(relayKey), relayKey);
     const secs = Math.floor(now() / 1000);
     const counter = await stores.devices.nextCounter(device.node);
-    const topic = sealed ? mcc3Topic(key) : meshTopic(oldRegion(device), key, rules.deviceMeshOnly(device));
-    // Zero hops back only where the relay sends with none and the target knows the flag (0xC2).
-    const flags = sealed && route === 'neighbour' ? FLAG_ZERO_HOP : 0;
+    const topic = mcc3Topic(key);
+    // Zero hops back only where the relay sends with none.
+    const flags = route === 'neighbour' ? FLAG_ZERO_HOP : 0;
     const body = meshBody({ handle, key, topic, counter, command, ttl: brokers.ttl_secs ?? DEFAULT_TTL_SECS, nowSecs: secs, keys, flags });
     const forwardCounter = await stores.devices.nextForwardCounter(via.node);
     onProgress?.({ phase: 'sending', road: 'relay', node: device.node, name: label(device), index, count });

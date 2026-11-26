@@ -51,7 +51,7 @@ test('the constants are the spec\'s', () => {
   assert.equal(mcc3.FLAG_ZERO_HOP, c.flag_zero_hop);
   assert.equal(mcc3.ALIVE_FLAG_RELAY, c.alive_flag_relay);
   assert.deepEqual({ size: mcc3.FORWARD_SIZE, result_size: mcc3.FORWARD_RESULT_SIZE, path: mcc3.FORWARD_PATH,
-    body: mcc3.FORWARD_BODY, min_body: mcc3.FORWARD_MIN_BODY, body_subtypes: [mcc3.MESH_V1_SUBTYPE, mcc3.MESH_SUBTYPE],
+    body: mcc3.FORWARD_BODY, min_body: mcc3.FORWARD_MIN_BODY, body_subtypes: [mcc3.MESH_V1_SUBTYPE, mcc3.MESH_SUBTYPE], body_subtypes_from: { 'lou-21': [mcc3.MESH_SUBTYPE] },
     result_plaintext: mcc3.FORWARD_RESULT_PLAIN, result_path: mcc3.FORWARD_RESULT_PATH,
     max_response: mcc3.FORWARD_MAX_RESPONSE, routes: { ...mcc3.ROUTES }, statuses: [...mcc3.FORWARD_STATUSES],
     sent: { ...mcc3.SENT }, snr_none: mcc3.SNR_NONE, path_none: mcc3.PATH_NONE, max_ttl_secs: mcc3.FORWARD_MAX_TTL }, c.forward);

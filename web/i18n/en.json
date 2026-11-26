@@ -625,6 +625,7 @@
   "send.why.relayRoute": "choose a route",
   "send.why.relayFloodConfirm": "a flood through a relay must be confirmed first",
   "send.why.relayNoPath": "no path is stored for the relay {name}: check its neighbours, or flood once",
+  "send.why.relayOldTarget": "{name} runs a firmware older than lou-20: a relay reaches lou-20 or later only",
   "settings.meshAfter": "Auto road: take the mesh when a node has not been heard over MQTT for",
   "settings.meshAfterHint": "Heard means its status on Beacon or its last answer over MQTT. A node opens its own mesh road after 15 minutes without MQTT. Default {m} minutes.",
   "settings.minutesUnit": "minutes",

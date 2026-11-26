@@ -625,6 +625,7 @@
   "send.why.relayRoute": "välj en rutt",
   "send.why.relayFloodConfirm": "en flood via ett relä måste bekräftas först",
   "send.why.relayNoPath": "ingen väg är sparad för reläet {name}: kontrollera dess grannar eller flooda en gång",
+  "send.why.relayOldTarget": "{name} kör en firmware äldre än lou-20: ett relä når bara lou-20 eller senare",
   "settings.meshAfter": "Auto-väg: ta meshen när en nod inte hörts över MQTT på",
   "settings.meshAfterHint": "Hörd betyder dess status på Beacon eller dess senaste svar över MQTT. En nod öppnar sin egen meshväg efter 15 minuter utan MQTT. Standard {m} minuter.",
   "settings.minutesUnit": "minuter",

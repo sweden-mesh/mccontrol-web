@@ -66,6 +66,11 @@
     193,
     194
    ],
+   "body_subtypes_from": {
+    "lou-21": [
+     194
+    ]
+   },
    "result_plaintext": 256,
    "result_path": 64,
    "max_response": 167,
@@ -342,7 +347,7 @@
    }
   },
   {
-   "name": "F2 flood in the region home, a 0xC1 request of 81 bytes; path length 0, so the three bytes in the path field are not a path",
+   "name": "F2 flood in the region home, a 0xC1 request of 81 bytes; path length 0, so the three bytes in the path field are not a path (a lou-20 relay sends it; from lou-21 a relay opens it and answers bad-body)",
    "counter": 10,
    "expiry": 1795000000,
    "flags": 0,

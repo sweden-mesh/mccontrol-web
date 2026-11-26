@@ -63,6 +63,11 @@
    193,
    194
   ],
+  "body_subtypes_from": {
+   "lou-21": [
+    194
+   ]
+  },
   "result_plaintext": 256,
   "result_path": 64,
   "max_response": 167,
