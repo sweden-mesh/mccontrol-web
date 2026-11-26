@@ -242,7 +242,7 @@ main:focus { outline: none; }
 }
 .toast-warning { border-color: var(--warn); }
 .toast-error { border-color: var(--danger); }
-.toast-text { margin: 0; grid-column: 1; }
+.toast-text { margin: 0; grid-column: 1; white-space: pre-wrap; overflow-wrap: anywhere; }
 .toast-actions { grid-column: 1; display: flex; gap: 8px; flex-wrap: wrap; }
 .toast-close { grid-column: 2; grid-row: 1; padding: 4px 0; border: 0; background: none; font: inherit; font-size: .875rem; color: var(--muted); text-decoration: underline; cursor: pointer; min-height: 24px; }
 .toast-close:hover { color: var(--fg); }

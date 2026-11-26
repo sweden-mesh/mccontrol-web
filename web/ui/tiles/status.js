@@ -14,6 +14,7 @@
 // The page's automation (ui/automation.js) provides 'refresh' and 'discovery' (automation-sources.js,
 // with Undo for what discovery last added) and 'registration' (ui/screens/key-register.js).
 import { h } from '../dom.js';
+import { copyReport } from '../error-report.js';
 import { setStatusItem } from '../statusline.js';
 import { keyStatus, keyring, currentHandle } from '../screens/key-session.js';
 import { brokerConfig } from '../screens/settings-store.js';
@@ -69,8 +70,16 @@ export function render(ctx) {
     return b;
   };
 
-  const line = (name, state, word, action = null, detail = null) => h('li', { class: `row status-row${state === 'alert' ? ' alert' : ''}`, 'data-line': name, title: detail || null },
-    h('span', { class: 'row-name' }, ctx.t(`tile.line.${name}`)), stateMark(ctx, state, word), action);
+  // The word of a line that shows an error is a button: it copies every status line as text.
+  const line = (name, state, word, action = null, detail = null) => {
+    let mark = stateMark(ctx, state, word);
+    if (state === 'alert') {
+      mark = h('button', { type: 'button', class: 'link-button status-copy', title: ctx.t('report.hint') }, mark);
+      mark.addEventListener('click', () => copyReport(ctx));
+    }
+    return h('li', { class: `row status-row${state === 'alert' ? ' alert' : ''}`, 'data-line': name, title: detail || null },
+      h('span', { class: 'row-name' }, ctx.t(`tile.line.${name}`)), mark, action);
+  };
 
   // The last and next run, shortened to fit the tile's width (W-33a, kit.js fitTimes).
   const clock = (st, fallbackWord) => {

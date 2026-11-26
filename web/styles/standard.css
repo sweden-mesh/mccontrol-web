@@ -184,6 +184,8 @@ html[data-layout="standard"] body { padding: 0; }
 .std-foot-about a { color: inherit; }
 .std-foot-items { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 20px; }
 .std-foot-items li { max-width: none; }
+.std-foot-copy { padding: 0; border: 0; background: none; font: inherit; color: inherit; cursor: copy; text-align: left; }
+.std-foot-copy:hover { text-decoration: underline; }
 .std-foot-items .glyph, .std-row .glyph, .std .mark .glyph { color: var(--muted); }
 :is(.std-foot-items li, .std .mark)[data-state="ok"] .glyph { color: var(--online); }
 :is(.std-foot-items li, .std .mark)[data-state="warn"] .glyph { color: var(--warn); }

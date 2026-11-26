@@ -21,6 +21,7 @@ import { companionChooser } from '../screens/road-kit.js';
 import { onCompanion, state as companionState } from '../companion-session.js';
 import { GLYPH } from '../statusline.js';
 import { brokerWord } from '../tiles/status.js';
+import { copyReport } from '../error-report.js';
 import { shortAge } from '../tiles/kit.js';
 import { onSources, source } from '../tiles/sources.js';
 import { icon } from './icons.js';
@@ -77,9 +78,16 @@ function header(ctx, signal) {
 
 function footer(ctx, signal) {
   const list = h('ul', { class: 'std-foot-items' });
-  const item = (name, state, word, title = null) => h('li', { 'data-state': state, title },
-    h('span', { class: 'glyph', 'aria-hidden': 'true' }, GLYPH[state === 'running' ? 'unknown' : state] || GLYPH.unknown), ' ',
-    h('span', {}, ctx.t(`std.foot.${name}`), ' ', word));
+  // A line that shows an error is a button: it copies every status line as text, to paste when
+  // asking for help.
+  const item = (name, state, word, title = null) => {
+    const inner = [h('span', { class: 'glyph', 'aria-hidden': 'true' }, GLYPH[state === 'running' ? 'unknown' : state] || GLYPH.unknown), ' ',
+      h('span', {}, ctx.t(`std.foot.${name}`), ' ', word)];
+    if (state !== 'alert') return h('li', { 'data-state': state, title }, inner);
+    const copy = h('button', { type: 'button', class: 'std-foot-copy', title: [title, ctx.t('report.hint')].filter(Boolean).join(' · ') }, inner);
+    copy.addEventListener('click', () => copyReport(ctx));
+    return h('li', { 'data-state': state }, copy);
+  };
   const draw = () => {
     const b = source('broker')?.state() || { state: 'running' };
     const k = keyStatus();
