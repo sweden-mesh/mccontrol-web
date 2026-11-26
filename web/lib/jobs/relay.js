@@ -83,6 +83,27 @@ export function noRelayWhy(rules, devices, target, now = Date.now()) {
   return { code: 'none.relayCannot', vars: {} };
 }
 
+// What is kept of the way from a relay to a target after one send: { pathLen, path, at, fails?,
+// next? } or null for none. A path that works is not thrown away for one a flood just taught: the
+// new one waits as `next` until the kept one fails. A send along the kept path that got no answer
+// twice running drops it, for the waiting one when there is one. `taught` is { pathLen, path } from
+// the relay's result, or null.
+export const PATH_FAILS = 2;
+export function keptRelayPath(stored, { route, status, taught = null, at }) {
+  const same = (a, b) => a && b && a.pathLen === b.pathLen && a.path === b.path;
+  const fresh = taught ? { pathLen: taught.pathLen, path: taught.path, at } : null;
+  if (route === 'path' && stored) {
+    if (status === 'answered') return fresh || { pathLen: stored.pathLen, path: stored.path, at: stored.at };
+    if (status !== 'no-answer') return stored;                      // nothing was sent: no evidence
+    const fails = (stored.fails || 0) + 1;
+    if (fails < PATH_FAILS) return { ...stored, fails };
+    return stored.next || null;
+  }
+  if (!fresh) return stored || null;
+  if (!stored || same(stored, fresh)) return fresh;
+  return { ...stored, next: fresh };
+}
+
 // The routes to offer through one candidate, the cheapest first.
 // A relay's neighbour list holds only what it heard an advert from since it started, so a list
 // without the target proves nothing (absence of evidence): the zero-hop route stays, last.

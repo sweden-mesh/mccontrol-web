@@ -43,7 +43,7 @@ import { blocker, fillSteps, JobError, meshBlocker } from './checks.js';
 import { MESH_AFTER_MINS, chooseRoad, mqttHeardAt } from './road.js';
 import { MESH_WAIT_SECS, meshAnswer, meshBody, sendOverMesh as realMeshSend } from '../mesh/send.js';
 import {
-  FORWARD_TTL_SECS, RELAY_ROUTES, RELAY_WAIT_SECS, WIRE_ROUTE, autoRelay, hearsTarget, isFlood, relayRefusal,
+  FORWARD_TTL_SECS, RELAY_ROUTES, RELAY_WAIT_SECS, WIRE_ROUTE, autoRelay, hearsTarget, isFlood, keptRelayPath, relayRefusal,
 } from './relay.js';
 import { MESH_ROADS, advice, refusedCount, step } from './silence.js';
 
@@ -325,10 +325,16 @@ export function createJobs({
     const result = r?.name === 'answered' ? meshAnswer(keys, r.response, device.node, command, counter) : null;
     const info = { relay: via.node, relayName: label(via), route, status: r ? (r.name || `unknown-${r.status}`) : null,
       sent: r ? r.sent : null, snr: r && r.snr !== null ? r.snr / 4 : null };
-    if (r && r.pathLen !== null) {
+    if (r) {
       const fresh = (await stores.devices.get(device.node)) || device;
-      await stores.devices.update(device.node, { relayPaths: { ...(fresh.relayPaths || {}),
-        [via.node]: { pathLen: r.pathLen, path: toHex(r.path, true), at: new Date(now()).toISOString() } } });
+      const before = fresh.relayPaths?.[via.node] || null;
+      const kept = keptRelayPath(before, { route, status: r.name, at: new Date(now()).toISOString(),
+        taught: r.pathLen !== null ? { pathLen: r.pathLen, path: toHex(r.path, true) } : null });
+      if (kept !== before) {
+        const paths = { ...(fresh.relayPaths || {}) };
+        if (kept) paths[via.node] = kept; else delete paths[via.node];
+        await stores.devices.update(device.node, { relayPaths: paths });
+      }
     }
     // An answer to a zero-hop send came straight from the node: this relay hears it, at this signal.
     if (r?.name === 'answered' && route === 'neighbour') {

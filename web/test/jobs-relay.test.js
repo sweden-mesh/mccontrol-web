@@ -10,7 +10,7 @@ import { rulesFrom } from '../lib/protocol/rules.js';
 import { createJobs } from '../lib/jobs/jobs.js';
 import { blocker, preflight } from '../lib/jobs/checks.js';
 import { chooseRoad, startRoad } from '../lib/jobs/road.js';
-import {
+import { keptRelayPath,
   FORWARD_TTL_SECS, autoRelay, hearsTarget, noRelayWhy, parseNeighbors, parseRelayState, pathHops, relayCandidates,
   relayRefusal, relaying, routesFor,
 } from '../lib/jobs/relay.js';
@@ -533,4 +533,23 @@ test('relays are listed with the one that heard the target strongest first', () 
   const got = relayCandidates(fake, devices, target, now);
   assert.deepEqual(got.map((c) => c.device.name), ['bravo', 'alpha', 'echo', 'charlie']);   // 11 dB, 3.5 dB, unchecked, not in its list
   assert.deepEqual(got.map((c) => c.snr), [11, 3.5, null, null]);
+});
+
+test('a kept relay path: a flood-taught one waits; two silent sends along the kept one drop it', () => {
+  const at = '2026-11-26T12:00:00.000Z';
+  const old = { pathLen: 1, path: 'A1', at: '2026-11-25T12:00:00.000Z' };
+  const taught = { pathLen: 2, path: 'B1B2' };
+  assert.deepEqual(keptRelayPath(null, { route: 'flood', status: 'answered', taught, at }), { ...taught, at });
+  const waiting = keptRelayPath(old, { route: 'flood', status: 'answered', taught, at });
+  assert.deepEqual(waiting, { ...old, next: { ...taught, at } });
+  assert.deepEqual(keptRelayPath(old, { route: 'flood', status: 'answered', taught: { pathLen: 1, path: 'A1' }, at }), { pathLen: 1, path: 'A1', at });
+  const once = keptRelayPath(waiting, { route: 'path', status: 'no-answer', at });
+  assert.equal(once.fails, 1);
+  assert.equal(once.path, 'A1');
+  assert.deepEqual(keptRelayPath(once, { route: 'path', status: 'no-answer', at }), { ...taught, at });
+  assert.equal(keptRelayPath({ ...old, fails: 1 }, { route: 'path', status: 'no-answer', at }), null);
+  // an answer along the kept path clears the count; a status that sent nothing is no evidence
+  assert.equal(keptRelayPath({ ...old, fails: 1 }, { route: 'path', status: 'answered', at }).fails, undefined);
+  const busy = { ...old, fails: 1 };
+  assert.equal(keptRelayPath(busy, { route: 'path', status: 'busy', at }), busy);
 });
