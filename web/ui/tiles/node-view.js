@@ -260,6 +260,9 @@ export function commandLine(ctx, svc, nodeId) {
   // relay and route are the ones shown in the two choosers, and a flood still asks each time.
   function autoRoad() {
     const to = targets();
+    // The mesh road chosen by hand with no companion connected has nothing to send with: it goes
+    // through the relay the choosers show, as auto does, instead of failing on "no companion".
+    if (road.value === 'mesh' && to.length === 1 && !connectedCompanion() && picker.offered() && picker.choice()) return 'relay';
     if (road.value !== 'auto' || to.length !== 1) return null;
     let via;
     try { via = verdict().road?.road || (svc.rules.deviceMeshOnly(to[0]) ? 'mesh' : 'mqtt'); } catch { return null; }
