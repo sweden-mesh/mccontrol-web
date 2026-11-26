@@ -73,9 +73,11 @@ export function startJob({ label, command = '', nodes = [] }) {
   tellJobs();
   return Object.freeze({
     id,
-    progress(fraction, text = '') {
+    // `until` (ms): when the wait gives up, where the sender knows; a node's view counts down to it.
+    progress(fraction, text = '', until = null) {
       if (!running.has(id)) return;
-      running.set(id, { ...base, fraction: Number.isFinite(fraction) ? Math.max(0, Math.min(1, fraction)) : null, text });
+      running.set(id, { ...base, fraction: Number.isFinite(fraction) ? Math.max(0, Math.min(1, fraction)) : null, text,
+        until: Number.isFinite(until) ? until : null });
       tellJobs();
     },
     done() { if (running.delete(id)) tellJobs(); },

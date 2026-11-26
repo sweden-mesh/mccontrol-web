@@ -405,7 +405,8 @@ export function commandLine(ctx, svc, nodeId) {
         command: p.command, nodes: to.map((d) => d.node), road: sendRoad, relay,
         onProgress: (st) => {
           const fraction = st.total ? st.elapsed / st.total : null;
-          job.progress(fraction, ctx.t('send.waitNode', { name: st.name, i: (st.index ?? 0) + 1, of: st.count ?? to.length }));
+          job.progress(fraction, ctx.t('send.waitNode', { name: st.name, i: (st.index ?? 0) + 1, of: st.count ?? to.length }),
+            st.total ? Date.now() + (st.total - st.elapsed) * 1000 : null);
         },
       });
       if (res.outcomes.some((o) => o.sent && o.road !== 'mesh')) reportBroker({ ok: true });

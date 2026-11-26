@@ -981,6 +981,7 @@
   "std.nbBest": "{n}, bäst {snr} dB",
   "std.send": "Skicka ett kommando",
   "std.pending": "väntar",
+  "std.secs": "{n} s",
   "std.recent": "Senaste svar",
   "std.time": "Tid",
   "std.command": "Kommando",

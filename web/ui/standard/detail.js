@@ -223,9 +223,15 @@ function overview(ctx, svc, device, st, release, onPick, onTab) {
   let answered = null;          // the history rows, once read
   const pendingRows = () => jobs().filter((j) => j.nodes?.includes(device.node)).map((j) => h('tr', { class: 'std-pending' },
     h('td', { class: 'muted std-time' }, clockTime(ctx, new Date(j.at).toISOString())), h('td', {}, h('code', {}, j.command)),
-    h('td', { role: 'status' }, stateMark(ctx, 'unknown', [ctx.t('std.pending'), j.text].filter(Boolean).join(' · ')))));
+    h('td', {}, stateMark(ctx, 'unknown', [ctx.t('std.pending') + left(j), j.text].filter(Boolean).join(' · ')))));
+  // " (87 s)": the seconds until the wait gives up, counted down while a row is pending.
+  const left = (j) => (j.until ? ` (${ctx.t('std.secs', { n: Math.max(0, Math.ceil((j.until - Date.now()) / 1000)) })})` : '');
+  let tick = null;
+  ctx.signal.addEventListener('abort', () => clearInterval(tick), { once: true });
   const drawTable = () => {
     const waiting = pendingRows();
+    if (waiting.length && !tick) tick = setInterval(drawTable, 1000);
+    if (!waiting.length && tick) { clearInterval(tick); tick = null; }
     if (!waiting.length && answered && !answered.length) { table.replaceChildren(h('tr', {}, h('td', { colspan: '3', class: 'muted' }, ctx.t('node.noHistory')))); return; }
     table.replaceChildren(...waiting, ...(answered || []));
   };

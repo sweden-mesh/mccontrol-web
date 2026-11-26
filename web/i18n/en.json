@@ -981,6 +981,7 @@
   "std.nbBest": "{n}, best {snr} dB",
   "std.send": "Send a command",
   "std.pending": "pending",
+  "std.secs": "{n} s",
   "std.recent": "Recent results",
   "std.time": "Time",
   "std.command": "Command",
