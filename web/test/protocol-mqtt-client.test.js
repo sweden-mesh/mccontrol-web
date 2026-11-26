@@ -77,6 +77,29 @@ test('an unreachable broker and a silent one', async () => {
   await assert.rejects(c.connect(), /did not answer the connection/);
 });
 
+test('a socket that closes before it opens is tried again, three times at most', async () => {
+  const flaky = (fails) => {
+    const good = createFakeBroker();
+    const bad = createFakeBroker({ refuseSocket: true });
+    let made = 0;
+    const WebSocket = function WebSocket(...a) { made += 1; return new (made <= fails ? bad : good).WebSocket(...a); };
+    return { good, WebSocket, made: () => made };
+  };
+  const timers = { setTimeout: (f, ms) => setTimeout(f, [300, 600, 1200].includes(ms) ? 1 : ms), clearTimeout };
+  const two = flaky(3);
+  const ok = client(two.good, { WebSocket: two.WebSocket, timers });
+  await ok.c.connect();
+  assert.equal(ok.c.state, 'connected');
+  assert.equal(two.made(), 4);
+  await ok.c.close();
+  const three = flaky(4);
+  await assert.rejects(client(three.good, { WebSocket: three.WebSocket, timers }).c.connect(), /cannot reach/);
+  assert.equal(three.made(), 4);
+  const refused = createFakeBroker({ auth: () => 4 });       // a refusal is not tried again
+  await assert.rejects(client(refused, { timers }).c.connect(), /refused the connection/);
+  assert.equal(refused.sockets.length, 1);
+});
+
 test('keepalive: PINGREQ at half the interval, and a dead broker is noticed', async () => {
   const broker = createFakeBroker();
   const { c, states } = client(broker, { keepalive: 1 });       // a ping every 500 ms

@@ -199,7 +199,9 @@ export function createMqttClient({
         resolve: () => { timers.clearTimeout(timer); resolve(); },
         reject: (e) => { timers.clearTimeout(timer); reject(e); },
       };
+      let opened = false;
       socket.onopen = () => {
+        opened = true;
         try {
           write(encodeConnect({ clientId, username, password, keepalive }));
         } catch (e) {
@@ -224,7 +226,9 @@ export function createMqttClient({
       socket.onerror = () => { /* the close event follows with the code */ };
       socket.onclose = (ev) => {
         const why = connectWaiter ? `cannot reach ${url}` : 'the connection to the broker closed';
-        drop(new Error(ev && ev.code && ev.code !== 1000 && ev.code !== 1005 ? `${why} (${ev.code})` : why));
+        const err = new Error(ev && ev.code && ev.code !== 1000 && ev.code !== 1005 ? `${why} (${ev.code})` : why);
+        err.unopened = !opened;
+        drop(err);
       };
     });
   }
@@ -263,7 +267,18 @@ export function createMqttClient({
     connect() {
       if (state === 'connected') return Promise.resolve();
       wanted = true;
-      return open();
+      // A socket that closed before it opened is tried again, three times, after 300, 600 and
+      // 1200 ms. Firefox carries WebSockets over HTTP/2, and this server drops the whole HTTP/2
+      // connection when one socket on it closes: a socket being opened then dies at once (1006)
+      // while the next attempt opens (W-50).
+      const attempt = (n) => open().catch((err) => {
+        if (!err.unopened || n >= 3 || !wanted) throw err;
+        return new Promise((r) => { timers.setTimeout(r, 300 * 2 ** n); }).then(() => {
+          if (!wanted) throw err;
+          return attempt(n + 1);
+        });
+      });
+      return attempt(0);
     },
 
     // topics: a topic string, or [{ topic, qos }]. Resolves to the granted QoS per topic as
