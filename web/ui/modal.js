@@ -29,6 +29,7 @@
 import { h } from './dom.js';
 import { isDemo } from './demo/mode.js';
 import { modalHash } from './routes.js';
+import { placeToasts } from './notify.js';
 
 const modals = new Map();
 const listeners = new Set();
@@ -166,17 +167,11 @@ export function routeModal(target, { force = false } = {}) {
   document.title = `${heading?.textContent || ctx.t(def.title)} · mccontrol`;
   if (!frame.dialog.open) {
     frame.dialog.showModal();
-    raiseToasts();
+    placeToasts();
   } else {
     frame.body.scrollTop = 0;
     frame.closeButton.focus();
   }
   tell();
   return shown;
-}
-
-// Messages are a popover in the top layer; one shown before the dialog would sit under it.
-function raiseToasts() {
-  const box = document.getElementById('toasts');
-  if (box?.matches(':popover-open')) { box.hidePopover(); box.showPopover(); }
 }

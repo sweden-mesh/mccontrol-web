@@ -1,7 +1,7 @@
 // Messages: toasts in one place on the page, and announcements for screen readers.
 //
 // notify(text, { kind, actions, timeout }) shows a toast in the "Messages" region (#toasts, a
-// manual popover so it stays above dialogs) and announces it. kind 'info' disappears after
+// manual popover so it stays above dialogs, moved into an open modal dialog so it can be clicked) and announces it. kind 'info' disappears after
 // `timeout` ms (default 10 s) unless the pointer or focus is in it; 'error' and 'warning' stay until
 // closed. `actions` is a list of { label, run } buttons; every action must also be reachable
 // somewhere else on the page (a toast can be missed). Returns a function that closes the toast.
@@ -27,6 +27,26 @@ export function announce(text) {
 
 function region() {
   return document.getElementById('toasts');
+}
+
+// A modal dialog makes everything outside it inert, the top layer included: a toast shown over
+// one could be read and not clicked. So the region lives inside the open modal dialog (the last
+// one when several are open), and in the page again when none is.
+export function placeToasts() {
+  const box = region();
+  if (!box) return;
+  const host = [...document.querySelectorAll('dialog[open]')].filter((d) => d.matches(':modal')).at(-1) || document.body;
+  const open = box.matches(':popover-open');
+  if (box.parentNode === host && !open) return;
+  if (open) box.hidePopover();
+  if (box.parentNode !== host) host.append(box);
+  if (box.children.length) box.showPopover();   // shown again: above a dialog opened after it
+}
+if (typeof document !== 'undefined') {
+  // Neither event bubbles; both are seen on the way down.
+  for (const type of ['close', 'toggle']) {
+    document.addEventListener(type, (e) => { if (e.target instanceof HTMLDialogElement) placeToasts(); }, true);
+  }
 }
 
 function syncOpen(box) {
@@ -72,6 +92,7 @@ export function notify(text, { kind = 'info', actions = [], timeout = 10000 } = 
   }
 
   box.append(toast);
+  placeToasts();
   syncOpen(box);
   announce(actions.length ? `${text} ${strings('app.actionsAvailable')}` : text);
   return remove;
