@@ -36,6 +36,33 @@ export async function readVersion() {
   return { version: 'unknown' };
 }
 
+// Before the unlock screen: is a newer release out? If so the page switches to it and reloads now,
+// while nothing is unlocked and nothing is under way, so the owner does not unlock, get told to
+// reload, and unlock again. Resolves false when there is nothing newer (or it took too long: the
+// usual offer comes later); never resolves when the page is about to reload. At most once a
+// minute, so a release that fails to take over cannot reload the page in a loop.
+export async function freshenFirst({ version, lookMs = 4000, installMs = 12000, storage = globalThis.sessionStorage } = {}) {
+  if (version === 'dev' || !('serviceWorker' in navigator) || !navigator.serviceWorker.controller) return false;
+  try {
+    const last = Number(storage?.getItem('mccontrol.freshened') || 0);
+    if (Date.now() - last < 60000) return false;
+    const within = (promise, ms) => Promise.race([promise, new Promise((ok) => setTimeout(() => ok(null), ms))]);
+    const reg = await within(navigator.serviceWorker.getRegistration('./'), lookMs);
+    if (!reg) return false;
+    if (!reg.waiting) await within(reg.update().catch(() => null), lookMs);
+    const coming = reg.installing;
+    if (!reg.waiting && coming) {
+      await within(new Promise((ok) => coming.addEventListener('statechange', () => { if (coming.state !== 'installing') ok(true); })), installMs);
+    }
+    const worker = reg.waiting;
+    if (!worker) return false;
+    storage?.setItem('mccontrol.freshened', String(Date.now()));
+    navigator.serviceWorker.addEventListener('controllerchange', () => location.reload(), { once: true });
+    worker.postMessage({ type: 'skip-waiting' });
+    return await new Promise((ok) => setTimeout(() => ok(false), 8000));   // the reload comes first
+  } catch { return false; }
+}
+
 // onWaiting(apply) is called when a new release has installed and waits; apply() switches to it
 // and reloads the page.
 export async function startUpdates({ version, onWaiting }) {

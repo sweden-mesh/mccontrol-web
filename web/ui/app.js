@@ -22,7 +22,7 @@ import { currentPrefs, setPref, onPrefsChange, migratePrefs } from './prefs.js';
 import { keyState, onKeyState, shortKey } from './key-state.js';
 import { notify, announce, useStrings } from './notify.js';
 import { displaySettings } from './appearance.js';
-import { readVersion, startUpdates } from './update.js';
+import { freshenFirst, readVersion, startUpdates } from './update.js';
 import { startKeySession } from './screens/key-session.js';
 import { startAutoRegistration } from './screens/key-register.js';
 import { bindPaletteKeys } from './modals/palette.js';
@@ -218,6 +218,9 @@ async function start() {
       startAutoRegistration();
     }
   } catch (err) { console.warn('key store unavailable:', err); }
+  // A newer release is taken before the unlock screen is shown, not after the key is unlocked.
+  version = await readVersion();
+  if (!isDemo() && gated()) await freshenFirst({ version: version.version });
   useFrame($('modal'), { ctxFor: base, closeLabel: 'Close' });
   await relabel();
   document.documentElement.setAttribute('data-started', '');
@@ -267,12 +270,13 @@ async function start() {
     drawnScheme = prefs.scheme;
   });
 
-  version = await readVersion();
   drawFooter();
   if (isDemo()) return;   // no offline copy and no update prompt from a demo page
   startUpdates({
     version: version.version,
     onWaiting: (apply) => {
+      // Still at the unlock screen: nothing is under way, so switch without asking.
+      if (gated()) { apply(); return; }
       pendingUpdate = apply;
       drawFooter();
       notify(t('update.ready'), { kind: 'warning', actions: [{ label: t('update.reload'), run: apply }] });
