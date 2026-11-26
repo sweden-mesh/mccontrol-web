@@ -13,7 +13,8 @@ import { refreshFleet } from '../lib/jobs/fleet.js';
 import { beaconClient } from '../lib/stats/beacon-client.js';
 
 const BASE = 'https://beacon.example/api/v1';
-import { fleetCounts, needsAttention, recentSince, shortVersion } from '../lib/jobs/overview.js';
+import { fleetCounts, lastHeard, needsAttention, recentSince, shortVersion } from '../lib/jobs/overview.js';
+import { tookText } from '../ui/tiles/kit.js';
 import { csvCell, toCsv } from '../ui/screens/history.js';
 import { data } from './protocol-helpers.js';
 import { fakeRing, fakeTransport, FIXTURE_NODES, fixtureBehaviour, seedFixture } from './jobs-fakes.js';
@@ -94,6 +95,36 @@ test('send to one node: v2 with the whole keys, holds the key, lands in history 
   // ar-10 speaks v1 only
   await jobs.send({ command: 'get radio', nodes: ['BBBB0002'] });
   assert.equal(transport.calls[1].v2Key, null);
+});
+
+test('how long a command took is stored with its event; an event written without a send has none', async () => {
+  const stores = openStores(memoryDb(), OWNER, { defaultSets: all.brokers.default_sets });
+  await stores.devices.add({ node: A, key: A, region: 'JKG', name: 'alpha' });
+  await stores.devices.update('AAAA0001', { ver: LOU18 });
+  let clock = 1_800_000_000_000;
+  const inner = fakeTransport({ AAAA0001: { ver: LOU18, name: 'alpha' } });
+  const transport = { ...inner, send: async (...args) => { clock += 26_400; return inner.send(...args); } };
+  const jobs = createJobs({ ring: fakeRing(), stores, rules, brokers: all.brokers, results: all.results, transport,
+    sleep: async () => {}, now: () => clock });
+  await jobs.send({ command: 'ver', nodes: ['AAAA0001'] });
+  const [event] = await stores.history.list();
+  assert.equal(event.tookMs, 26_400);
+  assert.equal((await stores.history.append({ node: 'AAAA0001', command: 'ver', tookMs: -5 })).tookMs, null);
+  assert.equal((await stores.history.append({ node: 'AAAA0001', command: 'ver' })).tookMs, null);
+});
+
+test('took: whole seconds under two minutes, then minutes; a dash when not known', () => {
+  const ctx = { t: (key, vars) => `${vars.n} ${key === 'std.secs' ? 's' : 'min'}` };
+  assert.deepEqual([400, 26_400, 119_400, 120_000, 395_000, null, undefined].map((ms) => tookText(ctx, ms)),
+    ['0 s', '26 s', '119 s', '2 min', '6 min', '–', '–']);
+});
+
+test('an alive message that opened as online counts as heard, with its time', () => {
+  const at = '2026-11-26T10:00:00.000Z';
+  assert.equal(lastHeard({ alive: { state: 'online', at } }), Date.parse(at));
+  assert.equal(lastHeard({ alive: { state: 'not-yours', at } }), null);
+  assert.equal(lastHeard({ alive: { state: 'offline', at } }), null);
+  assert.equal(lastHeard({ alive: { state: 'online', at }, lastHeard: '2026-11-26T11:00:00.000Z' }), Date.parse('2026-11-26T11:00:00.000Z'));
 });
 
 test('a locked key signs nothing; a denied command is refused before signing', async () => {

@@ -152,8 +152,19 @@ export function createJobs({
 
   // Store what came back from `device` for `command`: a history event, the device's last
   // result and last heard, a kept read, and its version or name.
+  // When each node's send under way began, for the event's `tookMs`: set where a road starts, read
+  // (once) when its result lands.
+  const began = new Map();
+  const begin = (device) => began.set(device.node, now());
+  const took = (device) => {
+    const t0 = began.get(device.node);
+    began.delete(device.node);
+    return Number.isFinite(t0) ? now() - t0 : null;
+  };
+
   async function land(device, command, topic, result, batch, note = '', road = 'mqtt', relay = null, how = {}) {
     const event = await stores.history.append({
+      tookMs: took(device),
       batch, node: device.node, region: null, command, topic, note, road, relay,
       advice: how ? await advise(device, command, result, road, how) : [],     // false: nothing went on the air
       code: result ? result.code : null,
@@ -208,6 +219,7 @@ export function createJobs({
 
   // One signed command to one device over MQTT: { device, result, event, road } (result null = no answer).
   async function sendMqtt(handle, device, command, opts) {
+    begin(device);
     if (scheme(rules, device) === 'mcc3') return sendSealed(handle, device, command, opts);
     const { batch, keys, signal, onProgress, index = 0, count = 1, note } = opts;
     const region = oldRegion(device);
@@ -230,6 +242,7 @@ export function createJobs({
   // The same over the mesh, through the companion (actions.send_mesh). With `fallback` (the
   // auto road) a mesh-closed answer -- the node's MQTT works -- is recorded and sent again over MQTT.
   async function sendMesh(handle, device, command, opts) {
+    begin(device);
     const { batch, signal, onProgress, index = 0, count = 1, why = null, fallback = false } = opts;
     const block = blocker(rules, { command, device, road: 'mesh' }) || meshBlocker(rules, command, device);
     if (block) throw new JobError(block.code, block.vars, block.vars.detail || block.code);
@@ -264,6 +277,7 @@ export function createJobs({
   // Both counters (the target's, the forward's) are stored before anything is sent. A relay that
   // heard no answer is silence, never a refusal: the node may have run the command.
   async function sendRelay(handle, device, command, opts) {
+    begin(device);
     const { batch, signal, onProgress, index = 0, count = 1, why = null, relay = null, fallback = false } = opts;
     const block = blocker(rules, { command, device, road: 'relay' }) || meshBlocker(rules, command, device);
     if (block) throw new JobError(block.code, block.vars, block.vars.detail || block.code);

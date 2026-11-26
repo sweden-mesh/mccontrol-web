@@ -17,7 +17,7 @@ import * as historyScreen from '../screens/history.js';
 import { canUpdate, editForm, factList, firmwareBlock, nodeFacts, REGION_SET, runUpdate } from '../screens/node.js';
 import { runSetPanel } from '../screens/sets.js';
 import { commandLine } from '../tiles/node-view.js';
-import { age, clockTime, stateMark } from '../tiles/kit.js';
+import { tookText, age, clockTime, stateMark } from '../tiles/kit.js';
 import { mapModel, nodeRegions, nodeStatus } from '../tiles/data.js';
 import { areaNodes } from '../tiles/map.js';
 import { dataChanged, jobs, onDataChanged, onJobs } from '../tiles/sources.js';
@@ -222,7 +222,8 @@ function overview(ctx, svc, device, st, release, onPick, onTab) {
   // (or "no answer") takes its place: through a relay or the mesh that is up to two minutes.
   let answered = null;          // the history rows, once read
   const pendingRows = () => jobs().filter((j) => j.nodes?.includes(device.node)).map((j) => h('tr', { class: 'std-pending' },
-    h('td', { class: 'muted std-time' }, clockTime(ctx, new Date(j.at).toISOString())), h('td', {}, h('code', {}, j.command)),
+    h('td', { class: 'muted std-time' }, clockTime(ctx, new Date(j.at).toISOString())),
+    h('td', { class: 'muted std-took' }, tookText(ctx, Date.now() - j.at)), h('td', {}, h('code', {}, j.command)),
     h('td', {}, stateMark(ctx, 'unknown', [ctx.t('std.pending') + left(j), j.text].filter(Boolean).join(' · ')))));
   // " (87 s)": the seconds until the wait gives up, counted down while a row is pending.
   const left = (j) => (j.until ? ` (${ctx.t('std.secs', { n: Math.max(0, Math.ceil((j.until - Date.now()) / 1000)) })})` : '');
@@ -232,7 +233,7 @@ function overview(ctx, svc, device, st, release, onPick, onTab) {
     const waiting = pendingRows();
     if (waiting.length && !tick) tick = setInterval(drawTable, 1000);
     if (!waiting.length && tick) { clearInterval(tick); tick = null; }
-    if (!waiting.length && answered && !answered.length) { table.replaceChildren(h('tr', {}, h('td', { colspan: '3', class: 'muted' }, ctx.t('node.noHistory')))); return; }
+    if (!waiting.length && answered && !answered.length) { table.replaceChildren(h('tr', {}, h('td', { colspan: '4', class: 'muted' }, ctx.t('node.noHistory')))); return; }
     table.replaceChildren(...waiting, ...(answered || []));
   };
   ctx.signal.addEventListener('abort', onJobs(drawTable), { once: true });
@@ -243,7 +244,7 @@ function overview(ctx, svc, device, st, release, onPick, onTab) {
       const x = explainEvent(ctx, svc, e, device);
       const state = { ok: 'ok', refused: 'alert', forged: 'alert', silent: 'warn' }[x.kind] || 'unknown';
       const open = h('a', { href: `#result/${encodeURIComponent(e.id)}` }, h('code', {}, e.command));
-      return h('tr', {}, h('td', { class: 'muted std-time' }, clockTime(ctx, e.at)), h('td', {}, open),
+      return h('tr', {}, h('td', { class: 'muted std-time' }, clockTime(ctx, e.at)), h('td', { class: 'muted std-took' }, tookText(ctx, e.tookMs)), h('td', {}, open),
         h('td', {}, stateMark(ctx, state, x.kind === 'ok' ? x.text : x.kind === 'silent' ? ctx.t('history.kind.silent') : x.text)));
     });
     drawTable();
@@ -255,7 +256,7 @@ function overview(ctx, svc, device, st, release, onPick, onTab) {
     panel('std-p-send', ctx.t('std.send'), line.el),
     panel('std-p-results', ctx.t('std.recent'),
       h('table', { class: 'std-table' },
-        h('thead', {}, h('tr', {}, h('th', { scope: 'col' }, ctx.t('std.time')), h('th', { scope: 'col' }, ctx.t('std.command')), h('th', { scope: 'col' }, ctx.t('std.result')))),
+        h('thead', {}, h('tr', {}, h('th', { scope: 'col' }, ctx.t('std.time')), h('th', { scope: 'col' }, ctx.t('std.took')), h('th', { scope: 'col' }, ctx.t('std.command')), h('th', { scope: 'col' }, ctx.t('std.result')))),
         table),
       h('p', { class: 'std-actions' }, all)));
 }

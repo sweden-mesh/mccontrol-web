@@ -113,6 +113,14 @@ export function stateMark(ctx, state, word = ctx.t(`tile.state.${state}`)) {
 }
 
 // "14:02" today, else the date ("16 nov"): the HISTORY time column.
+// How long a command took, from sending to its answer or to giving up: whole seconds under two
+// minutes ("26 s"), then minutes ("2 min"); a dash for an event from before this was stored.
+export function tookText(ctx, ms) {
+  if (!Number.isFinite(ms) || ms < 0) return '–';
+  const secs = Math.round(ms / 1000);
+  return secs < 120 ? ctx.t('std.secs', { n: secs }) : ctx.t('std.mins', { n: Math.floor(secs / 60) });
+}
+
 export function clockTime(ctx, at, now = Date.now()) {
   const d = new Date(at);
   const today = new Date(now);

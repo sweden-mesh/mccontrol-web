@@ -13,10 +13,12 @@ export const NO_READING = 'NA';
 // "3.98 V", or "NA" when there is no reading: never "0.00 V".
 export const voltsText = (mv) => (batteryKnown(mv) ? `${(mv / 1000).toFixed(2)} V` : NO_READING);
 
-// The newest moment the node was heard on MQTT: its last status on Beacon, or its last answer
-// to us (answers travel over MQTT too). null when neither is known.
+// The newest moment the node was heard on MQTT: its last status on Beacon, its last answer to us
+// (answers travel over MQTT too), or its alive message that opened under our key and says it is
+// online: that is the node speaking to its owner. null when none is known.
 export function lastHeard(device) {
-  const times = [device.fleet?.seen, device.lastHeard].filter(Boolean).map((t) => Date.parse(t)).filter(Number.isFinite);
+  const alive = device.alive?.state === 'online' ? device.alive.at : null;
+  const times = [device.fleet?.seen, device.lastHeard, alive].filter(Boolean).map((t) => Date.parse(t)).filter(Number.isFinite);
   return times.length ? Math.max(...times) : null;
 }
 

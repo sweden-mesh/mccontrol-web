@@ -982,6 +982,8 @@
   "std.send": "Skicka ett kommando",
   "std.pending": "väntar",
   "std.secs": "{n} s",
+  "std.mins": "{n} min",
+  "std.took": "Tog",
   "std.recent": "Senaste svar",
   "std.time": "Tid",
   "std.command": "Kommando",

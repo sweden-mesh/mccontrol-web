@@ -2,6 +2,7 @@
 // browser. Filter by node and by result; export as CSV or JSON; import a JSON export (from
 // another browser, or a backup) -- events already here are skipped, never overwritten.
 // #/history/<node> opens it filtered to that node. An event sent over the mesh (W-16) says so.
+import { tookText } from '../tiles/kit.js';
 import { h } from '../dom.js';
 import { areaName } from '../../lib/discovery/areas.js';
 import { resultKind } from '../../lib/store/index.js';
@@ -70,6 +71,7 @@ export function render(ctx) {
         const x = explainEvent(ctx, svc, e);
         return h('tr', {},
           h('td', {}, when(ctx, e.at)),
+          h('td', {}, tookText(ctx, e.tookMs)),
           h('th', { scope: 'row' }, e.node ? h('a', { href: `#/node/${e.node}` }, names[e.node] || e.node) : ctx.t('history.region', { region: areaName(svc.data.areas, e.region) })),
           h('td', {}, h('code', {}, e.command)),
           h('td', {}, outcomeTag(ctx, x.kind), e.road === 'mesh' ? [' ', h('span', { class: 'road-mark' }, ctx.t('road.overMesh'))] : null,
@@ -84,7 +86,7 @@ export function render(ctx) {
         h('div', { class: 'table-wrap', role: 'region', 'aria-labelledby': 'history-caption', tabindex: '0' },
           h('table', { class: 'history-table' },
             h('caption', { id: 'history-caption', class: 'visually-hidden' }, ctx.t('history.caption')),
-            h('thead', {}, h('tr', {}, ['history.colWhen', 'history.colNode', 'history.colCommand', 'history.colResult', 'history.colReply']
+            h('thead', {}, h('tr', {}, ['history.colWhen', 'std.took', 'history.colNode', 'history.colCommand', 'history.colResult', 'history.colReply']
               .map((k) => h('th', { scope: 'col' }, ctx.t(k))))),
             h('tbody', {}, rows))),
         more);
