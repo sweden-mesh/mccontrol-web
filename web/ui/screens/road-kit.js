@@ -304,7 +304,9 @@ export function companionChooser(ctx) {
           else if (bridgeAddress() && !/^wss:/i.test(bridgeAddress())) connect('network', { address: bridgeAddress() });
           else if (ctx.navigate) ctx.navigate('#setup/connections'); else globalThis.location.hash = '#setup/connections';
         });
-        return h('li', {}, b, why ? h('p', { class: 'hint-line', id: `${id}-${kind}` }, why) : null);
+        // The button on the left; on the right what this way needs, and why it is missing here.
+        return h('li', {}, b, h('div', { class: 'chooser-about' }, h('p', {}, ctx.t(`companion.needs.${kind}`)),
+          why ? h('p', { class: 'hint-line', id: `${id}-${kind}` }, why) : null));
       }))];
   }
   const dialog = h('dialog', { class: 'dlg companion-chooser', 'aria-labelledby': id, closedby: 'any' },

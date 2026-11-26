@@ -162,8 +162,26 @@ function overview(ctx, svc, device, st, release, onPick, onTab) {
   const byHand = up && !updateNow ? h('button', { type: 'button', class: 'link-button std-update-how' }, ctx.t('update.byHandShort')) : null;
   byHand?.addEventListener('click', () => onTab('firmware'), { signal: ctx.signal });
   updateNow?.addEventListener('click', () => runUpdate(ctx, svc, device, release, { out: updateOut, control: updateNow, redraw: () => dataChanged('devices') }), { signal: ctx.signal });
+  // "No longer yours": its alive message stopped opening with this key. Say what that usually
+  // means and offer to read the alive messages again (nothing is sent to the node).
+  let notYours = null;
+  if (device.alive?.state === 'not-yours') {
+    const again = h('button', { type: 'button', class: 'tool std-small' }, ctx.t('alive.checkAgain'));
+    const said = h('span', { class: 'muted', role: 'status' });
+    again.addEventListener('click', async () => {
+      again.disabled = true;
+      said.textContent = ctx.t('alive.checking');
+      try {
+        await svc.jobs.discoverAlive({ signal: ctx.signal });
+        const fresh = await svc.stores.devices.get(device.node);
+        if (fresh?.alive?.state === 'not-yours') { said.textContent = ctx.t('alive.stillNotYours'); again.disabled = false; } else dataChanged('devices');
+      } catch (e) { said.textContent = e.code === 'locked' ? ctx.t('send.locked') : e.message; again.disabled = false; }
+    }, { signal: ctx.signal });
+    notYours = h('p', { class: 'std-not-yours' }, ctx.t('alive.notYoursWhy'), ' ', again, ' ', said);
+  }
   const statusPanel = panel('std-p-status', ctx.t('std.status'),
     h('p', { class: 'std-state' }, stateMark(ctx, st.state, why || silent || ctx.t(`tile.state.${st.state}`))),
+    notYours,
     h('dl', { class: 'std-dl' },
       h('dt', {}, ctx.t('std.firmware')), h('dd', {}, h('code', {}, device.ver ? shortVersion(svc.rules, device.ver) : '–'),
         up ? [' ', h('span', { class: 'std-tag' }, ctx.t('update.available')), ...(updateNow ? [' ', updateNow] : byHand ? [' ', byHand] : [])] : up === false ? [' ', h('span', { class: 'muted' }, ctx.t('std.upToDate'))] : null),

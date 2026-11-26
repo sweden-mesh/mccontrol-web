@@ -90,6 +90,16 @@ function discoverForm(ctx, svc, redraw) {
       });
       redraw();
       if (!found.length) { put(out, h('p', {}, ctx.t('nodes.discoverNone'))); return; }
+      // Find reads alive messages only: a node without MQTT leaves none and is never in this list.
+      const byKey = h('button', { type: 'button', class: 'link-button' }, ctx.t('nodes.addByKey'));
+      byKey.addEventListener('click', () => {
+        const d = document.getElementById('add-by-key');
+        if (!d) return;
+        d.open = true;
+        d.scrollIntoView({ block: 'nearest' });
+        d.querySelector('input, textarea')?.focus();
+      });
+      const notHere = h('p', { class: 'muted small' }, ctx.t('nodes.discoverNotMesh'), ' ', byKey);
       put(out, h('ul', { class: 'found' }, found.map((f) => {
         const name = h('input', { type: 'text', value: f.name || '', autocomplete: 'off', class: 'short' });
         const add = h('button', { type: 'button', class: 'tool' }, ctx.t('nodes.adopt'));
@@ -104,7 +114,7 @@ function discoverForm(ctx, svc, redraw) {
         return h('li', {}, h('code', {}, f.node), ' ', h('span', {}, ctx.t(`alive.${f.state}`)), ' ',
           f.knownAs ? h('span', {}, ctx.t('nodes.knownAs', { name: f.knownAs }))
             : f.state === 'online' ? [field(ctx.t('nodes.nameFor', { node: f.node }), name), add] : null);
-      })));
+      })), notHere);
     } catch (err) {
       put(out, h('p', { class: 'err', role: 'alert' }, err.code === 'locked' ? lockedNote(ctx) : brokerText(ctx.t, err.message)));
     } finally { button.disabled = false; }
@@ -213,7 +223,7 @@ export function render(ctx) {
       tools,
       h('h2', {}, ctx.t('nodes.addTitle')),
       h('details', { class: 'block' }, h('summary', {}, ctx.t('nodes.discoverTitle')), discoverForm(ctx, svc, draw)),
-      h('details', { class: 'block' }, h('summary', {}, ctx.t('nodes.addByKey')), addForm(ctx, svc, draw)));
+      h('details', { class: 'block', id: 'add-by-key' }, h('summary', {}, ctx.t('nodes.addByKey')), addForm(ctx, svc, draw)));
     await draw();
     svc.releases().then((r) => { release = r; if (r && !ctx.signal.aborted) draw(); });
   });
