@@ -51,7 +51,9 @@ export async function services(owner) {
         const oid = d.observerId || (await beacon.findNode(d.key || d.node)).observerId;
         const at = oid ? Number((await beacon.observer(oid))?.lastStatusAt) : NaN;
         return Number.isFinite(at) ? at : null;
-      } });
+      },
+      // A stranger's Observer that caught one of your nodes' announces, named as Beacon knows it.
+      observerName: async (key) => (await beacon.findNode(key))?.name || null });
     const jobs = build({ handle: () => ring.handle(), hold: () => ring.hold(), touch: () => ring.touch(),
       loadSecrets: () => ring.loadSecrets?.() ?? {}, saveSecrets: (m) => ring.saveSecrets?.(m) },
     async (via) => ((await proved()).has(via.node) ? ring.rekeyHandle?.() ?? null : null));

@@ -39,7 +39,11 @@ export function demoBeacon(world, path, now = Date.now()) {
   const prefix = url.searchParams.get('pubkeyPrefix');
   if (url.pathname === '/nodes' && prefix) {
     const n = heardNodes(world).find((x) => x.key.toLowerCase().startsWith(prefix.toLowerCase()));
-    return { items: n ? [item(world, n)] : [] };
+    if (n) return { items: [item(world, n)] };
+    // someone else's Observer (lou-21): Beacon knows it by its adverts, as it knows any node
+    const s = (world.strangers || []).find((x) => x.key.toLowerCase().startsWith(prefix.toLowerCase()));
+    return { items: s ? [{ id: s.beaconId, publicKey: s.key.toLowerCase(), nodeType: 2, nodeTypeName: 'repeater', name: s.name, isObserver: true,
+      observerId: null, lat: s.lat, lng: s.lng, knownNeighborCount: 0, neighborIds: [], iatas: [DEMO_IATA] }] : [] };
   }
   if (url.pathname === '/nodes') return { items: [...heardNodes(world).map((n) => item(world, n)), ...others(world)], hasMore: false };
   const nb = url.pathname.match(/^\/nodes\/demo-(\d+)\/neighbors$/);

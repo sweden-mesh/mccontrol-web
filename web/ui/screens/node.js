@@ -12,6 +12,7 @@ import { updateAvailable } from '../../lib/jobs/releases.js';
 import { blocker } from '../../lib/jobs/checks.js';
 import { scheme } from '../../lib/jobs/scheme.js';
 import { relaying } from '../../lib/jobs/relay.js';
+import { keepOut } from '../../lib/discovery/index.js';
 import {
   batteryOf, confirm, explain, field, heardOf, nameOf, progressLine, screen, when, withServices, put, lockedNote } from './node-kit.js';
 import { runSetPanel } from './sets.js';
@@ -172,10 +173,11 @@ export function editForm(ctx, svc, device, redraw) {
   }, { signal: ctx.signal });
   forget.addEventListener('click', async () => {
     const ok = await confirm(ctx, {
-      title: ctx.t('node.forgetTitle', { name: nameOf(device) }), lines: [ctx.t('node.forgetBody')],
+      title: ctx.t('node.forgetTitle', { name: nameOf(device) }), lines: [ctx.t('node.forgetBody'), ...(device.heard ? [ctx.t('node.forgetHidden')] : [])],
       confirmLabel: ctx.t('node.forget'), danger: true,
     });
     if (!ok) return;
+    if (device.heard) await keepOut(svc.stores, device.node);   // found by its announce: hidden here from now on
     await svc.stores.devices.remove(device.node);
     dataChanged('devices');
     ctx.notify(ctx.t('node.forgotten', { name: nameOf(device) }));

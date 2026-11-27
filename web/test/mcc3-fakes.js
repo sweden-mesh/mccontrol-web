@@ -29,12 +29,18 @@ export function mcc3Broker({ nodes = [], retained = {}, extra = null, relays = [
   const opened = [];
   const forwards = [];
   // The relay's order (wire-format-mcc3.md): silent until it opens, then every outcome answered.
+  // With `guests` (lou-21) it also opens a guest forward (kind G) from any command key, answers it
+  // under K_gfwd, counts each guest's counter apart, and refuses with `guestStatus` (10..12) if set.
   function relay(b, r, payload) {
     let f;
-    try { f = mcc3.openForward(r.handle, r.commandKey, payload); } catch { return; }
-    const keys = mcc3.nodeKeys(r.handle, r.commandKey);
+    let keys;
+    let guest = null;
+    try { f = mcc3.openForward(r.handle, r.commandKey, payload); keys = mcc3.nodeKeys(r.handle, r.commandKey); } catch {
+      if (!r.guests) return;
+      try { ({ keys, guest, ...f } = mcc3.openGuestForward(r.handle, payload)); } catch { return; }
+    }
     const clock = r.clock ? r.clock() : Math.floor(Date.now() / 1000);
-    const seen = { relay: r.handle.publicKeyHex, ...f, rid: toHex(f.rid, true), path: toHex(f.path, true), status: null };
+    const seen = { relay: r.handle.publicKeyHex, guest, ...f, rid: toHex(f.rid, true), path: toHex(f.path, true), status: null };
     forwards.push(seen);
     const say = (status, more = {}) => {
       seen.status = mcc3.FORWARD_STATUSES[status];
@@ -43,8 +49,15 @@ export function mcc3Broker({ nodes = [], retained = {}, extra = null, relays = [
     if (r.on === false) return say(2);
     if (!clock) return say(8);
     if (f.expiry < clock || f.expiry > clock + mcc3.FORWARD_MAX_TTL) return say(3);
-    if (r.lastForward !== undefined && f.counter <= r.lastForward) return say(4);
-    r.lastForward = f.counter;
+    if (guest) {
+      r.guestLast ||= {};
+      if (r.guestLast[guest] !== undefined && f.counter <= r.guestLast[guest]) return say(4);
+      r.guestLast[guest] = f.counter;
+      if (r.guestStatus !== undefined) return say(r.guestStatus);
+    } else {
+      if (r.lastForward !== undefined && f.counter <= r.lastForward) return say(4);
+      r.lastForward = f.counter;
+    }
     if (r.busy) return say(6);
     const flood = f.route !== mcc3.ROUTES.direct;
     if ((r.forwardsLeft ?? 10) < 1 || (flood && (r.floodsLeft ?? 2) < 1)) return say(7);
@@ -54,7 +67,7 @@ export function mcc3Broker({ nodes = [], retained = {}, extra = null, relays = [
     const sent = flood ? mcc3.SENT.flood : mcc3.SENT.direct;
     const t = (r.targets || []).find((x) => x.handle.publicKeyHex === f.target);
     seen.requests = [];
-    const node = t && meshNode({ ownerKey: r.commandKey, region: t.region || 'mesh', answer: t.answer, clock,
+    const node = t && meshNode({ ownerKey: guest || r.commandKey, region: t.region || 'mesh', answer: t.answer, clock,
       mcc3: t.lou20 === false ? null : { node: t.handle }, opened: seen.requests });
     const response = node ? node(f.target, f.body, new Uint8Array(4)) : null;
     const taught = t?.taught ? { pathLen: t.taught.pathLen, path: fromHex(t.taught.path) } : {};

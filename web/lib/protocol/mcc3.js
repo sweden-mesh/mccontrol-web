@@ -63,8 +63,10 @@ export const FORWARD_RESULT_PLAIN = 256;
 export const FORWARD_RESULT_PATH = 64;
 export const FORWARD_MAX_RESPONSE = 167;
 export const FORWARD_RESULT_SIZE = 1 + NONCE_LEN + FORWARD_RESULT_PLAIN + TAG_LEN;
+// 10..12 are lou-21's refusals of a guest forward. TODO(L21-G2): their numbers are taken from the
+// order the design note lists them in; the spec's results.json does not carry them yet.
 export const FORWARD_STATUSES = Object.freeze(['answered', 'no-answer', 'off', 'expired', 'replay', 'bad-body', 'busy',
-  'rate-limited', 'clock-unset', 'send-failed']);
+  'rate-limited', 'clock-unset', 'send-failed', 'guest-cap', 'guests-full', 'target-cap']);
 export const SENT = Object.freeze({ nothing: 0, direct: 1, flood: 2 });
 export const SNR_NONE = 0x80;
 export const PATH_NONE = 0xff;
@@ -369,8 +371,16 @@ const forwardBodyOk = (body) => (body[0] === MESH_SUBTYPE ? body.length === FORW
 // are the RELAY's: the AEAD under K_fwd is the whole proof, the request inside carries the
 // owner's signature for the target. Refuses what a relay would answer `bad-body`. `pathField`
 // is for the test vectors only.
-export function sealForward(keys, relayKeyHex, counter, expiry, rid, targetKeyHex, route, body,
-  { pathLen = 0, path = new Uint8Array(0), nonce = null, pathField = null } = {}) {
+export function sealForward(keys, relayKeyHex, counter, expiry, rid, targetKeyHex, route, body, opts = {}) {
+  const n = asNonce(opts.nonce);
+  const header = concat(Uint8Array.of(KIND.forward, 0), n);
+  const plain = forwardPlain(relayKeyHex, counter, expiry, rid, targetKeyHex, route, body, opts);
+  return b64url(concat(header, chacha20poly1305(keys.fwd, n, header).encrypt(plain)));
+}
+
+// The sealed body of a forward, the same for the owner's and a guest's.
+function forwardPlain(relayKeyHex, counter, expiry, rid, targetKeyHex, route, body,
+  { pathLen = 0, path = new Uint8Array(0), pathField = null } = {}) {
   const relay = keyHex(relayKeyHex);
   const target = keyHex(targetKeyHex);
   if (!(rid instanceof Uint8Array) || rid.length !== RID_LEN) throw new Mcc3Error(`a reply id is ${RID_LEN} bytes`);
@@ -380,11 +390,8 @@ export function sealForward(keys, relayKeyHex, counter, expiry, rid, targetKeyHe
   }
   if (!forwardBodyOk(body)) throw new Mcc3Error('a relay forwards a 0xC2 request of 132 bytes or a 0xC1 request of 74..132 bytes');
   if (target === relay) throw new Mcc3Error('a relay does not forward to itself');
-  const n = asNonce(nonce);
-  const header = concat(Uint8Array.of(KIND.forward, 0), n);
-  const plain = concat(u32(counter), u32(expiry), rid, fromHex(target), Uint8Array.of(route, pathLen),
+  return concat(u32(counter), u32(expiry), rid, fromHex(target), Uint8Array.of(route, pathLen),
     pad(pathField || path, [FORWARD_PATH]), Uint8Array.of(body.length), pad(body, [FORWARD_BODY]));
-  return b64url(concat(header, chacha20poly1305(keys.fwd, n, header).encrypt(plain)));
 }
 
 // The relay's side, the checks that need no state: { counter, expiry, rid, target, route,
@@ -397,7 +404,10 @@ export function openForward(relayHandle, commandKeyHex, payload, { keys = null }
   if (raw[1] !== 0) throw new Refused('bad-version');
   const k = keys || nodeKeys(relayHandle, commandKeyHex);
   const header = raw.subarray(0, 14);
-  const p = openAead(k.fwd, header.subarray(2), header, raw.subarray(14));
+  return forwardFields(relayHandle, openAead(k.fwd, header.subarray(2), header, raw.subarray(14)));
+}
+
+function forwardFields(relayHandle, p) {
   const target = toHex(p.subarray(24, 56), true);
   const route = p[56];
   const pathLen = p[57];
@@ -489,50 +499,53 @@ export function openAlive(keys, payload) {
   return out;
 }
 
-// -- announce and heard (lou-21): a node without Wi-Fi finds its owner ------------------------
+// -- the signed announce and the shared node store (lou-21) ----------------------------------
 //
-// A node without Wi-Fi floods an announce over the mesh; an Observer node of the same owner that
-// catches it publishes what it heard, retained, on `mcc/heard/<its KEY>/<slot>`. Two keys of
-// their own, from the same S:
+// A node without Wi-Fi floods an announce over the mesh, signed with its own identity key. Any
+// lou-21 Observer that hears it hands it to the command server, which keeps one entry per node,
+// retained on `mcc/node/<KEY>`: the newest signed announce and the Observers that caught it
+// (planning/firmware/otm10g-shared-store-design-20261127.md, sections 1 and 6).
 //
-//   K_malive  HKDF-SHA256(S, salt empty, "mcc3/malive/" + KEY)  the announce; KEY the announcing node's
-//   K_heard   HKDF-SHA256(S, salt empty, "mcc3/heard/"  + KEY)  a heard entry; KEY the catching node's
+//   K_malive  HKDF-SHA256(S, salt empty, "mcc3/malive/" + KEY)  the sealed part; KEY the announcing node's
+//   owner tag SHA-256("mcc3/own|" command key, node key, boot, sequence)[0:4]
+//   signature Ed25519 by the node over "mcc3/ann|" + bytes 1..100
 //
-// test/malive-vectors.json (the firmware's own) pins these byte for byte.
+// test/malive-vectors.json (the firmware's own) pins the first 101 bytes byte for byte.
+// TODO(L21-G2): the 165-byte announce, the node entry and the guest forward are not in
+// mccontrol-spec yet; these constants stay here until the spec carries them.
 
 export const INFO_MALIVE = 'mcc3/malive/';
-export const INFO_HEARD = 'mcc3/heard/';
 export const OWN_LABEL = 'mcc3/own|';
+export const ANN_LABEL = 'mcc3/ann|';
 export const KIND_ANNOUNCE = 0x4d;
-export const KIND_HEARD = 0x48;
-export const ANNOUNCE_SIZE = 101;
+export const KIND_NODE = 0x4e;
+export const ANNOUNCE_BODY = 101; // the announce before its signature: what sprint X07 flooded
+export const ANNOUNCE_SIZE = ANNOUNCE_BODY + SIG_LEN; // 165
 export const ANNOUNCE_SEALED = 47;
 export const ANNOUNCE_TAG = 8; // the Poly1305 tag is cut to its first 8 bytes
-export const ANNOUNCE_KEPT = 68; // what a heard entry keeps: the announce from its kind byte on
 export const ANNOUNCE_MAX = Object.freeze({ version: 14, name: 16 });
-export const HEARD_PLAIN = 112;
-export const HEARD_SIZE = 1 + NONCE_LEN + HEARD_PLAIN + TAG_LEN;
-export const HEARD_SLOTS = 16;
-export const HEARD_FILTER = `${TOPIC_ROOT}heard/+/+`;
+export const NODE_FILTER = `${TOPIC_ROOT}node/+`;
+// 40 bytes a catcher: the note's sum says 39, its field list (and mcbroker's state.c) 40.
+export const NODE_CATCHER_SIZE = 40;
+export const NODE_HEAD = 1 + ANNOUNCE_SIZE - 1 + 1; // kind, the announce from byte 1, the count
+// How the catching Observer heard the announce: a zero-hop state packet, direct along a path, a flood.
+export const VIA = Object.freeze({ zeroHop: 0, direct: 1, flood: 2 });
 
 const labelled = (secret, info, nodeKeyHex) => hkdf(sha256, secret, new Uint8Array(0), utf8(info + keyHex(nodeKeyHex)), 32);
 
 // K_malive, from S and the announcing node's key.
 export const maliveKey = (secret, nodeKeyHex) => labelled(secret, INFO_MALIVE, nodeKeyHex);
-// K_heard, from S and the catching node's key.
-export const heardKey = (secret, nodeKeyHex) => labelled(secret, INFO_HEARD, nodeKeyHex);
 
-export const heardTopic = (nodeKeyHex, slot) => `${TOPIC_ROOT}heard/${keyHex(nodeKeyHex)}/${Number(slot)}`;
+export const nodeTopic = (nodeKeyHex) => `${TOPIC_ROOT}node/${keyHex(nodeKeyHex)}`;
 
-// { key, slot } of `mcc/heard/<KEY>/<slot>` (the catching node's key, slot 0 to 15), else null.
-export function heardFromTopic(topic) {
+// The node KEY of `mcc/node/<KEY>`, else null.
+export function nodeEntryKey(topic) {
   const parts = String(topic || '').split('/');
-  if (parts.length !== 4 || `${parts[0]}/` !== TOPIC_ROOT || parts[1] !== 'heard') return null;
-  if (!/^[0-9A-F]{64}$/.test(parts[2]) || !/^(?:[0-9]|1[0-5])$/.test(parts[3])) return null;
-  return { key: parts[2], slot: Number(parts[3]) };
+  if (parts.length !== 3 || `${parts[0]}/` !== TOPIC_ROOT || parts[1] !== 'node') return null;
+  return /^[0-9A-F]{64}$/.test(parts[2]) ? parts[2] : null;
 }
 
-// The four bytes by which a catching node knows an announce is for its own command key.
+// The four bytes by which an owner knows an announce is for its command key: one SHA-256.
 export function ownerTag(commandKeyHex, nodeKeyHex, boot, sequence) {
   return sha256(concat(utf8(OWN_LABEL), fromHex(keyHex(commandKeyHex)), fromHex(keyHex(nodeKeyHex)), u32(boot), u32(sequence)))
     .subarray(0, 4);
@@ -541,8 +554,9 @@ export function ownerTag(commandKeyHex, nodeKeyHex, boot, sequence) {
 const announceNonce = (boot, sequence) => concat(new Uint8Array(4), u32(boot), u32(sequence));
 const u16 = (value) => Uint8Array.of(value & 0xff, (value >> 8) & 0xff);
 const same = (a, b) => { let d = a.length ^ b.length; for (let i = 0; i < a.length && i < b.length; i += 1) d |= a[i] ^ b[i]; return d === 0; };
+const i8 = (value) => (value << 24) >> 24;
 
-// The 101 bytes a node without Wi-Fi floods; for the vectors, the test fakes and the demo.
+// The first 101 bytes of an announce, unsigned; for the vectors, the test fakes and the demo.
 // `key` is K_malive; f: { boot, sequence, uptime, clock, last_counter, flags, battery_mv, version, name }.
 export function sealAnnounce(key, commandKeyHex, nodeKeyHex, f) {
   const node = fromHex(keyHex(nodeKeyHex));
@@ -554,13 +568,38 @@ export function sealAnnounce(key, commandKeyHex, nodeKeyHex, f) {
   return concat(head, sealed.subarray(0, ANNOUNCE_SEALED + ANNOUNCE_TAG));
 }
 
-// The fields of an announce (and node_key), or Refused: 'not-announce' for another size or kind,
-// 'other-owner' when its owner tag is not this command key's, 'does-not-open' when the seal does
-// not verify under `key` (K_malive of the node it names). The tag on the wire is the Poly1305
-// tag's first 8 bytes: the whole tag is made again here and its start compared.
-export function openAnnounce(key, commandKeyHex, payload) {
-  const raw = payload;
-  if (!(raw instanceof Uint8Array) || raw.length !== ANNOUNCE_SIZE || raw[33] !== KIND_ANNOUNCE) throw new Refused('not-announce');
+const announceSigned = (raw) => concat(utf8(ANN_LABEL), raw.subarray(1, ANNOUNCE_BODY));
+
+// The 165 bytes a node floods: the 101 of sealAnnounce and the node's signature over them.
+// `nodeHandle` is the node's identity (lib/key/handle.js); for the vectors, the fakes and the demo.
+export function signAnnounce(nodeHandle, body) {
+  if (!(body instanceof Uint8Array) || body.length !== ANNOUNCE_BODY) throw new Mcc3Error(`an unsigned announce is ${ANNOUNCE_BODY} bytes`);
+  if (toHex(body.subarray(1, 33), true) !== nodeHandle.publicKeyHex.toUpperCase()) throw new Mcc3Error('an announce is signed by the node it names');
+  return concat(body, nodeHandle.sign(announceSigned(body)));
+}
+
+// Is this a signed announce (size and kind)?
+export const isAnnounce = (raw) => raw instanceof Uint8Array && raw.length === ANNOUNCE_SIZE && raw[33] === KIND_ANNOUNCE;
+
+// Is the announce's owner tag this command key's? One SHA-256, no X25519.
+export function announceIsFor(commandKeyHex, raw) {
+  if (!isAnnounce(raw)) return false;
+  return same(raw.subarray(34, 38), ownerTag(commandKeyHex, toHex(raw.subarray(1, 33), true), readU32(raw, 38), readU32(raw, 42)));
+}
+
+// Does the node named in the announce sign it?
+export const announceSignatureOk = (raw) => isAnnounce(raw)
+  && verify(toHex(raw.subarray(1, 33), true), announceSigned(raw), raw.subarray(ANNOUNCE_BODY, ANNOUNCE_SIZE));
+
+// The fields of the first 101 bytes (and node_key), or Refused: 'not-announce' for another kind
+// or a size under 101, 'other-owner' when its owner tag is not this command key's,
+// 'does-not-open' when the seal does not verify under `key` (K_malive of the node it names). The
+// tag on the wire is the Poly1305 tag's first 8 bytes: the whole tag is made again here and its
+// start compared. The signature is not looked at: openAnnounce does that.
+export function openAnnounceBody(key, commandKeyHex, raw) {
+  if (!(raw instanceof Uint8Array) || (raw.length !== ANNOUNCE_BODY && raw.length !== ANNOUNCE_SIZE) || raw[33] !== KIND_ANNOUNCE) {
+    throw new Refused('not-announce');
+  }
   const node = toHex(raw.subarray(1, 33), true);
   const boot = readU32(raw, 38);
   const sequence = readU32(raw, 42);
@@ -569,7 +608,9 @@ export function openAnnounce(key, commandKeyHex, payload) {
   const aad = raw.subarray(1, 46);
   const p = chacha20(key, nonce, raw.subarray(46, 46 + ANNOUNCE_SEALED), undefined, 1);
   const again = chacha20poly1305(key, nonce, aad).encrypt(p);
-  if (!same(again.subarray(ANNOUNCE_SEALED, ANNOUNCE_SEALED + ANNOUNCE_TAG), raw.subarray(46 + ANNOUNCE_SEALED))) throw new Refused('does-not-open');
+  if (!same(again.subarray(ANNOUNCE_SEALED, ANNOUNCE_SEALED + ANNOUNCE_TAG), raw.subarray(46 + ANNOUNCE_SEALED, ANNOUNCE_BODY))) {
+    throw new Refused('does-not-open');
+  }
   const out = { node_key: node, boot, sequence, uptime: readU32(p, 0), clock: readU32(p, 4), last_counter: readU32(p, 8),
     flags: p[12], battery_mv: p[13] | (p[14] << 8) };
   let at = 15;
@@ -582,33 +623,79 @@ export function openAnnounce(key, commandKeyHex, payload) {
   return out;
 }
 
-const i8 = (value) => (value << 24) >> 24;
-
-// A catching node's heard entry, the payload of `mcc/heard/<KEY>/<slot>`; for the vectors, the
-// test fakes and the demo. `key` is K_heard; `announce` the 101 bytes it caught;
-// f: { heard_at, snr (quarter dB), hops, advert_heard_at, advert_snr, advert_hops }.
-export function sealHeard(key, nodeKeyHex, announce, f, { nonce = null } = {}) {
-  if (!(announce instanceof Uint8Array) || announce.length !== ANNOUNCE_SIZE) throw new Mcc3Error(`an announce is ${ANNOUNCE_SIZE} bytes`);
-  const plain = concat(fromHex(keyHex(nodeKeyHex)), announce.subarray(33), u32(f.heard_at), Uint8Array.of(f.snr & 0xff, f.hops),
-    u32(f.advert_heard_at), Uint8Array.of(f.advert_snr & 0xff, f.advert_hops));
-  const n = asNonce(nonce);
-  const header = concat(Uint8Array.of(KIND_HEARD), n);
-  return b64url(concat(header, chacha20poly1305(key, n, header).encrypt(plain)));
+// A signed announce, checked in the order the note gives: size and kind ('not-announce'), the
+// owner tag ('other-owner', one SHA-256), the node's signature ('sig-invalid'), then the seal
+// ('does-not-open'). `key` is K_malive of the node it names.
+export function openAnnounce(key, commandKeyHex, raw) {
+  if (!isAnnounce(raw)) throw new Refused('not-announce');
+  if (!announceIsFor(commandKeyHex, raw)) throw new Refused('other-owner');
+  if (!announceSignatureOk(raw)) throw new Refused('sig-invalid');
+  return openAnnounceBody(key, commandKeyHex, raw);
 }
 
-// What a heard entry says, or Refused: node_key (the announced node), announce (its 101 bytes,
-// built again from the 68 kept: still to be opened with openAnnounce), when it was heard by the
-// catching node's clock (0 while that is unset), the SNR in quarter dB, the hops, and the same
-// three for the node's last advert (0: none).
-export function openHeard(key, payload) {
+// The retained entry of `mcc/node/<KEY>`, as the command server publishes it; for the test
+// fakes and the demo. catchers: [{ key, arrival (server clock, s), snr (quarter dB), hops, via, list (0 current, 1 previous) }].
+export function sealNodeEntry(announce, catchers = []) {
+  if (!isAnnounce(announce)) throw new Mcc3Error(`a node entry holds a signed announce of ${ANNOUNCE_SIZE} bytes`);
+  if (catchers.length > 255) throw new Mcc3Error('at most 255 catchers');
+  return b64url(concat(Uint8Array.of(KIND_NODE), announce.subarray(1), Uint8Array.of(catchers.length),
+    ...catchers.map((c) => concat(fromHex(keyHex(c.key)), u32(c.arrival), Uint8Array.of(c.snr & 0xff, c.hops, c.via, c.list)))));
+}
+
+// What a node entry says, unchecked (the caller tests the tag, then the signature, then the
+// seal): { node_key, boot, sequence, announce (its 165 bytes, byte 0 rebuilt), report (the
+// first 4 bytes of the signature, hex), catchers }, or Refused('bad-fields').
+export function openNodeEntry(payload) {
   const raw = unb64(payload);
-  if (raw.length !== HEARD_SIZE || raw[0] !== KIND_HEARD) throw new Refused('bad-fields');
-  const header = raw.subarray(0, 13);
-  const p = openAead(key, header.subarray(1), header, raw.subarray(13));
-  const at = 32 + ANNOUNCE_KEPT;
-  return {
-    node_key: toHex(p.subarray(0, 32), true), announce: concat(p.subarray(0, 1), p.subarray(0, at)),
-    heard_at: readU32(p, at), snr: i8(p[at + 4]), hops: p[at + 5],
-    advert_heard_at: readU32(p, at + 6), advert_snr: i8(p[at + 10]), advert_hops: p[at + 11],
-  };
+  if (raw.length < NODE_HEAD || raw[0] !== KIND_NODE) throw new Refused('bad-fields');
+  const count = raw[NODE_HEAD - 1];
+  if (raw.length !== NODE_HEAD + count * NODE_CATCHER_SIZE) throw new Refused('bad-fields');
+  const announce = concat(raw.subarray(1, 2), raw.subarray(1, ANNOUNCE_SIZE));
+  if (!isAnnounce(announce)) throw new Refused('bad-fields');
+  const catchers = [];
+  for (let i = 0; i < count; i += 1) {
+    const at = NODE_HEAD + i * NODE_CATCHER_SIZE;
+    catchers.push({ key: toHex(raw.subarray(at, at + 32), true), arrival: readU32(raw, at + 32), snr: i8(raw[at + 36]),
+      hops: raw[at + 37], via: raw[at + 38], list: raw[at + 39] });
+  }
+  return { node_key: toHex(announce.subarray(1, 33), true), boot: readU32(announce, 38), sequence: readU32(announce, 42),
+    announce, report: toHex(announce.subarray(ANNOUNCE_BODY, ANNOUNCE_BODY + 4), true), catchers };
+}
+
+// -- a guest forward: relaying through a stranger's Observer (lou-21, section 5) --------------
+//
+//   K_gfwd  HKDF-SHA256(X25519(guest command key, relay identity), salt empty, "mcc3/gfwd/" + relay KEY)
+//   wire    'G' guest key (32) nonce (12) ChaCha20-Poly1305[K_gfwd](the body of a forward), AAD the 45 bytes before it
+//
+// The result comes back as a forward's does (openForwardResult), sealed under K_gfwd.
+
+export const INFO_GFWD = 'mcc3/gfwd/';
+export const KIND_GUEST_FORWARD = 0x47;
+export const GUEST_FORWARD_SIZE = 1 + 32 + NONCE_LEN + (FORWARD_SIZE - 2 - NONCE_LEN);
+
+// { fwd: K_gfwd } from S (the guest's command key with the relay) and the relay's key: the shape
+// openForwardResult takes.
+export const guestKeys = (secret, relayKeyHex) => Object.freeze({ fwd: labelled(secret, INFO_GFWD, relayKeyHex) });
+
+// The base64url payload for `mcc/cmd/<RELAY KEY>` by which a guest (any command key) has a
+// stranger's relay transmit `body` to the target. Arguments as sealForward's, with the guest's
+// own command public key in clear.
+export function sealGuestForward(keys, guestKeyHex, relayKeyHex, counter, expiry, rid, targetKeyHex, route, body, opts = {}) {
+  const n = asNonce(opts.nonce);
+  const header = concat(Uint8Array.of(KIND_GUEST_FORWARD), fromHex(keyHex(guestKeyHex)), n);
+  const plain = forwardPlain(relayKeyHex, counter, expiry, rid, targetKeyHex, route, body, opts);
+  return b64url(concat(header, chacha20poly1305(keys.fwd, n, header).encrypt(plain)));
+}
+
+// The relay's side, for the fakes and the demo: { guest, counter, expiry, rid, target, route,
+// pathLen, path, body, keys } or Refused as openForward.
+export function openGuestForward(relayHandle, payload) {
+  const raw = unb64(payload);
+  if (raw.length !== GUEST_FORWARD_SIZE || raw[0] !== KIND_GUEST_FORWARD) throw new Refused('bad-fields');
+  const guest = toHex(raw.subarray(1, 33), true);
+  let secret;
+  try { secret = relayHandle.sharedSecret(guest); } catch { throw new Refused('sig-invalid'); }   // not a key
+  const keys = guestKeys(secret, relayHandle.publicKeyHex);
+  const header = raw.subarray(0, 45);
+  return { guest, keys, ...forwardFields(relayHandle, openAead(keys.fwd, header.subarray(33), header, raw.subarray(45))) };
 }

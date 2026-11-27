@@ -405,12 +405,20 @@ shared secret per node key is kept sealed beside the key, `ring.loadSecrets`; no
 first sight of a key costs one X25519 (~1 ms); messages are opened in 15 ms slices with a yield
 between, on the page rather than in a Web Worker, because a Worker would need the seed or every
 shared secret handed to it, which the key boundary below forbids. A node of the owner's that is
-not in the list is added by its whole key with no region. On the same connection it reads what the
-owner's own Observer nodes heard (`mcc/heard/+/+`, lou-21): a node without Wi-Fi announces itself over
-the mesh with its name, version and battery, an Observer node of the same owner keeps that sealed on the
-command server, and the page opens the entry (K_heard) and then the announce inside it (K_malive, its
-cut tag checked); one that does not open is dropped, the newest (boot, sequence) per node is kept, and
-the node is added as one without Wi-Fi, never over a name the owner gave (`test/heard.test.js`). Its
+not in the list is added by its whole key with no region. On the same connection it reads the shared node store
+(`mcc/node/+`, lou-21): a node without Wi-Fi floods an announce signed with its own key, with its name,
+version and battery sealed to its owner; any Observer node on lou-21 that hears it hands it to the
+command server, which keeps the newest per node and the first Observers that reported it. Each entry is
+checked in this order: the owner tag with the owner's command key (one SHA-256, where nearly every entry
+stops), the node's Ed25519 signature, then the seal (K_malive, its cut tag). What does not open is
+dropped. The (boot, sequence) of every entry tried is kept in the key's meta store (`store.tried`), so a
+later unlock opens only new or changed entries; for a node of the owner's, the catchers (in clear) are
+read again. The node is added as one without Wi-Fi, never over a name the owner gave, with who heard it
+and when; it is silent after about 2 days without a newer announce. A node the owner forgets after
+it was found this way stays out on that device (`disc.ignored`). The Observers that caught it become
+relays: the owner's own if it is among them, else the fewest hops (a zero-hop report is 0), then the
+best SNR; a stranger's is reached with a guest forward (kind `G`, K_gfwd), and one that twice in a row
+brings no answer is moved to the end of the list for that node (`test/node-store.test.js`). Its
 battery is shown with its age and who heard it, the newer of that and Beacon's. Then, only for lou-19-and-older nodes,
 the old discovery at most once an hour per region (`get autoreply` then `get name`, 2 of the
 broker's 5 broadcasts an hour per region), "Look now" at most twice an hour per region, at most 8
@@ -541,8 +549,9 @@ Rules the demo keeps, each pinned by a test:
   reply topic, after 1 to 4 s. `lib/demo/answers.js` holds what they answer, in the firmware's formats; a
   `set` changes the node for the session, `reboot` makes it silent for 20 s. The node that relays takes a
   forward for the mesh-only node behind it, with the relay's own budget. One more node without Wi-Fi,
-  DEMO-Myrstigen, is not in the list at the start: DEMO-Ekbacken keeps a real sealed heard entry of its
-  announce, and the page's own discovery adds it with its battery. The offline node and the one on
+  DEMO-Myrstigen, is not in the list at the start: an Observer node of someone else's, DEMO-Grannskogen,
+  caught its signed announce, the command server's store holds it, and the page's own discovery adds it
+  with its battery; it is reached through DEMO-Grannskogen with a guest forward. The offline node and the one on
   older firmware never answer. `test/demo-nodes.test.js` drives all of it through the real jobs and plane;
   `test/demo-answers.test.js` fails when the spec's command table gains a command the demo cannot answer.
 - **The companion is not in the demo.** No radio can be connected (`ui/companion-session.js`); the mesh-only

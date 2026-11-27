@@ -36,6 +36,9 @@ export function batteryReading(device) {
   return out[0] || null;
 }
 
+// A node without Wi-Fi that announces itself is silent after this long without a newer announce.
+export const ANNOUNCE_SILENT_HOURS = 48;
+
 // [{ node, name, kind, vars }] in the order the plan gives: not heard on MQTT for `hours`,
 // battery under `thresholdMv`, a refused (or forged) last command, outdated firmware.
 // A node with no evidence either way is not reported as silent: absence of evidence is not
@@ -45,6 +48,13 @@ export function needsAttention(devices, { now, hours, thresholdMv, release = nul
   const name = (d) => d.name || d.node;
   for (const d of devices) {
     // A node without Wi-Fi never speaks on MQTT: its silence there is how it is, not a finding.
+    // One that announces itself (lou-21) does so every 12 or 23 hours: no newer announce for
+    // about two days is a silent node.
+    const announced = Date.parse(d.heard?.at || '');
+    if (Number.isFinite(announced) && !d.heard.atRead && now - announced > ANNOUNCE_SILENT_HOURS * HOUR) {
+      out.push({ node: d.node, name: name(d), kind: 'announceSilent', vars: { hours: Math.floor((now - announced) / HOUR) }, at: announced });
+      continue;
+    }
     if (rules?.deviceMeshOnly?.(d)) continue;
     const heard = lastHeard(d);
     if (heard !== null && now - heard > hours * HOUR) {

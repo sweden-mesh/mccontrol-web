@@ -33,9 +33,9 @@
 // history store as it comes; reads are kept on the device; `ver` and `get name` update it.
 import { configFor, discover as realDiscover, send as realSend, DISCOVERY_COMMAND } from '../protocol/transport.js';
 import {
-  forwardMcc3 as realForwardMcc3, newer, newestHeard, openHeardWith, scanAlive as realScanAlive, sendMcc3 as realSendMcc3,
+  forwardMcc3 as realForwardMcc3, guestKeysWith, newer, openNodeWith, scanAlive as realScanAlive, sendMcc3 as realSendMcc3,
 } from '../protocol/plane.js';
-import { FLAG_ZERO_HOP, commandTopic as mcc3Topic, deriveKeys } from '../protocol/mcc3.js';
+import { FLAG_ZERO_HOP, commandTopic as mcc3Topic, deriveKeys, openNodeEntry } from '../protocol/mcc3.js';
 import { DEFAULT_TTL_SECS } from '../protocol/constants.js';
 import { fromHex, toHex } from '../bytes.js';
 import { actSpacing, areaOf, oldRegion, scheme, shuffled, speaksMcc3 } from './scheme.js';
@@ -45,7 +45,8 @@ import { blocker, fillSteps, JobError, meshBlocker } from './checks.js';
 import { MESH_AFTER_MINS, chooseRoad, mqttHeardAt } from './road.js';
 import { MESH_WAIT_SECS, meshAnswer, meshBody, sendOverMesh as realMeshSend } from '../mesh/send.js';
 import {
-  FORWARD_TTL_SECS, RELAY_ROUTES, RELAY_WAIT_SECS, WIRE_ROUTE, autoRelay, hearsTarget, isFlood, keptRelayPath, relayRefusal,
+  FORWARD_TTL_SECS, RELAY_ROUTES, RELAY_WAIT_SECS, WIRE_ROUTE, autoRelay, hearsTarget, isFlood, keptRelayPath, rankCatchers,
+  relayMisses, relayRefusal,
 } from './relay.js';
 import { MESH_ROADS, advice, refusedCount, step } from './silence.js';
 
@@ -75,25 +76,36 @@ function aliveRecord(fields, state, at) {
   return rec;
 }
 
-// What a device keeps of an announce one of our Observer nodes caught (lou-21): the battery with
-// the time it was heard (the catching node's clock; `atRead` marks the time this page read it
-// instead, when that clock was unset), who heard it, the SNR in dB and the hops.
-function heardRecord(e, byName, readAt) {
-  return {
-    at: new Date(e.heard_at ? e.heard_at * 1000 : readAt).toISOString(), atRead: !e.heard_at,
-    by: e.by.slice(0, 8), byName: byName || '', snr: e.snr / 4, hops: e.hops,
-    batteryMv: e.battery_mv || null,                    // 0: the board cannot read it
-    boot: e.boot, sequence: e.sequence, uptime: e.uptime, version: e.version, name: e.name,
-  };
+// The shared node store (lou-21): the stamp of an entry tried, kept per key in the meta store, so
+// a later scan opens only what is new or changed. { KEY: 'boot.sequence.report' }, with '!' at
+// the end for one that opened under this key.
+export const TRIED = 'store.tried';
+
+// What a device keeps of the Observers that caught its announces (the store's two lists): one row
+// each, with its name where known, the SNR in dB and the time by the command server's clock.
+function catcherRows(entry, devices, names) {
+  const byKey = new Map(devices.filter((d) => d.key).map((d) => [d.key.toUpperCase(), d]));
+  return entry.catchers.map((c) => {
+    const d = byKey.get(c.key);
+    return { key: c.key, node: c.key.slice(0, 8), name: (d && (d.name || d.node)) || names[c.key] || '',
+      at: new Date(c.arrival * 1000).toISOString(), snr: c.snr / 4, hops: c.hops, via: c.via, list: c.list };
+  });
 }
 
-// The catching node heard the announce with no hop between: it hears the node directly, which is
-// what a relay's zero-hop route needs. An announce that travelled says nothing of that.
-function heardDirect(device, rec) {
-  if (rec.hops !== 0) return null;
-  const old = device?.relayHears?.[rec.by];
-  if (old && Date.parse(old.at) > Date.parse(rec.at)) return null;
-  return { ...(device?.relayHears || {}), [rec.by]: { hears: true, snr: rec.snr, at: rec.at } };
+// What a device keeps of its newest announce: the battery and the rest of what it said, who
+// heard it (the best catcher of the newest announce) and when, by the command server's clock.
+// The part of a heard record that says who heard it.
+const pick = (r) => ({ at: r.at, by: r.by, byKey: r.byKey, byName: r.byName, snr: r.snr, hops: r.hops, via: r.via });
+
+function heardRecord(e, target, devices) {
+  const ranked = rankCatchers({ ...target, catchers: target.catchers.filter((c) => c.list === 0) }, devices);
+  const by = ranked[0] || rankCatchers(target, devices)[0] || null;
+  return {
+    at: by ? by.at : new Date(0).toISOString(), atRead: false,
+    by: by ? by.node : '', byKey: by ? by.key : '', byName: by ? by.name : '', snr: by ? by.snr : null, hops: by ? by.hops : null,
+    via: by ? by.via : null, batteryMv: e.battery_mv || null,                    // 0: the board cannot read it
+    boot: e.boot, sequence: e.sequence, uptime: e.uptime, version: e.version, name: e.name, report: e.report,
+  };
 }
 
 export const valueOf = (reply) => String(reply || '').replace(/^>\s*/, '').trim();
@@ -103,7 +115,7 @@ export function createJobs({
   plane = { send: realSendMcc3, scan: realScanAlive, forward: realForwardMcc3 }, random = Math.random,
   waitSecs = null, sleep = sleepFor, configExtra = {}, configOf = (region) => configFor(brokers, region),
   companion = () => null, meshSend = realMeshSend, meshAfterMins = () => MESH_AFTER_MINS, mqttSeen = null,
-  now = () => Date.now(), readOnly = false, hopHandle = null,
+  now = () => Date.now(), readOnly = false, hopHandle = null, observerName = null,
 }) {
   const wait = () => waitSecs ?? brokers.wait_secs ?? 20;
   // A request over the mesh, sealed or not: a lou-20 node answers a flooded one 15-30 s after it arrives.
@@ -143,6 +155,24 @@ export function createJobs({
       await saveSecrets(secrets);
     }
     return deriveKeys(fromHex(secrets[key]), key);
+  }
+
+  // K_gfwd for a guest forward through a stranger's relay, from the cached S.
+  async function guestKeysFor(handle, relayKey) {
+    const secrets = await loadSecrets();
+    const had = Boolean(secrets[relayKey]);
+    const keys = guestKeysWith(handle, secrets, relayKey);
+    if (!had) await saveSecrets(secrets);
+    return keys;
+  }
+
+  // The counter of the next guest forward through a stranger's relay: max(now in seconds, last + 1),
+  // stored before it is sent (meta 'relay.guest': { relay KEY: last }).
+  async function nextGuestCounter(relayKey, nowSecs = Math.floor(now() / 1000)) {
+    const kept = (await stores.meta.get('relay.guest')) || {};
+    const counter = Math.max(nowSecs, (Number(kept[relayKey]) || 0) + 1);
+    await stores.meta.set('relay.guest', { ...kept, [relayKey]: counter });
+    return counter;
   }
 
   const wholeKey = (device) => {
@@ -304,8 +334,12 @@ export function createJobs({
     const { batch, signal, onProgress, index = 0, count = 1, why = null, relay = null, fallback = false } = opts;
     const block = blocker(rules, { command, device, road: 'relay' }) || meshBlocker(rules, command, device);
     if (block) throw new JobError(block.code, block.vars, block.vars.detail || block.code);
-    const via = relay?.node ? await stores.devices.get(relay.node) : null;
-    const not = relayRefusal(rules, via, device, now());
+    // The owner's own relay, or (lou-21) a stranger's Observer that caught the target's announce:
+    // a guest, reached by a guest forward and named by the target's catchers alone.
+    const own = relay?.node ? await stores.devices.get(relay.node) : null;
+    const caught = !own && relay?.node ? rankCatchers(device, await stores.devices.list()).find((c) => c.node === String(relay.node).toUpperCase() && !c.own) : null;
+    const via = own || (caught ? { node: caught.node, key: caught.key, name: caught.name || '', guest: true } : null);
+    const not = via?.guest ? (via.node === device.node ? { code: 'relaySelf', vars: { name: label(via) } } : null) : relayRefusal(rules, via, device, now());
     if (not) throw new JobError(not.code, not.vars, 'this node cannot relay now');
     const route = relay.route;
     if (!RELAY_ROUTES.includes(route)) throw new JobError('relayRoute', {}, `a route is one of ${RELAY_ROUTES.join(', ')}`);
@@ -325,20 +359,23 @@ export function createJobs({
     // While the key is being replaced (rekey.js) the relay may be on the other key than the one
     // that signs for the target: the hop is sealed with the key the relay is on. That key's shared
     // secret is not this key's to cache.
-    const hop = (await hopHandle?.(via)) || handle;
-    const relayKeys = hop === handle ? await keysFor(handle, relayKey) : deriveKeys(hop.sharedSecret(relayKey), relayKey);
+    // A guest forward is sealed with the key that signs for the target, whose public key it carries.
+    const hop = via.guest ? handle : (await hopHandle?.(via)) || handle;
+    const relayKeys = via.guest ? await guestKeysFor(handle, relayKey)
+      : hop === handle ? await keysFor(handle, relayKey) : deriveKeys(hop.sharedSecret(relayKey), relayKey);
     const secs = Math.floor(now() / 1000);
     const counter = await stores.devices.nextCounter(device.node);
     const topic = mcc3Topic(key);
     // Zero hops back only where the relay sends with none.
     const flags = route === 'neighbour' ? FLAG_ZERO_HOP : 0;
     const body = meshBody({ handle, key, topic, counter, command, ttl: brokers.ttl_secs ?? DEFAULT_TTL_SECS, nowSecs: secs, keys, flags });
-    const forwardCounter = await stores.devices.nextForwardCounter(via.node);
+    const forwardCounter = via.guest ? await nextGuestCounter(relayKey) : await stores.devices.nextForwardCounter(via.node);
     onProgress?.({ phase: 'sending', road: 'relay', node: device.node, name: label(device), index, count });
     const out = await plane.forward({
       config: config(''), keys: relayKeys, relayKeyHex: relayKey, targetKeyHex: key, counter: forwardCounter,
       route: WIRE_ROUTE[route], body, pathLen: stored ? stored.pathLen : 0, path: stored ? fromHex(stored.path) : new Uint8Array(0),
       waitSecs: waitSecs ?? RELAY_WAIT_SECS, ttl: FORWARD_TTL_SECS, now: secs, signal, connect,
+      ...(via.guest ? { guestKeyHex: handle.publicKeyHex.toUpperCase() } : {}),
       progress: (elapsed, total) => {
         onProgress?.({ phase: 'waiting', road: 'relay', node: device.node, name: label(device), index, count, elapsed, total, answered: 0 });
         return Boolean(signal?.aborted);
@@ -347,7 +384,13 @@ export function createJobs({
     const r = out.result;
     const result = r?.name === 'answered' ? meshAnswer(keys, r.response, device.node, command, counter) : null;
     const info = { relay: via.node, relayName: label(via), route, status: r ? (r.name || `unknown-${r.status}`) : null,
-      sent: r ? r.sent : null, snr: r && r.snr !== null ? r.snr / 4 : null };
+      sent: r ? r.sent : null, snr: r && r.snr !== null ? r.snr / 4 : null, ...(via.guest ? { guest: true } : {}) };
+    {
+      // Two in a row with no answer move this relay to the end of the target's list (relay.js).
+      const fresh = (await stores.devices.get(device.node)) || device;
+      const misses = relayMisses(fresh, via.node, r ? info.status : null);
+      if (JSON.stringify(misses) !== JSON.stringify(fresh.relayMisses || {})) await stores.devices.update(device.node, { relayMisses: misses });
+    }
     if (r) {
       const fresh = (await stores.devices.get(device.node)) || device;
       const before = fresh.relayPaths?.[via.node] || null;
@@ -365,7 +408,7 @@ export function createJobs({
       await stores.devices.update(device.node, { relayHears: { ...(fresh.relayHears || {}),
         [via.node]: { hears: true, snr: info.snr, at: new Date(now()).toISOString() } } });
     }
-    if (r?.name === 'off' && via.alive) await stores.devices.update(via.node, { alive: { ...via.alive, relay: false } });
+    if (r?.name === 'off' && !via.guest && via.alive) await stores.devices.update(via.node, { alive: { ...via.alive, relay: false } });
     const kept = { node: info.relay, route, status: info.status, sent: info.sent, snr: info.snr };
     // Only 'answered' and 'no-answer' say the relay sent; a relay that said nothing may have.
     const how = r && !['answered', 'no-answer'].includes(r.name) ? false
@@ -679,9 +722,8 @@ export function createJobs({
     const key = entry.verified === false ? null : (entry.key || null);   // never a key from a forged answer
     const added = await stores.devices.add({ node: entry.node.slice(0, 8), key, region: entry.region || '', name: chosen, notes: '' });
     if (entry.heard && key) {            // found by its announce: a node without Wi-Fi, and who heard it
-      const relayHears = heardDirect(added, entry.heard);
-      return stores.devices.update(added.node, { heard: entry.heard, meshOnly: true, ...(entry.heard.version ? { ver: entry.heard.version.slice(0, 60) } : {}),
-        ...(relayHears ? { relayHears } : {}) });
+      return stores.devices.update(added.node, { heard: entry.heard, catchers: entry.catchers || [], meshOnly: true,
+        ...(entry.heard.version ? { ver: entry.heard.version.slice(0, 60) } : {}) });
     }
     return entry.alive ? stores.devices.update(added.node, { alive: entry.alive, ...(entry.alive.version ? { ver: entry.alive.version } : {}) }) : added;
   }
@@ -693,24 +735,40 @@ export function createJobs({
   // Updates the devices it knows; resolves to [{ node, key, name, version, state, knownAs, alive }]
   // (state: 'online' | 'offline' | 'not-yours'); adopting a new one is the caller's (adopt).
   //
-  // On the same connection, what your Observer nodes heard (`mcc/heard/<KEY>/<slot>`, lou-21): a
-  // node without Wi-Fi that announced itself over the mesh is an entry with the state 'heard' and
-  // `heard` (heardRecord) in place of an alive. Only the slots of nodes whose alive opened with
-  // your key are opened; an entry or an announce that does not open is dropped.
+  // On the same connection, the shared node store (`mcc/node/<KEY>`, lou-21): a node without Wi-Fi
+  // that announced itself over the mesh, heard by any lou-21 Observer, is an entry with the state
+  // 'heard', `heard` (heardRecord) in place of an alive and `catchers` (catcherRows). Each entry is
+  // tried once per (boot, sequence): its owner tag with your command key, then the node's
+  // signature, then the seal (openNodeWith); what does not open is dropped. An entry already tried
+  // is skipped, unless it is yours: then only its catchers, in clear, are read again.
   async function discoverAlive({ onProgress, signal, waitSecs = null } = {}) {
     return withKey(async (handle) => {
       const secrets = await loadSecrets();
       const before = Object.keys(secrets).length;
       const total = waitSecs ?? Math.min(10, wait());
-      const slots = new Map();
+      const store = new Map();
       const seen = await plane.scan({
-        config: config(''), handle, secrets, waitSecs: total, signal, connect, heard: slots,
+        config: config(''), handle, secrets, waitSecs: total, signal, connect, nodes: store,
         progress: (elapsed, all, ours) => { onProgress?.({ phase: 'waiting', elapsed, total: all, answered: ours.length }); return Boolean(signal?.aborted); },
       });
-      const readAt = now();
-      const announced = newestHeard([...slots].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-        .filter(([slot]) => seen[slot.slice(0, 64)]?.state === 'ours')
-        .map(([slot, payload]) => openHeardWith(handle, secrets, slot.slice(0, 64), payload)));
+      const tried = (await stores.meta.get(TRIED)) || {};
+      const triedBefore = JSON.stringify(tried);
+      const announced = {};
+      for (const [key, payload] of [...store].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) {
+        if (seen[key]?.state === 'ours') continue;       // a node with an alive message of its own needs no announce
+        let entry;
+        try { entry = openNodeEntry(payload); } catch { continue; }
+        const stamp = `${entry.boot}.${entry.sequence}.${entry.report}`;
+        if (tried[key] === stamp) continue;              // tried before, not yours
+        if (tried[key] === `${stamp}!`) {                // yours, the same announce: the catchers may have moved
+          announced[key] = { again: true, catchers: entry.catchers };
+          continue;
+        }
+        const e = openNodeWith(handle, secrets, key, payload);
+        tried[key] = e ? `${stamp}!` : stamp;
+        if (e) announced[key] = e;
+      }
+      if (JSON.stringify(tried) !== triedBefore) await stores.meta.set(TRIED, tried);
       if (Object.keys(secrets).length !== before) await saveSecrets(secrets);
       const devices = await stores.devices.list();
       const byKey = new Map(devices.filter((d) => d.key).map((d) => [d.key.toUpperCase(), d]));
@@ -737,27 +795,46 @@ export function createJobs({
           knownAs: d ? label(d) : null, alive: rec,
         });
       }
+      const names = {};
       for (const [key, e] of Object.entries(announced)) {
-        if (seen[key]?.state === 'ours') continue;       // a node with an alive message of its own needs no announce
         const all = await stores.devices.list();
         let d = all.find((x) => (x.key || '').toUpperCase() === key) || all.find((x) => x.node === key.slice(0, 8) && !x.key) || null;
         if (!d && all.some((x) => x.node === key.slice(0, 8))) continue;      // the same first 8 characters, another key
-        const catcher = all.find((x) => (x.key || '').toUpperCase() === e.by);
-        let rec = heardRecord(e, catcher ? label(catcher) : seen[e.by]?.fields?.name, readAt);
+        if (e.again && !d) {                             // yours, not in the list: open it again to list it
+          const opened = openNodeWith(handle, secrets, key, store.get(key));
+          if (!opened) continue;
+          announced[key] = opened;
+          Object.assign(e, opened, { again: false });
+        }
+        for (const c of e.catchers) {                    // a stranger's Observer: its name from Beacon, once a scan
+          if (names[c.key] !== undefined || all.some((x) => (x.key || '').toUpperCase() === c.key)) continue;
+          const known = (d?.catchers || []).find((x) => x.key === c.key && x.name);
+          names[c.key] = known ? known.name : '';
+          if (!known && observerName) { try { names[c.key] = String((await observerName(c.key)) || '').slice(0, 40); } catch { /* unnamed */ } }
+        }
+        const catchers = catcherRows(e, all, names);
+        if (e.again) {
+          if (d && JSON.stringify(d.catchers || []) !== JSON.stringify(catchers)) {
+            const heard = d.heard ? { ...d.heard, ...pick(heardRecord(d.heard, { ...d, catchers }, all)) } : d.heard;
+            d = await stores.devices.update(d.node, { catchers, heard });
+          }
+          entries.push({ node: key.slice(0, 8), key, name: d.heard?.name || '', version: d.heard?.version || '', state: 'heard',
+            knownAs: label(d), alive: null, heard: d.heard, catchers: d.catchers });
+          continue;
+        }
+        let rec = heardRecord(e, { key, catchers }, all);
         if (d) {
           if (newer(e, d.heard)) {
-            const changes = { heard: rec };
+            const changes = { heard: rec, catchers };
             if (!d.key) changes.key = key;
             if (rec.version && !d.alive) changes.ver = rec.version.slice(0, 60);       // as an alive's version does
             if (!d.name && rec.name) changes.name = rec.name.slice(0, 40);        // never over a name you gave
             if (d.meshOnly !== true && d.meshOnly !== false && !d.alive) changes.meshOnly = true;   // it announced: no Wi-Fi
-            const relayHears = heardDirect(d, rec);
-            if (relayHears) changes.relayHears = relayHears;
-            try { d = await stores.devices.update(d.node, changes); } catch { d = await stores.devices.update(d.node, { heard: rec }); }
-          } else rec = d.heard;                          // stale, or the same announce caught by another node
+            try { d = await stores.devices.update(d.node, changes); } catch { d = await stores.devices.update(d.node, { heard: rec, catchers }); }
+          } else rec = d.heard;                          // stale: the store holds an older one than we have
         }
         entries.push({ node: key.slice(0, 8), key, name: e.name || '', version: e.version || '', state: 'heard',
-          knownAs: d ? label(d) : null, alive: null, heard: rec });
+          knownAs: d ? label(d) : null, alive: null, heard: rec, catchers });
       }
       return entries.sort((a, b) => (a.name || a.node).toLowerCase().localeCompare((b.name || b.node).toLowerCase()));
     });

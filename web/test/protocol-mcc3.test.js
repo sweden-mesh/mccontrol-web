@@ -53,7 +53,7 @@ test('the constants are the spec\'s', () => {
   assert.deepEqual({ size: mcc3.FORWARD_SIZE, result_size: mcc3.FORWARD_RESULT_SIZE, path: mcc3.FORWARD_PATH,
     body: mcc3.FORWARD_BODY, min_body: mcc3.FORWARD_MIN_BODY, body_subtypes: [mcc3.MESH_V1_SUBTYPE, mcc3.MESH_SUBTYPE], body_subtypes_from: { 'lou-21': [mcc3.MESH_SUBTYPE] },
     result_plaintext: mcc3.FORWARD_RESULT_PLAIN, result_path: mcc3.FORWARD_RESULT_PATH,
-    max_response: mcc3.FORWARD_MAX_RESPONSE, routes: { ...mcc3.ROUTES }, statuses: [...mcc3.FORWARD_STATUSES],
+    max_response: mcc3.FORWARD_MAX_RESPONSE, routes: { ...mcc3.ROUTES }, statuses: mcc3.FORWARD_STATUSES.slice(0, 10), // TODO(L21-G2): 10..12 are the guest refusals
     sent: { ...mcc3.SENT }, snr_none: mcc3.SNR_NONE, path_none: mcc3.PATH_NONE, max_ttl_secs: mcc3.FORWARD_MAX_TTL }, c.forward);
   assert.deepEqual({ ...mcc3.KIND }, c.kind);
   assert.deepEqual({ mqtt: mcc3.ROAD_MQTT, mesh: mcc3.ROAD_MESH }, c.road);

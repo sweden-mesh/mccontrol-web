@@ -109,7 +109,7 @@ function discoverForm(ctx, svc, redraw) {
         const add = h('button', { type: 'button', class: 'tool' }, ctx.t('nodes.adopt'));
         add.addEventListener('click', async () => {
           try {
-            await svc.jobs.adopt({ node: f.key, key: f.key, region: '', alive: f.alive, heard: f.heard }, name.value);
+            await svc.jobs.adopt({ node: f.key, key: f.key, region: '', alive: f.alive, heard: f.heard, catchers: f.catchers }, name.value);
             add.replaceWith(h('span', {}, ctx.t('nodes.adopted')));
             redraw();
             dataChanged('devices');

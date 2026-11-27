@@ -60,11 +60,12 @@ export function demoPlane(world, { rules, now = () => Date.now(), delay = demoDe
   const owner = world.owner.key;
   const nodes = new Map();
   const started = now();
-  for (const n of [...world.nodes, ...(world.announced || [])]) {
+  for (const n of [...world.nodes, ...(world.announced || []), ...(world.strangers || [])]) {
     if (!['wifi', 'relay', 'mesh'].includes(n.kind)) continue;   // offline, older firmware, never heard: not on this plane
     const handle = keyFromSeed(fromHex(n.seedHex));
-    nodes.set(n.key, { n, handle, owner, pending: null, keys: mcc3.nodeKeys(handle, owner), state: { ...newState(world, n), started: started - (9 + n.i * 3) * 86400000 },
-      lastCounter: 100 + n.i * 7, lastMesh: null, lastForward: null, sequence: 0, sent: [], forwards: [], floods: [] });
+    const own = n.owner || owner;                                  // a stranger's Observer has its own owner
+    nodes.set(n.key, { n, handle, owner: own, pending: null, keys: mcc3.nodeKeys(handle, own), state: { ...newState(world, n), started: started - (9 + n.i * 3) * 86400000 },
+      lastCounter: 100 + n.i * 7, lastMesh: null, lastForward: null, guests: new Map(), sequence: 0, sent: [], forwards: [], floods: [] });
   }
   const later = (ms, fn) => (ms > 0 ? timers.setTimeout(fn, ms) : fn());
   const within = (list, at) => list.filter((t) => at - t < HOUR);
@@ -136,16 +137,26 @@ export function demoPlane(world, { rules, now = () => Date.now(), delay = demoDe
   }
 
   // A forward (kind F) to a node that relays: the relay's own order, then the radio and the target.
+  // A guest forward (kind G, lou-21) to a stranger's Observer: the same, sealed under K_gfwd with
+  // the guest's key, which counts its own counter; a stranger relays for anyone.
   function forward(x, payload) {
     let f;
-    try { f = mcc3.openForward(x.handle, x.owner, payload); } catch { return false; }
+    let keys = x.keys;
+    let guest = null;
+    try { f = mcc3.openForward(x.handle, x.owner, payload); } catch {
+      if (!x.n.stranger) return false;
+      try { f = mcc3.openGuestForward(x.handle, payload); } catch { return false; }
+      keys = f.keys;
+      guest = f.guest;
+    }
     const at = now();
     const clock = Math.floor(at / 1000);
-    const say = (status, more = {}) => later(delay(x.n, 'relay'), () => broker.publish(mcc3.replyTopic(f.rid), mcc3.sealForwardResult(x.keys, f.counter, status, clock, more)));
-    if (x.state.settings['relay'] !== 'own') return say(FWD.off), true;
+    const say = (status, more = {}) => later(delay(x.n, 'relay'), () => broker.publish(mcc3.replyTopic(f.rid), mcc3.sealForwardResult(keys, f.counter, status, clock, more)));
+    if (!guest && x.state.settings['relay'] !== 'own') return say(FWD.off), true;
     if (f.expiry < clock || f.expiry > clock + mcc3.FORWARD_MAX_TTL) return say(FWD.expired), true;
-    if (x.lastForward !== null && f.counter <= x.lastForward) return say(FWD.replay), true;
-    x.lastForward = f.counter;
+    const last = guest ? x.guests.get(guest) ?? null : x.lastForward;
+    if (last !== null && f.counter <= last) return say(FWD.replay), true;
+    if (guest) x.guests.set(guest, f.counter); else x.lastForward = f.counter;
     const flood = f.route !== mcc3.ROUTES.direct;
     x.forwards = within(x.forwards, at); x.floods = within(x.floods, at);
     if (x.forwards.length >= FORWARDS_PER_HOUR || (flood && x.floods.some((t) => at - t < FLOOD_GAP_MS))) return say(FWD['rate-limited']), true;
@@ -184,22 +195,21 @@ export function demoPlane(world, { rules, now = () => Date.now(), delay = demoDe
       });
     },
   });
-  // What an Observer node caught (lou-21, L21-D8): the announce of a node without Wi-Fi, sealed by
-  // that node to its owner, kept by the catching node sealed to the same owner on
-  // mcc/heard/<its key>/<slot>, retained, exactly as the firmware publishes it.
-  function heard(a, slot) {
+  // The shared node store (lou-21, L21-G9): the signed announce of a node without Wi-Fi, sealed by
+  // that node to its owner, and the Observer that caught it (a stranger's), retained on
+  // mcc/node/<the node's key> exactly as the command server publishes it.
+  function announced(a) {
     const x = nodes.get(a.key);
-    const by = world.nodes.find((m) => m.name === a.by);
-    const c = by && nodes.get(by.key);
-    if (!x || !c) return;
+    const by = (world.strangers || []).find((m) => m.name === a.by) || world.nodes.find((m) => m.name === a.by);
+    if (!x || !by) return;
     const at = Math.floor(started / 1000) - a.ago;
-    const announce = mcc3.sealAnnounce(mcc3.maliveKey(x.handle.sharedSecret(x.owner), a.key), x.owner, a.key, {
+    const body = mcc3.sealAnnounce(mcc3.maliveKey(x.handle.sharedSecret(x.owner), a.key), x.owner, a.key, {
       boot: x.state.boot, sequence: 1, uptime: Math.floor((started - x.state.started) / 1000) - a.ago, clock: at, last_counter: x.lastCounter,
       flags: 0, battery_mv: a.mv, version: ANNOUNCE_VERSION, name: a.name });
-    broker.retain(mcc3.heardTopic(by.key, slot), mcc3.sealHeard(mcc3.heardKey(c.handle.sharedSecret(c.owner), by.key), a.key, announce,
-      { heard_at: at, snr: a.snr4, hops: a.hops, advert_heard_at: 0, advert_snr: 0, advert_hops: 0 }));
+    broker.retain(mcc3.nodeTopic(a.key), mcc3.sealNodeEntry(mcc3.signAnnounce(x.handle, body),
+      [{ key: by.key, arrival: at, snr: a.snr4, hops: a.hops, via: a.hops === 0 ? mcc3.VIA.zeroHop : mcc3.VIA.flood, list: 0 }]));
   }
   for (const x of nodes.values()) if (x.n.kind !== 'mesh') alive(x);
-  (world.announced || []).forEach(heard);
+  (world.announced || []).forEach(announced);
   return Object.freeze({ broker, nodes, world });
 }

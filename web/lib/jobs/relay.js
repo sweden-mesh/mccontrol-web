@@ -13,7 +13,13 @@
 //
 // A flood costs every node in reach airtime and the relay admits one a minute at most, so it is the
 // owner's word each time (`confirmed`), never auto's and never part of a send to several nodes.
-import { ALIVE_FLAG_RELAY, ROUTES } from '../protocol/mcc3.js';
+//
+// From lou-21 any Observer relays for anyone (a guest forward, within caps that keep its own
+// owner's half of the budget), and the shared node store says which Observers caught a node's
+// announce (`catchers` on the target, jobs.js): those are candidates too, the owner's own first,
+// then the fewest hops (a zero-hop state packet is 0), then the best SNR. A relay that twice in a
+// row brought no answer for this target is moved to the end of the list (demoted).
+import { ALIVE_FLAG_RELAY, ROUTES, VIA } from '../protocol/mcc3.js';
 
 export const RELAY_ROUTES = Object.freeze(['neighbour', 'path', 'flood', 'flood-wide']);
 export const WIRE_ROUTE = Object.freeze({ neighbour: ROUTES.direct, path: ROUTES.direct, flood: ROUTES.flood, 'flood-wide': ROUTES['flood-wide'] });
@@ -57,30 +63,81 @@ export function relayRefusal(rules, relay, target, now = Date.now()) {
   return null;
 }
 
-// The owner's nodes that can relay to `target` now, each with what is known of the way:
-// [{ device, hears: true | false | null, snr, heardAt, path: { pathLen, path, at } | null }],
-// those known to hear the target first, the strongest signal at the top, then those with a path,
-// then the unchecked, then those whose neighbour list lacked it; by name within each.
+// Two relays in a row with no answer for a target move that relay to the end of its list.
+export const DEMOTE_AFTER = 2;
+
+// The hops an announce travelled to its catcher: one by zero-hop state packet travelled none.
+export const catcherHops = (c) => (c.via === VIA.zeroHop ? 0 : c.hops);
+
+// Is `relayNode` demoted for `target`?
+export const demoted = (target, relayNode) => (Number(target?.relayMisses?.[relayNode]) || 0) >= DEMOTE_AFTER;
+
+// The catchers of `target`'s announces, one per Observer (its best report), the owner's own
+// first, then the fewest hops, then the best SNR, then the newest; demoted ones last.
+export function rankCatchers(target, devices = []) {
+  const mine = new Set(devices.filter((d) => d.key).map((d) => d.key.toUpperCase()));
+  const best = new Map();
+  const better = (a, b) => catcherHops(a) - catcherHops(b) || b.snr - a.snr || a.list - b.list || Date.parse(b.at) - Date.parse(a.at);
+  for (const c of target?.catchers || []) {
+    if (!c?.key || c.key === target.key) continue;
+    const old = best.get(c.key);
+    if (!old || better(c, old) < 0) best.set(c.key, c);
+  }
+  const rows = [...best.values()].map((c) => ({ ...c, own: mine.has(c.key), demoted: demoted(target, c.node) }));
+  return rows.sort((a, b) => Number(a.demoted) - Number(b.demoted) || Number(b.own) - Number(a.own) || better(a, b));
+}
+
+// The relays that can carry a command to `target` now, each with what is known of the way:
+// [{ device, guest, catcher, demoted, hears: true | false | null, snr, heardAt, path: { pathLen, path, at } | null }].
+// The owner's nodes as relayRefusal admits them, and (lou-21) the strangers' Observers that caught
+// the target's announce, as guests: `device` is then { node, key, name, guest: true }, not a stored
+// device. In order: the catchers by rankCatchers (the owner's own first); then the owner's other
+// nodes, those known to hear the target first, the strongest signal at the top, then those with a
+// path, then the unchecked, then those whose neighbour list lacked it; by name within each; demoted
+// ones last.
 export function relayCandidates(rules, devices, target, now = Date.now()) {
   const rank = (c) => (c.hears === true ? 0 : c.path ? 1 : c.hears === null ? 2 : 3);
   const signal = (c) => (c.hears === true && Number.isFinite(c.snr) ? c.snr : -Infinity);
-  return devices.filter((d) => relayRefusal(rules, d, target, now) === null).map((device) => {
+  const caught = rankCatchers(target, devices);
+  const order = new Map(caught.map((c, i) => [c.key, i]));
+  const of = (device, catcher) => {
     const finding = target?.relayHears?.[device.node] || null;
-    return { device, hears: finding ? finding.hears : null, snr: Number.isFinite(finding?.snr) ? finding.snr : null,
-      heardAt: finding?.at || null, path: target?.relayPaths?.[device.node] || null };
-  }).sort((a, b) => rank(a) - rank(b) || signal(b) - signal(a) || String(a.device.name || a.device.node).localeCompare(String(b.device.name || b.device.node)));
+    const direct = catcher && catcherHops(catcher) === 0;
+    const hears = finding ? finding.hears : direct ? true : null;
+    return { device, guest: Boolean(device.guest), catcher: catcher || null, demoted: demoted(target, device.node),
+      hears, snr: Number.isFinite(finding?.snr) ? finding.snr : direct ? catcher.snr : null,
+      heardAt: finding?.at || (direct ? catcher.at : null), path: target?.relayPaths?.[device.node] || null };
+  };
+  const own = devices.filter((d) => relayRefusal(rules, d, target, now) === null)
+    .map((d) => of(d, caught.find((c) => c.key === String(d.key || '').toUpperCase())));
+  const guests = caught.filter((c) => !c.own && c.node !== target?.node)
+    .map((c) => of({ node: c.node, key: c.key, name: c.name || '', guest: true }, c));
+  const group = (c) => (c.demoted ? 2 : c.catcher ? 0 : 1);
+  return [...own, ...guests].sort((a, b) => group(a) - group(b)
+    || (a.catcher && b.catcher ? order.get(a.catcher.key) - order.get(b.catcher.key) : 0)
+    || rank(a) - rank(b) || signal(b) - signal(a)
+    || String(a.device.name || a.device.node).localeCompare(String(b.device.name || b.device.node)));
 }
 
-// Why no node of the owner's can relay to `target` ({ code, vars }), or null when one can: the
-// most telling reason among the others (switched off, before not heard, before none that could).
+// Why no relay can carry a command to `target` ({ code, vars }), or null when one can: the most
+// telling reason among the owner's nodes (switched off, before not heard, before none that could).
 export function noRelayWhy(rules, devices, target, now = Date.now()) {
+  if (relayCandidates(rules, devices, target, now).length) return null;
   const why = devices.filter((d) => d.node !== target?.node).map((d) => relayRefusal(rules, d, target, now));
-  if (why.some((w) => w === null)) return null;
   for (const code of ['relayOff', 'relayNotHeard']) {
-    const hit = why.find((w) => w.code === code);
+    const hit = why.find((w) => w?.code === code);
     if (hit) return { code: `none.${code}`, vars: hit.vars };
   }
   return { code: 'none.relayCannot', vars: {} };
+}
+
+// The relay's misses for `target` after one send through `relayNode`: an answer clears them, a
+// relay that heard none (or said nothing) adds one, a refusal (nothing was sent) leaves them.
+export function relayMisses(target, relayNode, status) {
+  const kept = { ...(target?.relayMisses || {}) };
+  if (status === 'answered') delete kept[relayNode];
+  else if (status === null || status === 'no-answer') kept[relayNode] = (Number(kept[relayNode]) || 0) + 1;
+  return kept;
 }
 
 // What is kept of the way from a relay to a target after one send: { pathLen, path, at, fails?,
@@ -107,14 +164,15 @@ export function keptRelayPath(stored, { route, status, taught = null, at }) {
 // The routes to offer through one candidate, the cheapest first.
 // A relay's neighbour list holds only what it heard an advert from since it started, so a list
 // without the target proves nothing (absence of evidence): the zero-hop route stays, last.
-export const routesFor = (candidate) => (candidate.hears === false
+// A catcher that heard the announce over hops is not likely to reach the node with none either.
+export const routesFor = (candidate) => (candidate.hears === false || (candidate.hears !== true && candidate.catcher && catcherHops(candidate.catcher) > 0)
   ? [candidate.path ? 'path' : null, 'flood', 'flood-wide', 'neighbour']
   : ['neighbour', candidate.path ? 'path' : null, 'flood', 'flood-wide']).filter(Boolean);
 
 // What auto may take: a relay known to hear the target directly, else one with a stored path;
-// { relay, route } or null. Never a flood, and never a guess.
+// { relay, route } or null. Never a flood, never a guess, and never a demoted relay.
 export function autoRelay(rules, devices, target, now = Date.now()) {
-  const all = relayCandidates(rules, devices, target, now);
+  const all = relayCandidates(rules, devices, target, now).filter((c) => !c.demoted);
   const near = all.find((c) => c.hears === true);
   if (near) return { relay: near.device, route: 'neighbour' };
   const known = all.find((c) => c.path);

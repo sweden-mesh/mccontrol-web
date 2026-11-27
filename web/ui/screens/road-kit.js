@@ -5,7 +5,7 @@
 // for which road a result took. Used by the send panel (node and send screens) and settings.
 import { h } from '../dom.js';
 import { confirm, field, nameOf, put, useStyles } from './node-kit.js';
-import { isFlood, noRelayWhy, parseRelayState, pathHops, relayCandidates, routesFor } from '../../lib/jobs/relay.js';
+import { catcherHops, isFlood, noRelayWhy, parseRelayState, pathHops, relayCandidates, routesFor } from '../../lib/jobs/relay.js';
 import { distanceKm } from '../standard/neighbours-data.js';
 import { connect, disconnect, onCompanion, state, support } from '../companion-session.js';
 import { bridgeAddress, companionKind, meshAfterMins } from './settings-store.js';
@@ -55,29 +55,39 @@ export function relayPicker(ctx, svc, { onChange = () => {} } = {}) {
   const note = h('p', { class: 'hint-line', role: 'status' });
   const fields = h('div', { class: 'stack' },
     field(t('road.relayWhich'), relaySel), field(t('road.relayRoute'), routeSel, t('road.relayHint')));
-  const el = h('div', { class: 'stack relay-picker' }, fields, h('div', { class: 'row wrap' }, check, budget), note);
   let device = null;
   let all = [];
   let list = [];
 
   const at = (d) => ({ lat: d?.fleet?.lat, lng: d?.fleet?.lng });
+  const el = h('div', { class: 'stack relay-picker' }, fields, demotedNote, h('div', { class: 'row wrap' }, check, budget), note);
   const current = () => list.find((c) => c.device.node === relaySel.value) || null;
   const routeWords = (c, route) => t(`road.route.${route}`, { hops: pathHops(c.path) ?? 0 });
-  const known = (c) => (c.hears === true ? (c.snr !== null ? t('road.hears.yesSnr', { snr: Math.round(c.snr * 10) / 10 }) : t('road.hears.yes')) : c.path ? t('road.hears.path', { hops: pathHops(c.path) })
-    : c.hears === false ? t('road.hears.no') : c.km !== null ? t('road.hears.guess', { km: Math.round(c.km) }) : t('road.hears.unknown'));
+  const dB = (v) => Math.round(v * 10) / 10;
+  const way = (c) => (c.hears === true ? (c.snr !== null ? t('road.hears.yesSnr', { snr: dB(c.snr) }) : t('road.hears.yes')) : c.path ? t('road.hears.path', { hops: pathHops(c.path) })
+    : c.catcher ? t('road.hears.caught', { hops: catcherHops(c.catcher), snr: dB(c.catcher.snr) })
+      : c.hears === false ? t('road.hears.no') : c.km !== null ? t('road.hears.guess', { km: Math.round(c.km) }) : t('road.hears.unknown'));
+  // A stranger's Observer is said as such, and a demoted relay says why it is last (lou-21).
+  const known = (c) => [c.guest ? t('road.guest') : null, way(c), c.demoted ? t('road.demoted') : null].filter(Boolean).join(' · ');
+  const demotedNote = h('p', { class: 'hint-line', hidden: true });
 
   function drawRoutes(keep = null) {
     const c = current();
     put(routeSel, c ? routesFor(c).map((r) => h('option', { value: r }, routeWords(c, r))) : []);
     if (c && keep && routesFor(c).includes(keep)) routeSel.value = keep;
-    check.disabled = budget.disabled = !c;
+    // A stranger's Observer takes no command of ours: its neighbours and budget cannot be read.
+    check.disabled = budget.disabled = !c || c.guest;
+    const down = list.filter((x) => x.demoted);
+    demotedNote.textContent = down.length ? t('road.demotedNote', { relay: down.map((x) => nameOf(x.device)).join(', ') }) : '';
+    demotedNote.hidden = !down.length;
   }
 
   function draw(keep = null) {
     const found = relayCandidates(svc.rules, all, device).map((c) => ({ ...c, km: distanceKm(at(device), at(c.device)) }));
-    const blank = (c) => c.hears === null && !c.path;
+    const blank = (c) => c.hears === null && !c.path && !c.catcher && !c.demoted;
     const guessed = found.filter(blank).sort((a, b) => (a.km ?? Infinity) - (b.km ?? Infinity));
-    list = [...found.filter((c) => !blank(c) && c.hears !== false), ...guessed, ...found.filter((c) => c.hears === false)];
+    const rest = found.filter((c) => !blank(c) && !c.demoted);
+    list = [...rest.filter((c) => c.hears !== false), ...guessed, ...rest.filter((c) => c.hears === false), ...found.filter((c) => c.demoted)];
     put(relaySel, list.map((c) => h('option', { value: c.device.node }, `${nameOf(c.device)} · ${known(c)}`)));
     if (keep?.relay && list.some((c) => c.device.node === keep.relay)) relaySel.value = keep.relay;
     drawRoutes(keep?.route);
@@ -149,6 +159,8 @@ export function relayPicker(ctx, svc, { onChange = () => {} } = {}) {
     words() { const c = current(); return c && routeSel.value ? t('road.relayBrief', { relay: nameOf(c.device), route: routeWords(c, routeSel.value) }) : ''; },
     // A zero-hop send through a relay that has not been checked to hear the node is a guess.
     unchecked() { const c = current(); return Boolean(c && routeSel.value === 'neighbour' && c.hears !== true); },
+    // The relay chosen brought no answer twice in a row for this node.
+    demoted() { return Boolean(current()?.demoted); },
     // A flood is asked for each time, with what it costs; true only from the dialog's own button.
     confirmFlood(command) {
       const c = current();
@@ -172,7 +184,7 @@ export function relayBrief(ctx, picker) {
   const doubt = h('span', { class: 'muted relay-doubt' });
   const button = h('button', { type: 'button', class: 'link-button companion-brief' }, ctx.t('road.relayCheck'));
   const el = h('span', { class: 'relay-brief' }, inline, doubt, button);
-  const draw = () => { doubt.textContent = picker.unchecked() ? ctx.t('road.unchecked') : ''; };
+  const draw = () => { doubt.textContent = picker.demoted() ? ctx.t('road.demotedShort') : picker.unchecked() ? ctx.t('road.unchecked') : ''; };
   inline.addEventListener('change', draw, { signal: ctx.signal });
   button.addEventListener('click', () => {
     const id = `relay-${count += 1}`;

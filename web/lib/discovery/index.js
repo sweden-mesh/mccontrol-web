@@ -49,6 +49,15 @@ export const MAX_DELAY_MS = 2 ** 31 - 1;  // setTimeout's limit
 export const META = Object.freeze({ runs: 'disc.runs', added: 'disc.added', ignored: 'disc.ignored' });
 export const ALIVE = '*alive';       // the alive scan's entry in 'disc.runs'
 
+// A node the owner forgets that was found in the shared node store (lou-21) stays out: its
+// entry there stays, and discovery would add it again on the next unlock. Kept in 'disc.ignored'
+// on this device, as an undo keeps a node out.
+export async function keepOut(stores, node) {
+  const id = upper(node);
+  const ignored = (await stores.meta.get(META.ignored)) || [];
+  if (!ignored.includes(id)) await stores.meta.set(META.ignored, [...ignored, id]);
+}
+
 export const realClock = Object.freeze({
   now: () => Date.now(),
   setTimeout: (fn, ms) => globalThis.setTimeout(fn, ms),
@@ -185,7 +194,7 @@ export function createDiscovery({
           if (e.state !== 'online' && e.state !== 'heard') continue;       // heard: a node without Wi-Fi that announced itself
           if (ignored.has(e.node)) { outcome.ignored += 1; continue; }
           try {
-            const d = await jobs.adopt({ node: e.key, key: e.key, region: '', name: e.name, alive: e.alive, heard: e.heard });
+            const d = await jobs.adopt({ node: e.key, key: e.key, region: '', name: e.name, alive: e.alive, heard: e.heard, catchers: e.catchers });
             outcome.added.push({ node: d.node, name: d.name });
           } catch (err) {
             outcome.failed.push({ region: null, code: 'adopt', detail: `${e.node}: ${err?.message || err}` });

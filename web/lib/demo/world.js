@@ -44,11 +44,18 @@ const SPECS = [
   ['DEMO-Hagen', 58.002, 15.043, null, null, '', 'never'],
 ];
 
-// A node without Wi-Fi on lou-21 that nobody added (L21-D8): it is not in the list at the start. It
-// announces itself over the mesh, the Observer node `by` caught the announce `ago` seconds before the
-// page started (SNR in quarter dB, hops) and keeps it on the command server, and the page's own
-// discovery opens it and adds the node, with its battery. name, lat, lng, battery mV, firmware, by.
-const ANNOUNCED = [['DEMO-Myrstigen', 57.995, 14.990, 3710, 'v1.18.0-lou-21-arrc-0', 'DEMO-Ekbacken']];
+// An Observer node on lou-21 of someone else's (L21-G9): not the demo owner's and not in the list. It
+// relays for anyone, so the page reaches a node it caught with a guest forward. name, lat, lng.
+const STRANGERS = [['DEMO-Grannskogen', 57.999, 15.004]];
+export const DEMO_STRANGER_PHRASE = 'mccontrol demo stranger owner key';
+const OBSERVER_21 = 'v1.18.0-lou-21-arrc-observer-0';
+
+// A node without Wi-Fi on lou-21 that nobody added (L21-D8, L21-G9): it is not in the list at the
+// start. It announces itself over the mesh, signed; the Observer node `by` (a stranger's) caught the
+// announce `ago` seconds before the page started (SNR in quarter dB, hops; 0 hops: it hears the node
+// directly) and handed it to the command server's shared store, and the page's own discovery opens
+// it there and adds the node, with its battery. name, lat, lng, battery mV, firmware, by.
+const ANNOUNCED = [['DEMO-Myrstigen', 57.995, 14.990, 3710, 'v1.18.0-lou-21-arrc-0', 'DEMO-Grannskogen']];
 export const ANNOUNCE_VERSION = 'lou-21-arrc';
 
 export function demoWorld() {
@@ -64,12 +71,20 @@ export function demoWorld() {
     const seed = seedOf(`mccontrol demo node ${name}`);
     const key = keyFromSeed(seed).publicKeyHex.toUpperCase();
     return Object.freeze({ i: SPECS.length + k, name, key, node: key.slice(0, 8), seedHex: toHex(seed), lat, lng, mv, heard: null, fw, kind: 'mesh',
-      beaconId: null, observerId: null, by, ago: 9 * 3600 + 17 * 60, snr4: -26, hops: 1 });
+      beaconId: null, observerId: null, by, ago: 9 * 3600 + 17 * 60, snr4: 26, hops: 0 });
+  });
+  const strangerOwner = keyFromSeed(seedOf(DEMO_STRANGER_PHRASE)).publicKeyHex.toUpperCase();
+  const strangers = STRANGERS.map(([name, lat, lng], k) => {
+    const seed = seedOf(`mccontrol demo node ${name}`);
+    const key = keyFromSeed(seed).publicKeyHex.toUpperCase();
+    return Object.freeze({ i: SPECS.length + ANNOUNCED.length + k, name, key, node: key.slice(0, 8), seedHex: toHex(seed), lat, lng, mv: null,
+      heard: null, fw: OBSERVER_21, kind: 'relay', beaconId: `demo-stranger-${k}`, observerId: null, owner: strangerOwner, stranger: true });
   });
   return Object.freeze({
     owner: Object.freeze({ seedHex: toHex(ownerSeed), key: ownerKey, passphrase: DEMO_PASSPHRASE }),
     nodes: Object.freeze(nodes),
     announced: Object.freeze(announced),
+    strangers: Object.freeze(strangers),
     groups: Object.freeze({ tornen: ['DEMO-Kvarnberget', 'DEMO-Vattentornet'], sol: ['DEMO-Rosenlund', 'DEMO-Ekbacken', 'DEMO-Granbo'] }),
   });
 }
