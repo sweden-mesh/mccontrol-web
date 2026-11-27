@@ -624,12 +624,12 @@ export function openAnnounceBody(key, commandKeyHex, raw) {
 }
 
 // A signed announce, checked in the order the note gives: size and kind ('not-announce'), the
-// owner tag ('other-owner', one SHA-256), the node's signature ('sig-invalid'), then the seal
+// owner tag ('other-owner', one SHA-256), the node's signature ('bad-signature', the firmware's word), then the seal
 // ('does-not-open'). `key` is K_malive of the node it names.
 export function openAnnounce(key, commandKeyHex, raw) {
   if (!isAnnounce(raw)) throw new Refused('not-announce');
   if (!announceIsFor(commandKeyHex, raw)) throw new Refused('other-owner');
-  if (!announceSignatureOk(raw)) throw new Refused('sig-invalid');
+  if (!announceSignatureOk(raw)) throw new Refused('bad-signature');
   return openAnnounceBody(key, commandKeyHex, raw);
 }
 

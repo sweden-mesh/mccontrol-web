@@ -44,7 +44,8 @@ const [A1] = V.announces;
 
 // The vectors of this file: the malive vectors' keys and A1, signed by the node; an entry with two
 // catchers; a guest forward with a fixed nonce. mccontrol-cli's tests/test_node_store.py holds the
-// same hex.
+// same hex. X.signed is also the firmware's A1 in planning/firmware/malive-vectors-20261127.json (lou-21,
+// regenerated with the signature), cross-checked 2026-11-28.
 const X = Object.freeze({
   signed: '4F4FD099CCD47D7893DFE9EC24414ECB0D9B5420232AAD30D91C465BE33CBE65C44D86B8A37F07000000010000000A8929E75030C7B61C72ED92FCFF1F24B473C950D0EA2478D42A8694CAF611F3F9C313EE64D67BACA1BD1D6715D3F7C52A87DDAC809D1BB633F252A657F66CD04673BB52C57EFD4A45468AA2F07553551EF5FA7AA1F202AD9CC579CFE313B6A8C03C42AD04EFBF883AE666CD16D6B2E2D4E35005760F0F',
   catchers: [{ key: CATCHER, arrival: 1795000050, snr: -22, hops: 2, via: 2, list: 0 }, { key: STRANGER, arrival: 1794990000, snr: 30, hops: 0, via: 0, list: 1 }],
@@ -109,12 +110,12 @@ test('the checks run in the note\'s order: size and kind, owner tag, signature, 
     bent[at] ^= 1;
     if (at === 1) assert.equal(refused(bent), 'other-owner', 'the node key is inside the tag');
     else if (at === 40) assert.equal(refused(bent), 'other-owner', 'boot is inside the tag');
-    else assert.equal(refused(bent), 'sig-invalid', `byte ${at}`);
+    else assert.equal(refused(bent), 'bad-signature', `byte ${at}`);
   }
   // a valid signature by another key over the same bytes: the key named is the node's, so it fails
   const forged = Uint8Array.from(signed);
   forged.set(handleOf('catcher').sign(fromHex(toHex(new TextEncoder().encode('mcc3/ann|'), true) + X.signed.slice(2, 202))), 101);
-  assert.equal(refused(forged), 'sig-invalid');
+  assert.equal(refused(forged), 'bad-signature');
   // signed right but sealed under another key: the seal is the last check
   const wrongSeal = announceOf({}, { key: new Uint8Array(32) });
   assert.ok(mcc3.announceSignatureOk(wrongSeal));
