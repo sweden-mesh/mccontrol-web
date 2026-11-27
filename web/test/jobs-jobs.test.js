@@ -317,6 +317,9 @@ test('overview: attention in order, counts, recent since the last visit', async 
   assert.deepEqual([...new Set(kinds)].sort(), ['battery', 'noAnswer', 'notHeard', 'outdated', 'refused']);
   assert.ok(kinds.indexOf('battery') < kinds.indexOf('noAnswer') && kinds.lastIndexOf('refused') < kinds.indexOf('outdated'));
   assert.equal(items.find((i) => i.kind === 'notHeard').name, 'SE-JKG-Lekeryd');
+  // A node without Wi-Fi never speaks on MQTT, so its silence there is not reported.
+  const radioOnly = devices.map((d) => (d.name === 'SE-JKG-Lekeryd' ? { ...d, meshOnly: true } : d));
+  assert.equal(needsAttention(radioOnly, { now, hours: 24, thresholdMv: 3500, release: { tag: 'v1.18.0-lou-18' }, rules }).some((i) => i.kind === 'notHeard'), false);
   assert.deepEqual(items.filter((i) => i.kind === 'battery').map((i) => i.name).sort(), ['SE-JKG-Jöransberg', 'SE-JKG-Norrängen']);
   const c = fleetCounts(devices, { now, hours: 24, rules });
   assert.equal(c.total, 12);

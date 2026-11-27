@@ -30,6 +30,8 @@ export function needsAttention(devices, { now, hours, thresholdMv, release = nul
   const out = [];
   const name = (d) => d.name || d.node;
   for (const d of devices) {
+    // A node without Wi-Fi never speaks on MQTT: its silence there is how it is, not a finding.
+    if (rules?.deviceMeshOnly?.(d)) continue;
     const heard = lastHeard(d);
     if (heard !== null && now - heard > hours * HOUR) {
       out.push({ node: d.node, name: name(d), kind: 'notHeard', vars: { hours: Math.floor((now - heard) / HOUR) }, at: heard });
@@ -75,7 +77,7 @@ export function fleetCounts(devices, { now, hours, rules }) {
     regions.set(d.region, (regions.get(d.region) || 0) + 1);
     const v = d.ver ? shortVersion(rules, d.ver) : null;
     versions.set(v, (versions.get(v) || 0) + 1);
-    const at = lastHeard(d);
+    const at = rules?.deviceMeshOnly?.(d) ? null : lastHeard(d);      // radio only: never heard on MQTT, so not quiet
     if (at === null) unknown += 1;
     else if (now - at > hours * HOUR) quiet += 1;
     else heard += 1;
