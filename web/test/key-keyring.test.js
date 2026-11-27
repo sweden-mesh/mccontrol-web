@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createKeyring, DEFAULT_AUTO_LOCK } from '../lib/key/keyring.js';
+import { createKeyring, DEFAULT_AUTO_LOCK, PERSIST_WAIT_MS } from '../lib/key/keyring.js';
 import { memoryStorage } from '../lib/key/storage.js';
 import { openSealed } from '../lib/key/backup.js';
 import { toHex, utf8 } from '../lib/bytes.js';
@@ -208,6 +208,37 @@ test('a running job keeps its key past a lock, and only until it ends', async ()
   release();
   release();                                                   // twice is harmless
   assert.throws(() => handle.sign(utf8('step 3')), /locked/);
+});
+
+test('a browser that never answers about keeping the storage does not hold up the key', async () => {
+  // Firefox: the request waits on a prompt the owner may never answer.
+  let answer;
+  const { ring: r, clock } = ring({ storageManager: { persist: () => new Promise((ok) => { answer = ok; }) } });
+  const making = r.create(PASS);
+  let made = false;
+  making.then(() => { made = true; });
+  for (let i = 0; i < 200 && !answer; i++) await new Promise((ok) => { setTimeout(ok, 5); });   // the key is sealed first
+  await new Promise((ok) => { setTimeout(ok, 20); });
+  assert.equal(made, false);                                   // it waits a moment for a quick answer
+  clock.advance(PERSIST_WAIT_MS);
+  const handle = await making;
+  assert.equal(r.handle(), handle);
+  assert.equal((await r.status()).persist.granted, null);
+  answer(true);                                                // the owner answers the prompt later
+  await new Promise((ok) => { setTimeout(ok, 20); });
+  assert.equal((await r.status()).persist.granted, true);
+  // The same when the key is replaced.
+  let second;
+  const { ring: r2, clock: c2 } = ring({ storageManager: { persist: () => new Promise((ok) => { second = ok; }) } });
+  const first = r2.create(PASS);
+  for (let i = 0; i < 200 && !second; i++) await new Promise((ok) => { setTimeout(ok, 5); });
+  c2.advance(PERSIST_WAIT_MS);
+  const old = await first;
+  second = null;
+  const replacing = r2.create(PASS, { replace: true });
+  for (let i = 0; i < 200 && !second; i++) await new Promise((ok) => { setTimeout(ok, 5); });
+  c2.advance(PERSIST_WAIT_MS);
+  assert.notEqual((await replacing).publicKeyHex, old.publicKeyHex);
 });
 
 test('persistent storage is asked for and remembered', async () => {

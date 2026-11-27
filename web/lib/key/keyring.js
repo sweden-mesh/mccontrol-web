@@ -46,6 +46,8 @@ export { MIN_PASSPHRASE } from './backup.js';
 export const AUTO_LOCK_CHOICES = Object.freeze([5, 15, 60, null]);
 // Until the tab closes (operator 2026-11-25): a timed lock is the owner's choice in Setup.
 export const DEFAULT_AUTO_LOCK = null;
+// How long making or replacing a key waits for the browser's answer about keeping its storage.
+export const PERSIST_WAIT_MS = 1500;
 
 const realClock = Object.freeze({
   now: () => Date.now(),
@@ -159,9 +161,22 @@ export function createKeyring({
       wraps: { passphrase: sealed }, backup: null,
       settings: { autoLockMinutes: DEFAULT_AUTO_LOCK }, persist: null,
     };
-    record.persist = await persist();
+    // The browser may answer the request to keep the storage with a prompt, and Firefox leaves
+    // the request unanswered until the owner answers the prompt, which may be never. The key is
+    // stored after a short wait all the same; an answer that comes later is written then.
+    const asked = persist();
+    let timer = null;
+    const answer = await Promise.race([asked, new Promise((r) => { timer = clock.setTimeout(() => r(null), PERSIST_WAIT_MS); })]);
+    clock.clearTimeout(timer);
+    record.persist = answer ?? { at: nowIso(clock), granted: null };
     await storage.put(record);
     for (const old of existing) if (old.id !== record.id) await storage.remove(old.id);
+    if (!answer) {
+      asked.then(async (late) => {
+        const now = await active();
+        if (now?.id === record.id) await update((r) => { r.persist = late; });
+      }).catch(() => {});
+    }
     return open(seed);
   }
 
