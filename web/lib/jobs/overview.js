@@ -15,11 +15,25 @@ export const voltsText = (mv) => (batteryKnown(mv) ? `${(mv / 1000).toFixed(2)} 
 
 // The newest moment the node was heard on MQTT: its last status on Beacon, its last answer to us
 // (answers travel over MQTT too), or its alive message that opened under our key and says it is
-// online: that is the node speaking to its owner. null when none is known.
+// online: that is the node speaking to its owner. For a node without Wi-Fi, also when one of the
+// owner's Observer nodes caught its announce (`heard`). null when none is known.
 export function lastHeard(device) {
   const alive = device.alive?.state === 'online' ? device.alive.at : null;
-  const times = [device.fleet?.seen, device.lastHeard, alive].filter(Boolean).map((t) => Date.parse(t)).filter(Number.isFinite);
+  const times = [device.fleet?.seen, device.lastHeard, alive, device.heard?.at].filter(Boolean).map((t) => Date.parse(t)).filter(Number.isFinite);
   return times.length ? Math.max(...times) : null;
+}
+
+// The newest battery reading of a node, or null: { mv, at (ms or null), source, by, byName }.
+// source 'beacon' is the node's own status (a node on Wi-Fi); 'heard' is the announce of a node
+// without Wi-Fi, caught by the owner's Observer node `by`. With both, the newer.
+export function batteryReading(device) {
+  const ms = (t) => { const at = Date.parse(t || ''); return Number.isFinite(at) ? at : null; };
+  const out = [];
+  if (batteryKnown(device?.fleet?.batteryMv)) out.push({ mv: device.fleet.batteryMv, at: ms(device.fleet.seen), source: 'beacon', by: null, byName: null });
+  const h = device?.heard;
+  if (batteryKnown(h?.batteryMv)) out.push({ mv: h.batteryMv, at: ms(h.at), source: 'heard', by: h.by || null, byName: h.byName || null });
+  out.sort((a, b) => (b.at ?? -Infinity) - (a.at ?? -Infinity));
+  return out[0] || null;
 }
 
 // [{ node, name, kind, vars }] in the order the plan gives: not heard on MQTT for `hours`,
@@ -38,9 +52,10 @@ export function needsAttention(devices, { now, hours, thresholdMv, release = nul
     }
   }
   for (const d of devices) {
-    const mv = d.fleet?.batteryMv;
-    if (batteryKnown(mv) && mv < thresholdMv) {
-      out.push({ node: d.node, name: name(d), kind: 'battery', vars: { volts: (mv / 1000).toFixed(2) }, at: Date.parse(d.fleet.seen) });
+    // The newest reading, whatever its age: Beacon's, or the announce of a node without Wi-Fi.
+    const b = batteryReading(d);
+    if (b && b.mv < thresholdMv) {
+      out.push({ node: d.node, name: name(d), kind: 'battery', vars: { volts: (b.mv / 1000).toFixed(2) }, at: b.at ?? NaN });
     }
   }
   for (const d of devices) {

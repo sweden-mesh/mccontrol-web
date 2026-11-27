@@ -488,3 +488,127 @@ export function openAlive(keys, payload) {
   }
   return out;
 }
+
+// -- announce and heard (lou-21): a node without Wi-Fi finds its owner ------------------------
+//
+// A node without Wi-Fi floods an announce over the mesh; an Observer node of the same owner that
+// catches it publishes what it heard, retained, on `mcc/heard/<its KEY>/<slot>`. Two keys of
+// their own, from the same S:
+//
+//   K_malive  HKDF-SHA256(S, salt empty, "mcc3/malive/" + KEY)  the announce; KEY the announcing node's
+//   K_heard   HKDF-SHA256(S, salt empty, "mcc3/heard/"  + KEY)  a heard entry; KEY the catching node's
+//
+// test/malive-vectors.json (the firmware's own) pins these byte for byte.
+
+export const INFO_MALIVE = 'mcc3/malive/';
+export const INFO_HEARD = 'mcc3/heard/';
+export const OWN_LABEL = 'mcc3/own|';
+export const KIND_ANNOUNCE = 0x4d;
+export const KIND_HEARD = 0x48;
+export const ANNOUNCE_SIZE = 101;
+export const ANNOUNCE_SEALED = 47;
+export const ANNOUNCE_TAG = 8; // the Poly1305 tag is cut to its first 8 bytes
+export const ANNOUNCE_KEPT = 68; // what a heard entry keeps: the announce from its kind byte on
+export const ANNOUNCE_MAX = Object.freeze({ version: 14, name: 16 });
+export const HEARD_PLAIN = 112;
+export const HEARD_SIZE = 1 + NONCE_LEN + HEARD_PLAIN + TAG_LEN;
+export const HEARD_SLOTS = 16;
+export const HEARD_FILTER = `${TOPIC_ROOT}heard/+/+`;
+
+const labelled = (secret, info, nodeKeyHex) => hkdf(sha256, secret, new Uint8Array(0), utf8(info + keyHex(nodeKeyHex)), 32);
+
+// K_malive, from S and the announcing node's key.
+export const maliveKey = (secret, nodeKeyHex) => labelled(secret, INFO_MALIVE, nodeKeyHex);
+// K_heard, from S and the catching node's key.
+export const heardKey = (secret, nodeKeyHex) => labelled(secret, INFO_HEARD, nodeKeyHex);
+
+export const heardTopic = (nodeKeyHex, slot) => `${TOPIC_ROOT}heard/${keyHex(nodeKeyHex)}/${Number(slot)}`;
+
+// { key, slot } of `mcc/heard/<KEY>/<slot>` (the catching node's key, slot 0 to 15), else null.
+export function heardFromTopic(topic) {
+  const parts = String(topic || '').split('/');
+  if (parts.length !== 4 || `${parts[0]}/` !== TOPIC_ROOT || parts[1] !== 'heard') return null;
+  if (!/^[0-9A-F]{64}$/.test(parts[2]) || !/^(?:[0-9]|1[0-5])$/.test(parts[3])) return null;
+  return { key: parts[2], slot: Number(parts[3]) };
+}
+
+// The four bytes by which a catching node knows an announce is for its own command key.
+export function ownerTag(commandKeyHex, nodeKeyHex, boot, sequence) {
+  return sha256(concat(utf8(OWN_LABEL), fromHex(keyHex(commandKeyHex)), fromHex(keyHex(nodeKeyHex)), u32(boot), u32(sequence)))
+    .subarray(0, 4);
+}
+
+const announceNonce = (boot, sequence) => concat(new Uint8Array(4), u32(boot), u32(sequence));
+const u16 = (value) => Uint8Array.of(value & 0xff, (value >> 8) & 0xff);
+const same = (a, b) => { let d = a.length ^ b.length; for (let i = 0; i < a.length && i < b.length; i += 1) d |= a[i] ^ b[i]; return d === 0; };
+
+// The 101 bytes a node without Wi-Fi floods; for the vectors, the test fakes and the demo.
+// `key` is K_malive; f: { boot, sequence, uptime, clock, last_counter, flags, battery_mv, version, name }.
+export function sealAnnounce(key, commandKeyHex, nodeKeyHex, f) {
+  const node = fromHex(keyHex(nodeKeyHex));
+  const plain = concat(u32(f.uptime), u32(f.clock), u32(f.last_counter), Uint8Array.of(f.flags), u16(f.battery_mv),
+    lp(f.version, ANNOUNCE_MAX.version), lp(f.name, ANNOUNCE_MAX.name));
+  const head = concat(node.subarray(0, 1), node, Uint8Array.of(KIND_ANNOUNCE), ownerTag(commandKeyHex, nodeKeyHex, f.boot, f.sequence),
+    u32(f.boot), u32(f.sequence));
+  const sealed = chacha20poly1305(key, announceNonce(f.boot, f.sequence), head.subarray(1)).encrypt(pad(plain, [ANNOUNCE_SEALED]));
+  return concat(head, sealed.subarray(0, ANNOUNCE_SEALED + ANNOUNCE_TAG));
+}
+
+// The fields of an announce (and node_key), or Refused: 'not-announce' for another size or kind,
+// 'other-owner' when its owner tag is not this command key's, 'does-not-open' when the seal does
+// not verify under `key` (K_malive of the node it names). The tag on the wire is the Poly1305
+// tag's first 8 bytes: the whole tag is made again here and its start compared.
+export function openAnnounce(key, commandKeyHex, payload) {
+  const raw = payload;
+  if (!(raw instanceof Uint8Array) || raw.length !== ANNOUNCE_SIZE || raw[33] !== KIND_ANNOUNCE) throw new Refused('not-announce');
+  const node = toHex(raw.subarray(1, 33), true);
+  const boot = readU32(raw, 38);
+  const sequence = readU32(raw, 42);
+  if (!same(raw.subarray(34, 38), ownerTag(commandKeyHex, node, boot, sequence))) throw new Refused('other-owner');
+  const nonce = announceNonce(boot, sequence);
+  const aad = raw.subarray(1, 46);
+  const p = chacha20(key, nonce, raw.subarray(46, 46 + ANNOUNCE_SEALED), undefined, 1);
+  const again = chacha20poly1305(key, nonce, aad).encrypt(p);
+  if (!same(again.subarray(ANNOUNCE_SEALED, ANNOUNCE_SEALED + ANNOUNCE_TAG), raw.subarray(46 + ANNOUNCE_SEALED))) throw new Refused('does-not-open');
+  const out = { node_key: node, boot, sequence, uptime: readU32(p, 0), clock: readU32(p, 4), last_counter: readU32(p, 8),
+    flags: p[12], battery_mv: p[13] | (p[14] << 8) };
+  let at = 15;
+  for (const name of ['version', 'name']) {
+    const n = p[at];
+    if (n > ANNOUNCE_MAX[name] || at + 1 + n > ANNOUNCE_SEALED) throw new Refused('bad-fields');
+    out[name] = lenient.decode(p.subarray(at + 1, at + 1 + n));
+    at += 1 + n;
+  }
+  return out;
+}
+
+const i8 = (value) => (value << 24) >> 24;
+
+// A catching node's heard entry, the payload of `mcc/heard/<KEY>/<slot>`; for the vectors, the
+// test fakes and the demo. `key` is K_heard; `announce` the 101 bytes it caught;
+// f: { heard_at, snr (quarter dB), hops, advert_heard_at, advert_snr, advert_hops }.
+export function sealHeard(key, nodeKeyHex, announce, f, { nonce = null } = {}) {
+  if (!(announce instanceof Uint8Array) || announce.length !== ANNOUNCE_SIZE) throw new Mcc3Error(`an announce is ${ANNOUNCE_SIZE} bytes`);
+  const plain = concat(fromHex(keyHex(nodeKeyHex)), announce.subarray(33), u32(f.heard_at), Uint8Array.of(f.snr & 0xff, f.hops),
+    u32(f.advert_heard_at), Uint8Array.of(f.advert_snr & 0xff, f.advert_hops));
+  const n = asNonce(nonce);
+  const header = concat(Uint8Array.of(KIND_HEARD), n);
+  return b64url(concat(header, chacha20poly1305(key, n, header).encrypt(plain)));
+}
+
+// What a heard entry says, or Refused: node_key (the announced node), announce (its 101 bytes,
+// built again from the 68 kept: still to be opened with openAnnounce), when it was heard by the
+// catching node's clock (0 while that is unset), the SNR in quarter dB, the hops, and the same
+// three for the node's last advert (0: none).
+export function openHeard(key, payload) {
+  const raw = unb64(payload);
+  if (raw.length !== HEARD_SIZE || raw[0] !== KIND_HEARD) throw new Refused('bad-fields');
+  const header = raw.subarray(0, 13);
+  const p = openAead(key, header.subarray(1), header, raw.subarray(13));
+  const at = 32 + ANNOUNCE_KEPT;
+  return {
+    node_key: toHex(p.subarray(0, 32), true), announce: concat(p.subarray(0, 1), p.subarray(0, at)),
+    heard_at: readU32(p, at), snr: i8(p[at + 4]), hops: p[at + 5],
+    advert_heard_at: readU32(p, at + 6), advert_snr: i8(p[at + 10]), advert_hops: p[at + 11],
+  };
+}

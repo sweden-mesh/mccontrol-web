@@ -96,5 +96,37 @@
   "snr_none": 128,
   "path_none": 255,
   "max_ttl_secs": 300
+ },
+ "mcc3_heard": {
+  "topic": "mcc/heard/<KEY>/<SLOT>",
+  "filter": "mcc/heard/+/+",
+  "slots": 16,
+  "kind": 72,
+  "hkdf_info": "mcc3/heard/<KEY>",
+  "plaintext": 112,
+  "size": 141,
+  "base64url_chars": 188,
+  "announce": {
+   "kind": 77,
+   "hkdf_info": "mcc3/malive/<KEY>",
+   "owner_tag_label": "mcc3/own|",
+   "size": 101,
+   "sealed": 47,
+   "tag": 8,
+   "kept": 68,
+   "max_version": 14,
+   "max_name": 16
+  },
+  "from": 21,
+  "vectors": "vectors/malive-vectors.json"
+ },
+ "_mcc3_heard_layout": {
+  "heard": "base64url without padding of: kind 0x48, nonce (12, random), then sealed with K_heard (ChaCha20-Poly1305, AAD the kind and the nonce, tag 16): the announced node's key (32), the announce from its kind byte to its tag (68), heard_at (u32 LE, the catching node's clock, 0 while unset), snr (i8, quarter dB), hops (u8), then the same three for the node's last advert (0: none)",
+  "K_heard": "HKDF-SHA256(X25519(owner, catching node), salt empty, info hkdf_info with <KEY> the catching node's key as 64 upper-case hex)",
+  "announce": "the announced key's first byte, then the heard entry's first 100 bytes: byte 0, node key (1..32), kind 0x4D (33), owner tag (34..37), boot (38..41, u32 LE), sequence (42..45), 47 bytes sealed with K_malive (ChaCha20-Poly1305, nonce 00 x 4 then boot then sequence, AAD bytes 1..45), then the first 8 bytes of the tag",
+  "K_malive": "HKDF-SHA256(X25519(owner, announced node), salt empty, info announce.hkdf_info with <KEY> the announced node's key as 64 upper-case hex)",
+  "owner_tag": "SHA-256(owner_tag_label, command key, node key, boot, sequence), first 4 bytes",
+  "sealed": "uptime (u32 LE), clock (u32, 0 while unset), last command counter (u32), flags (u8, the alive message's), battery in millivolts (u16, 0: unknown), version (length byte, at most max_version), name (length byte, at most max_name, cut), zeros to 47",
+  "reading": "open the heard entry of each of your own Observer nodes, then the announce inside; one that does not open is dropped silently; the newest (boot, sequence) per announced node is kept"
  }
 }

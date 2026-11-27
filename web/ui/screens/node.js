@@ -13,7 +13,7 @@ import { blocker } from '../../lib/jobs/checks.js';
 import { scheme } from '../../lib/jobs/scheme.js';
 import { relaying } from '../../lib/jobs/relay.js';
 import {
-  confirm, explain, field, nameOf, progressLine, screen, volts, when, withServices, put, lockedNote } from './node-kit.js';
+  batteryOf, confirm, explain, field, heardOf, nameOf, progressLine, screen, when, withServices, put, lockedNote } from './node-kit.js';
 import { runSetPanel } from './sets.js';
 
 // The steps of "Set/update region" (W-26i): the shipped add-scope set, as exported from Python, so
@@ -207,8 +207,10 @@ export function render(ctx) {
       put(body,
         h('p', { class: 'node-meta' },
           h('code', {}, device.key || device.node), ' · ', ...nodeFacts(ctx, device).flatMap((f) => [f, ' · ']),
-          heard ? [ctx.t('node.heard'), ' ', when(ctx, heard)] : ctx.t('nodes.heardUnknown'),
-          ' · ', volts(ctx.t, device.fleet?.batteryMv)),
+          // a node without Wi-Fi last heard by its announce: who heard it (L21-D8), never "on MQTT"
+          device.heard?.at && heard === Date.parse(device.heard.at) ? heardOf(ctx, device)
+            : heard ? [ctx.t('node.heard'), ' ', when(ctx, heard)] : ctx.t('nodes.heardUnknown'),
+          ' · ', batteryOf(ctx, device)),
         device.key ? null : h('p', { class: 'check check-caution' }, ctx.t('node.noWholeKey')),
         h('h2', {}, ctx.t('node.edit')),
         editForm(ctx, svc, device, draw),

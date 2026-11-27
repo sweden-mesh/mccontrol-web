@@ -8,10 +8,10 @@ import { h } from '../dom.js';
 import { dataChanged } from '../tiles/sources.js';   // the page's lists follow a node added, renamed or forgotten here
 import { lowBatteryVolts, notHeardHours } from './settings-store.js';
 import { brokerText } from './key-register.js';
-import { batteryKnown, lastHeard, shortVersion } from '../../lib/jobs/overview.js';
+import { lastHeard, shortVersion } from '../../lib/jobs/overview.js';
 import { updateAvailable } from '../../lib/jobs/releases.js';
 import {
-  byName, explainEvent, field, nameOf, outcomeTag, progressLine, screen, volts, when, withServices, put, lockedNote } from './node-kit.js';
+  batteryOf, byName, explainEvent, field, heardOf, nameOf, outcomeTag, progressLine, screen, when, withServices, put, lockedNote } from './node-kit.js';
 
 export const route = 'nodes';
 export const title = 'nav.nodes';
@@ -20,16 +20,16 @@ const HOURS = () => notHeardHours();
 
 function heardCell(ctx, d, now) {
   const at = lastHeard(d);
+  // A node without Wi-Fi last heard by its announce: who heard it, and when (L21-D8).
+  if (d.heard?.at && at === Date.parse(d.heard.at)) return heardOf(ctx, d, now);
   if (at === null) return h('span', { class: 'muted' }, ctx.t('nodes.heardUnknown'));
   const quiet = now - at > HOURS(ctx) * 3600000;
   return h('span', { class: quiet ? 'warn-text' : '' }, quiet ? `${ctx.t('nodes.quiet')} ` : '', when(ctx, at));
 }
 
-function batteryCell(ctx, d) {
-  const mv = d.fleet?.batteryMv;
-  if (!batteryKnown(mv)) return h('span', { class: 'muted' }, volts(ctx.t, mv));
-  const low = mv < lowBatteryVolts() * 1000;
-  return h('span', { class: low ? 'warn-text' : '' }, volts(ctx.t, mv), low ? ` ${ctx.t('nodes.low')}` : '');
+// The newest reading, Beacon's or the announce's, with its age and source (L21-D8).
+function batteryCell(ctx, d, now) {
+  return batteryOf(ctx, d, { now, lowMv: lowBatteryVolts() * 1000 });
 }
 
 function versionCell(ctx, svc, d, release) {
@@ -68,7 +68,7 @@ function table(ctx, svc, devices, release) {
         cell(cols[0], stateCell(ctx, d)),
         cell(cols[1], heardCell(ctx, d, now)),
         cell(cols[2], versionCell(ctx, svc, d, release)),
-        cell(cols[3], batteryCell(ctx, d)),
+        cell(cols[3], batteryCell(ctx, d, now)),
         cell(cols[4], resultCell(ctx, svc, d)))))));
 }
 
@@ -109,15 +109,15 @@ function discoverForm(ctx, svc, redraw) {
         const add = h('button', { type: 'button', class: 'tool' }, ctx.t('nodes.adopt'));
         add.addEventListener('click', async () => {
           try {
-            await svc.jobs.adopt({ node: f.key, key: f.key, region: '', alive: f.alive }, name.value);
+            await svc.jobs.adopt({ node: f.key, key: f.key, region: '', alive: f.alive, heard: f.heard }, name.value);
             add.replaceWith(h('span', {}, ctx.t('nodes.adopted')));
             redraw();
             dataChanged('devices');
           } catch (err) { ctx.notify(err.message, { kind: 'error' }); }
         });
-        return h('li', {}, h('code', {}, f.node), ' ', h('span', {}, ctx.t(`alive.${f.state}`)), ' ',
+        return h('li', {}, h('code', {}, f.node), ' ', h('span', {}, ctx.t(`alive.${f.state}`, { name: f.heard?.byName || f.heard?.by })), ' ',
           f.knownAs ? h('span', {}, ctx.t('nodes.knownAs', { name: f.knownAs }))
-            : f.state === 'online' ? [field(ctx.t('nodes.nameFor', { node: f.node }), name), add] : null);
+            : f.state === 'online' || f.state === 'heard' ? [field(ctx.t('nodes.nameFor', { node: f.node }), name), add] : null);
       })), notHere);
     } catch (err) {
       put(out, h('p', { class: 'err', role: 'alert' }, err.code === 'locked' ? lockedNote(ctx) : brokerText(ctx.t, err.message)));

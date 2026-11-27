@@ -21,8 +21,8 @@ import { createMqttClient } from './mqtt-client.js';
 import { SUBACK_FAILURE } from './mqtt-codec.js';
 import { makeToken, username as tokenUsername } from './token.js';
 import {
-  ALIVE_FILTER, Mcc3Error, Refused, TOPIC_ROOT, commandTopic, deriveKeys, newRid, nodeFromTopic, openAlive,
-  openForwardResult, openResult, replyTopic, sealCommand, sealForward,
+  ALIVE_FILTER, HEARD_FILTER, Mcc3Error, Refused, TOPIC_ROOT, commandTopic, deriveKeys, heardFromTopic, heardKey, maliveKey,
+  newRid, nodeFromTopic, openAlive, openAnnounce, openForwardResult, openHeard, openResult, replyTopic, sealCommand, sealForward,
 } from './mcc3.js';
 import { fromHex, toHex } from '../bytes.js';
 import { nodeKey } from './topics.js';
@@ -149,19 +149,56 @@ export function newer(fields, than) {
   return fields.boot > b || (fields.boot === b && fields.sequence > q);
 }
 
+// One heard entry of our Observer node `catcherKey` (lou-21), opened twice: the entry with
+// K_heard, then the announce inside with K_malive of the node it names. Resolves to the
+// announce's fields, the entry's (heard_at, snr in quarter dB, hops, advert_*) and `by` (the
+// catching node's key), or null: an entry or an announce that does not open is dropped, so a
+// forged announce never shows as a node. `secrets` as openAliveWith's.
+export function openHeardWith(handle, secrets, catcherKey, payload) {
+  const secret = (key) => {
+    if (!secrets[key]) secrets[key] = toHex(handle.sharedSecret(key), true);
+    return fromHex(secrets[key]);
+  };
+  try {
+    const { node_key: node, announce, ...entry } = openHeard(heardKey(secret(catcherKey), catcherKey), payload);
+    return { ...openAnnounce(maliveKey(secret(node), node), handle.publicKeyHex, announce), ...entry, by: catcherKey };
+  } catch (e) {
+    if (e instanceof Refused || e instanceof Mcc3Error) return null;
+    throw e;
+  }
+}
+
+// { announced node KEY: entry } from opened heard entries: several of our nodes may have caught
+// the same node, and the newest (boot, sequence) is kept.
+export function newestHeard(entries) {
+  const out = {};
+  for (const e of entries) if (e && newer(e, out[e.node_key])) out[e.node_key] = e;
+  return out;
+}
+
 const yieldNow = () => new Promise((r) => { setTimeout(r, 0); });
 
 // Subscribe `mcc/alive/+` and read the retained snapshot (and any live update) for `waitSecs`.
 // Resolves to { KEY: { state, fields, at } }, the newest per node. Reads only: nothing is
 // published. The first sight of a key costs an X25519 (~1 ms); messages are opened in slices of
 // `sliceMs` with a yield between, so a scan of thousands of keys leaves the page responsive.
+//
+// With `heard` (a Map), `mcc/heard/+/+` is read on the same connection and the map gains
+// "<catching node KEY>/<slot>" -> payload, unopened: the caller opens those of its own nodes
+// (openHeardWith). A command server that does not know the topic refuses that one filter;
+// nothing is heard then, and nothing else changes.
 export async function scanAlive({
-  config, handle, secrets, waitSecs = 10, progress, signal, connect, now = () => Date.now(), sliceMs = 15,
+  config, handle, secrets, waitSecs = 10, progress, signal, connect, now = () => Date.now(), sliceMs = 15, heard = null,
 }) {
   const seen = {};
   const queue = [];
   let refused = false;
   const onMessage = (topic, bytes) => {
+    const slot = heard ? heardFromTopic(topic) : null;
+    if (slot) {
+      if (bytes?.length) heard.set(`${slot.key}/${slot.slot}`, bytes); else heard.delete(`${slot.key}/${slot.slot}`);   // emptied
+      return;
+    }
     if (!topic.startsWith(`${TOPIC_ROOT}alive/`)) return;
     const key = nodeFromTopic(topic);
     if (key) queue.push([key, bytes]);
@@ -178,7 +215,7 @@ export async function scanAlive({
   }
   const client = await connectPlane(config, { connect, onMessage });
   try {
-    const granted = await client.subscribe([{ topic: ALIVE_FILTER, qos: 1 }]);
+    const granted = await client.subscribe([{ topic: ALIVE_FILTER, qos: 1 }, ...(heard ? [{ topic: HEARD_FILTER, qos: 1 }] : [])]);
     if (granted?.[0] === SUBACK_FAILURE) refused = true;
     if (!refused) {
       const ours = () => Object.keys(seen).filter((k) => seen[k].state === 'ours');

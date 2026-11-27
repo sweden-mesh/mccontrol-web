@@ -35,6 +35,16 @@ test('the constants are the ones Python exports', () => {
       routes: { ...M3.ROUTES }, statuses: [...M3.FORWARD_STATUSES], sent: { ...M3.SENT }, snr_none: M3.SNR_NONE,
       path_none: M3.PATH_NONE, max_ttl_secs: M3.FORWARD_MAX_TTL,
     },
+    mcc3_heard: {
+      topic: 'mcc/heard/<KEY>/<SLOT>', filter: M3.HEARD_FILTER, slots: M3.HEARD_SLOTS, kind: M3.KIND_HEARD,
+      hkdf_info: `${M3.INFO_HEARD}<KEY>`, plaintext: M3.HEARD_PLAIN, size: M3.HEARD_SIZE, base64url_chars: 188,
+      announce: {
+        kind: M3.KIND_ANNOUNCE, hkdf_info: `${M3.INFO_MALIVE}<KEY>`, owner_tag_label: M3.OWN_LABEL, size: M3.ANNOUNCE_SIZE,
+        sealed: M3.ANNOUNCE_SEALED, tag: M3.ANNOUNCE_TAG, kept: M3.ANNOUNCE_KEPT, max_version: M3.ANNOUNCE_MAX.version,
+        max_name: M3.ANNOUNCE_MAX.name,
+      },
+      from: 21, vectors: 'vectors/malive-vectors.json',
+    },
   };
   // keys that start with _ are for the reader (the source, the mesh road's layout in words)
   const exported = Object.fromEntries(Object.entries(p).filter(([k]) => !k.startsWith('_')));

@@ -405,7 +405,13 @@ shared secret per node key is kept sealed beside the key, `ring.loadSecrets`; no
 first sight of a key costs one X25519 (~1 ms); messages are opened in 15 ms slices with a yield
 between, on the page rather than in a Web Worker, because a Worker would need the seed or every
 shared secret handed to it, which the key boundary below forbids. A node of the owner's that is
-not in the list is added by its whole key with no region. Then, only for lou-19-and-older nodes,
+not in the list is added by its whole key with no region. On the same connection it reads what the
+owner's own Observer nodes heard (`mcc/heard/+/+`, lou-21): a node without Wi-Fi announces itself over
+the mesh with its name, version and battery, an Observer node of the same owner keeps that sealed on the
+command server, and the page opens the entry (K_heard) and then the announce inside it (K_malive, its
+cut tag checked); one that does not open is dropped, the newest (boot, sequence) per node is kept, and
+the node is added as one without Wi-Fi, never over a name the owner gave (`test/heard.test.js`). Its
+battery is shown with its age and who heard it, the newer of that and Beacon's. Then, only for lou-19-and-older nodes,
 the old discovery at most once an hour per region (`get autoreply` then `get name`, 2 of the
 broker's 5 broadcasts an hour per region), "Look now" at most twice an hour per region, at most 8
 regions an hour per key; its regions are the IATA codes of the list's own old nodes (stored, or
@@ -534,7 +540,9 @@ Rules the demo keeps, each pinned by a test:
   counter is above the last, not expired, the deny list, 50 commands an hour) before it answers sealed on the
   reply topic, after 1 to 4 s. `lib/demo/answers.js` holds what they answer, in the firmware's formats; a
   `set` changes the node for the session, `reboot` makes it silent for 20 s. The node that relays takes a
-  forward for the mesh-only node behind it, with the relay's own budget. The offline node and the one on
+  forward for the mesh-only node behind it, with the relay's own budget. One more node without Wi-Fi,
+  DEMO-Myrstigen, is not in the list at the start: DEMO-Ekbacken keeps a real sealed heard entry of its
+  announce, and the page's own discovery adds it with its battery. The offline node and the one on
   older firmware never answer. `test/demo-nodes.test.js` drives all of it through the real jobs and plane;
   `test/demo-answers.test.js` fails when the spec's command table gains a command the demo cannot answer.
 - **The companion is not in the demo.** No radio can be connected (`ui/companion-session.js`); the mesh-only

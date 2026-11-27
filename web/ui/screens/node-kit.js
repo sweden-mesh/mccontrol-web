@@ -2,7 +2,7 @@
 // key gate, ages, a result in words, the confirmation dialog, a progress line and downloads.
 import { h } from '../dom.js';
 import { codeHelp, codeName } from '../../lib/protocol/results.js';
-import { batteryKnown, NO_READING, shortVersion, voltsText } from '../../lib/jobs/overview.js';
+import { batteryKnown, batteryReading, NO_READING, shortVersion, voltsText } from '../../lib/jobs/overview.js';
 import { services } from './node-services.js';
 import { unlockHash } from './key-session.js';
 
@@ -229,6 +229,42 @@ export function field(label, control, hint = null) {
 
 // Sort helper for names in the page's language.
 export const byName = (lang) => (a, b) => nameOf(a).localeCompare(nameOf(b), lang);
+
+// The newest battery reading in words, with its age and where it came from (L21-D8): "3.71 V,
+// 9 hr. ago, heard by DEMO-Ekbacken" (the announce of a node without Wi-Fi, caught by one of your
+// Observer nodes) or "4.01 V, 30 min. ago, from Beacon". '' when there is none.
+export function batteryWords(ctx, device, now = Date.now()) {
+  const b = batteryReading(device);
+  if (!b) return '';
+  return [voltsText(b.mv), b.at === null ? null : ago(ctx, b.at, now),
+    b.source === 'heard' ? ctx.t('battery.heardBy', { name: b.byName || b.by }) : ctx.t('battery.fromBeacon')].filter(Boolean).join(', ');
+}
+
+// "heard by DEMO-Ekbacken 9 hr. ago" for a node without Wi-Fi whose announce one of your Observer
+// nodes caught (L21-D8); '' for any other. The time is the catching node's clock, or the time this
+// page read it when that clock was unset (the tooltip says so).
+export function heardWords(ctx, device, now = Date.now()) {
+  const x = device?.heard;
+  if (!x?.at) return '';
+  return ctx.t('heard.byAgo', { name: x.byName || x.by, age: ago(ctx, x.at, now) });
+}
+
+// The battery for a screen: the newest reading in words, low marked as such, or "NA".
+export function batteryOf(ctx, device, { now = Date.now(), lowMv = null } = {}) {
+  const b = batteryReading(device);
+  if (!b) return volts(ctx.t, null);
+  const low = lowMv !== null && b.mv < lowMv;
+  return h('span', { class: low ? 'warn-text' : '' }, batteryWords(ctx, device, now), low ? ` ${ctx.t('nodes.low')}` : '');
+}
+
+// "heard by ..." as an element with the reading's details for its tooltip, or null.
+export function heardOf(ctx, device, now = Date.now()) {
+  const words = heardWords(ctx, device, now);
+  if (!words) return null;
+  const x = device.heard;
+  const tip = [ctx.t('heard.tip', { snr: x.snr, hops: x.hops }), x.atRead ? ctx.t('heard.atRead') : null].filter(Boolean).join(' ');
+  return h('span', { class: 'heard-by', title: tip }, words);
+}
 
 // A battery reading for the screen (W-26j): "3.98 V", or "NA" with "Not available" as its tooltip
 // and as what a screen reader says, when the node has no battery or reports 0 mV.

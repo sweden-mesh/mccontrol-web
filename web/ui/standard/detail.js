@@ -12,7 +12,7 @@ import { h } from '../dom.js';
 import { lastHeard, shortVersion } from '../../lib/jobs/overview.js';
 import { updateAvailable } from '../../lib/jobs/releases.js';
 import { lowBatteryVolts, notHeardHours } from '../screens/settings-store.js';
-import { explainEvent, nameOf, volts } from '../screens/node-kit.js';
+import { batteryOf, explainEvent, heardWords, nameOf } from '../screens/node-kit.js';
 import * as historyScreen from '../screens/history.js';
 import { canUpdate, editForm, factList, firmwareBlock, nodeFacts, REGION_SET, runUpdate } from '../screens/node.js';
 import { runSetPanel } from '../screens/sets.js';
@@ -109,7 +109,8 @@ export function nodeDetail(ctx, svc, nodeId, { tab = 'overview', onTab, onPick }
       h('div', { class: 'std-top' },
         h('h1', {}, nameOf(device)),
         h('p', { class: 'muted std-meta' }, [kind, device.ver ? shortVersion(svc.rules, device.ver) : ctx.t('nodes.verUnknown'), ...nodeFacts(ctx, device),
-          heard ? h('span', {}, ctx.t('tile.heard'), ' ', age(ctx, heard)) : ctx.t('nodes.heardUnknown')]
+          device.heard?.at && heard === Date.parse(device.heard.at) ? h('span', { class: 'heard-by' }, heardWords(ctx, device))   // L21-D8
+            : heard ? h('span', {}, ctx.t('tile.heard'), ' ', age(ctx, heard)) : ctx.t('nodes.heardUnknown')]
           .filter(Boolean).flatMap((x, i) => (i ? [' · ', x] : [x]))),
         tabs),
       body);
@@ -185,7 +186,7 @@ function overview(ctx, svc, device, st, release, onPick, onTab) {
     h('dl', { class: 'std-dl' },
       h('dt', {}, ctx.t('std.firmware')), h('dd', {}, h('code', {}, device.ver ? shortVersion(svc.rules, device.ver) : '–'),
         up ? [' ', h('span', { class: 'std-tag' }, ctx.t('update.available')), ...(updateNow ? [' ', updateNow] : byHand ? [' ', byHand] : [])] : up === false ? [' ', h('span', { class: 'muted' }, ctx.t('std.upToDate'))] : null),
-      h('dt', {}, ctx.t('std.battery')), h('dd', {}, volts(ctx.t, fleet.batteryMv)),
+      h('dt', {}, ctx.t('std.battery')), h('dd', {}, batteryOf(ctx, device, { lowMv: lowBatteryVolts() * 1000 })),
       h('dt', {}, ctx.t('std.uptime')), h('dd', {}, uptimeText(ctx, fleet.uptimeSecs)),
       h('dt', {}, nb), nbValue),
     updateOut,

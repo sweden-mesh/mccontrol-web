@@ -182,10 +182,10 @@ export function createDiscovery({
         outcome.alive = { ours: count('online'), offline: count('offline'), notYours: count('not-yours') };
         for (const e of found) {
           if (e.knownAs) { outcome.known += 1; continue; }
-          if (e.state !== 'online') continue;
+          if (e.state !== 'online' && e.state !== 'heard') continue;       // heard: a node without Wi-Fi that announced itself
           if (ignored.has(e.node)) { outcome.ignored += 1; continue; }
           try {
-            const d = await jobs.adopt({ node: e.key, key: e.key, region: '', name: e.name, alive: e.alive });
+            const d = await jobs.adopt({ node: e.key, key: e.key, region: '', name: e.name, alive: e.alive, heard: e.heard });
             outcome.added.push({ node: d.node, name: d.name });
           } catch (err) {
             outcome.failed.push({ region: null, code: 'adopt', detail: `${e.node}: ${err?.message || err}` });

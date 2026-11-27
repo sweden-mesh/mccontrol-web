@@ -9,7 +9,10 @@
 //                  road ('auto' | 'mqtt' | 'mesh' | absent: the node view's last choice, W-26c),
 //                  lastResult { at, command, code, codeName, verified },
 //                  reads { command: { reply, at, verified } }, fleet { batteryMv, seen, firmware,
-//                  fetched } | null, observerId
+//                  fetched } | null, observerId,
+//                  heard { at, atRead, by, byName, snr, hops, batteryMv, boot, sequence, uptime,
+//                  version, name } | absent: a node without Wi-Fi, from its newest announce that
+//                  one of the owner's Observer nodes caught (lou-21; jobs.js discoverAlive)
 //   group          id = name (one word, lower case); members [node]
 //   set            id = name; steps [command]; an empty list is a removed set (the shipped one too)
 //   history event  id = time-sortable and random, never reused; append-only: an event is written

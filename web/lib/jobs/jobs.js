@@ -32,7 +32,9 @@
 // JobError('locked') before anything is signed. Every answer, refusal and silence lands in the
 // history store as it comes; reads are kept on the device; `ver` and `get name` update it.
 import { configFor, discover as realDiscover, send as realSend, DISCOVERY_COMMAND } from '../protocol/transport.js';
-import { forwardMcc3 as realForwardMcc3, newer, scanAlive as realScanAlive, sendMcc3 as realSendMcc3 } from '../protocol/plane.js';
+import {
+  forwardMcc3 as realForwardMcc3, newer, newestHeard, openHeardWith, scanAlive as realScanAlive, sendMcc3 as realSendMcc3,
+} from '../protocol/plane.js';
 import { FLAG_ZERO_HOP, commandTopic as mcc3Topic, deriveKeys } from '../protocol/mcc3.js';
 import { DEFAULT_TTL_SECS } from '../protocol/constants.js';
 import { fromHex, toHex } from '../bytes.js';
@@ -71,6 +73,27 @@ function aliveRecord(fields, state, at) {
     rec.old_scheme = Boolean(fields.flags & 1);
   }
   return rec;
+}
+
+// What a device keeps of an announce one of our Observer nodes caught (lou-21): the battery with
+// the time it was heard (the catching node's clock; `atRead` marks the time this page read it
+// instead, when that clock was unset), who heard it, the SNR in dB and the hops.
+function heardRecord(e, byName, readAt) {
+  return {
+    at: new Date(e.heard_at ? e.heard_at * 1000 : readAt).toISOString(), atRead: !e.heard_at,
+    by: e.by.slice(0, 8), byName: byName || '', snr: e.snr / 4, hops: e.hops,
+    batteryMv: e.battery_mv || null,                    // 0: the board cannot read it
+    boot: e.boot, sequence: e.sequence, uptime: e.uptime, version: e.version, name: e.name,
+  };
+}
+
+// The catching node heard the announce with no hop between: it hears the node directly, which is
+// what a relay's zero-hop route needs. An announce that travelled says nothing of that.
+function heardDirect(device, rec) {
+  if (rec.hops !== 0) return null;
+  const old = device?.relayHears?.[rec.by];
+  if (old && Date.parse(old.at) > Date.parse(rec.at)) return null;
+  return { ...(device?.relayHears || {}), [rec.by]: { hears: true, snr: rec.snr, at: rec.at } };
 }
 
 export const valueOf = (reply) => String(reply || '').replace(/^>\s*/, '').trim();
@@ -655,6 +678,11 @@ export function createJobs({
     for (let n = 2; chosen && all.some((d) => d.name.toLowerCase() === chosen.toLowerCase()); n += 1) chosen = `${base}-${n}`;
     const key = entry.verified === false ? null : (entry.key || null);   // never a key from a forged answer
     const added = await stores.devices.add({ node: entry.node.slice(0, 8), key, region: entry.region || '', name: chosen, notes: '' });
+    if (entry.heard && key) {            // found by its announce: a node without Wi-Fi, and who heard it
+      const relayHears = heardDirect(added, entry.heard);
+      return stores.devices.update(added.node, { heard: entry.heard, meshOnly: true, ...(entry.heard.version ? { ver: entry.heard.version.slice(0, 60) } : {}),
+        ...(relayHears ? { relayHears } : {}) });
+    }
     return entry.alive ? stores.devices.update(added.node, { alive: entry.alive, ...(entry.alive.version ? { ver: entry.alive.version } : {}) }) : added;
   }
 
@@ -664,15 +692,25 @@ export function createJobs({
   // one whose alive no longer opens is no longer yours (rekeyed). Reads only; nothing is sent.
   // Updates the devices it knows; resolves to [{ node, key, name, version, state, knownAs, alive }]
   // (state: 'online' | 'offline' | 'not-yours'); adopting a new one is the caller's (adopt).
+  //
+  // On the same connection, what your Observer nodes heard (`mcc/heard/<KEY>/<slot>`, lou-21): a
+  // node without Wi-Fi that announced itself over the mesh is an entry with the state 'heard' and
+  // `heard` (heardRecord) in place of an alive. Only the slots of nodes whose alive opened with
+  // your key are opened; an entry or an announce that does not open is dropped.
   async function discoverAlive({ onProgress, signal, waitSecs = null } = {}) {
     return withKey(async (handle) => {
       const secrets = await loadSecrets();
       const before = Object.keys(secrets).length;
       const total = waitSecs ?? Math.min(10, wait());
+      const slots = new Map();
       const seen = await plane.scan({
-        config: config(''), handle, secrets, waitSecs: total, signal, connect,
+        config: config(''), handle, secrets, waitSecs: total, signal, connect, heard: slots,
         progress: (elapsed, all, ours) => { onProgress?.({ phase: 'waiting', elapsed, total: all, answered: ours.length }); return Boolean(signal?.aborted); },
       });
+      const readAt = now();
+      const announced = newestHeard([...slots].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+        .filter(([slot]) => seen[slot.slice(0, 64)]?.state === 'ours')
+        .map(([slot, payload]) => openHeardWith(handle, secrets, slot.slice(0, 64), payload)));
       if (Object.keys(secrets).length !== before) await saveSecrets(secrets);
       const devices = await stores.devices.list();
       const byKey = new Map(devices.filter((d) => d.key).map((d) => [d.key.toUpperCase(), d]));
@@ -698,6 +736,28 @@ export function createJobs({
           node: key.slice(0, 8), key, name: fields?.name || '', version: fields?.version || '', state: rec.state,
           knownAs: d ? label(d) : null, alive: rec,
         });
+      }
+      for (const [key, e] of Object.entries(announced)) {
+        if (seen[key]?.state === 'ours') continue;       // a node with an alive message of its own needs no announce
+        const all = await stores.devices.list();
+        let d = all.find((x) => (x.key || '').toUpperCase() === key) || all.find((x) => x.node === key.slice(0, 8) && !x.key) || null;
+        if (!d && all.some((x) => x.node === key.slice(0, 8))) continue;      // the same first 8 characters, another key
+        const catcher = all.find((x) => (x.key || '').toUpperCase() === e.by);
+        let rec = heardRecord(e, catcher ? label(catcher) : seen[e.by]?.fields?.name, readAt);
+        if (d) {
+          if (newer(e, d.heard)) {
+            const changes = { heard: rec };
+            if (!d.key) changes.key = key;
+            if (rec.version && !d.alive) changes.ver = rec.version.slice(0, 60);       // as an alive's version does
+            if (!d.name && rec.name) changes.name = rec.name.slice(0, 40);        // never over a name you gave
+            if (d.meshOnly !== true && d.meshOnly !== false && !d.alive) changes.meshOnly = true;   // it announced: no Wi-Fi
+            const relayHears = heardDirect(d, rec);
+            if (relayHears) changes.relayHears = relayHears;
+            try { d = await stores.devices.update(d.node, changes); } catch { d = await stores.devices.update(d.node, { heard: rec }); }
+          } else rec = d.heard;                          // stale, or the same announce caught by another node
+        }
+        entries.push({ node: key.slice(0, 8), key, name: e.name || '', version: e.version || '', state: 'heard',
+          knownAs: d ? label(d) : null, alive: null, heard: rec });
       }
       return entries.sort((a, b) => (a.name || a.node).toLowerCase().localeCompare((b.name || b.node).toLowerCase()));
     });

@@ -19,7 +19,7 @@
 // `now()` its clock.
 import { createFakeBroker } from './broker.js';
 import { answer, newState } from './answers.js';
-import { DEMO_REGION, near } from './world.js';
+import { ANNOUNCE_VERSION, DEMO_REGION, near } from './world.js';
 import * as mcc3 from '../protocol/mcc3.js';
 import { keyFromSeed } from '../key/handle.js';
 import { fromHex, fromUtf8 } from '../bytes.js';
@@ -60,7 +60,7 @@ export function demoPlane(world, { rules, now = () => Date.now(), delay = demoDe
   const owner = world.owner.key;
   const nodes = new Map();
   const started = now();
-  for (const n of world.nodes) {
+  for (const n of [...world.nodes, ...(world.announced || [])]) {
     if (!['wifi', 'relay', 'mesh'].includes(n.kind)) continue;   // offline, older firmware, never heard: not on this plane
     const handle = keyFromSeed(fromHex(n.seedHex));
     nodes.set(n.key, { n, handle, owner, pending: null, keys: mcc3.nodeKeys(handle, owner), state: { ...newState(world, n), started: started - (9 + n.i * 3) * 86400000 },
@@ -184,6 +184,22 @@ export function demoPlane(world, { rules, now = () => Date.now(), delay = demoDe
       });
     },
   });
+  // What an Observer node caught (lou-21, L21-D8): the announce of a node without Wi-Fi, sealed by
+  // that node to its owner, kept by the catching node sealed to the same owner on
+  // mcc/heard/<its key>/<slot>, retained, exactly as the firmware publishes it.
+  function heard(a, slot) {
+    const x = nodes.get(a.key);
+    const by = world.nodes.find((m) => m.name === a.by);
+    const c = by && nodes.get(by.key);
+    if (!x || !c) return;
+    const at = Math.floor(started / 1000) - a.ago;
+    const announce = mcc3.sealAnnounce(mcc3.maliveKey(x.handle.sharedSecret(x.owner), a.key), x.owner, a.key, {
+      boot: x.state.boot, sequence: 1, uptime: Math.floor((started - x.state.started) / 1000) - a.ago, clock: at, last_counter: x.lastCounter,
+      flags: 0, battery_mv: a.mv, version: ANNOUNCE_VERSION, name: a.name });
+    broker.retain(mcc3.heardTopic(by.key, slot), mcc3.sealHeard(mcc3.heardKey(c.handle.sharedSecret(c.owner), by.key), a.key, announce,
+      { heard_at: at, snr: a.snr4, hops: a.hops, advert_heard_at: 0, advert_snr: 0, advert_hops: 0 }));
+  }
   for (const x of nodes.values()) if (x.n.kind !== 'mesh') alive(x);
+  (world.announced || []).forEach(heard);
   return Object.freeze({ broker, nodes, world });
 }

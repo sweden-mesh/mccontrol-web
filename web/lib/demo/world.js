@@ -44,6 +44,13 @@ const SPECS = [
   ['DEMO-Hagen', 58.002, 15.043, null, null, '', 'never'],
 ];
 
+// A node without Wi-Fi on lou-21 that nobody added (L21-D8): it is not in the list at the start. It
+// announces itself over the mesh, the Observer node `by` caught the announce `ago` seconds before the
+// page started (SNR in quarter dB, hops) and keeps it on the command server, and the page's own
+// discovery opens it and adds the node, with its battery. name, lat, lng, battery mV, firmware, by.
+const ANNOUNCED = [['DEMO-Myrstigen', 57.995, 14.990, 3710, 'v1.18.0-lou-21-arrc-0', 'DEMO-Ekbacken']];
+export const ANNOUNCE_VERSION = 'lou-21-arrc';
+
 export function demoWorld() {
   const ownerSeed = seedOf(DEMO_OWNER_PHRASE);
   const ownerKey = keyFromSeed(ownerSeed).publicKeyHex.toUpperCase();
@@ -53,9 +60,16 @@ export function demoWorld() {
     return Object.freeze({ i, name, key, node: key.slice(0, 8), seedHex: toHex(seed), lat, lng, mv, heard, fw, kind,
       beaconId: `demo-${i}`, observerId: kind === 'mesh' || kind === 'never' ? null : `demo-obs-${i}` });
   });
+  const announced = ANNOUNCED.map(([name, lat, lng, mv, fw, by], k) => {
+    const seed = seedOf(`mccontrol demo node ${name}`);
+    const key = keyFromSeed(seed).publicKeyHex.toUpperCase();
+    return Object.freeze({ i: SPECS.length + k, name, key, node: key.slice(0, 8), seedHex: toHex(seed), lat, lng, mv, heard: null, fw, kind: 'mesh',
+      beaconId: null, observerId: null, by, ago: 9 * 3600 + 17 * 60, snr4: -26, hops: 1 });
+  });
   return Object.freeze({
     owner: Object.freeze({ seedHex: toHex(ownerSeed), key: ownerKey, passphrase: DEMO_PASSPHRASE }),
     nodes: Object.freeze(nodes),
+    announced: Object.freeze(announced),
     groups: Object.freeze({ tornen: ['DEMO-Kvarnberget', 'DEMO-Vattentornet'], sol: ['DEMO-Rosenlund', 'DEMO-Ekbacken', 'DEMO-Granbo'] }),
   });
 }

@@ -7,7 +7,7 @@
 import { h } from '../dom.js';
 import { lowBatteryVolts, notHeardHours } from '../screens/settings-store.js';
 import { lastHeard, shortVersion } from '../../lib/jobs/overview.js';
-import { nameOf } from '../screens/node-kit.js';
+import { heardWords, nameOf } from '../screens/node-kit.js';
 import { age, everyMinute, stateMark } from '../tiles/kit.js';
 import { onDataChanged } from '../tiles/sources.js';
 import { byAttention, nodeStatus } from '../tiles/data.js';
@@ -60,7 +60,8 @@ export function nodeList(ctx, svc, { selected, onPick }) {
         h('span', { class: 'std-row-name' }, nameOf(d)),
         h('span', { class: 'std-row-sub muted' },
           d.ver ? shortVersion(svc.rules, d.ver) : ctx.t('nodes.verUnknown'),
-          ' · ', heard ? age(ctx, heard, now) : ctx.t('nodes.heardUnknown')));
+          ' · ', d.heard?.at && heard === Date.parse(d.heard.at) ? heardWords(ctx, d, now)     // a node without Wi-Fi (L21-D8)
+            : heard ? age(ctx, heard, now) : ctx.t('nodes.heardUnknown')));
       b.addEventListener('click', () => onPick(d.node));
       return h('li', { 'data-state': status.state }, b, statusHint(ctx, b, status));
     }) : [h('li', { class: 'std-empty muted' }, ctx.t('nodes.noMatch'))]));
