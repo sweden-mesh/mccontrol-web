@@ -72,11 +72,15 @@ function table(ctx, svc, devices, release) {
         cell(cols[4], resultCell(ctx, svc, d)))))));
 }
 
+// "Find your nodes" is open by default up to this many nodes.
+export const FEW_NODES = 2;
+
 // "Find my nodes": the alive scan, as discovery does it by itself; nothing is sent.
 function discoverForm(ctx, svc, redraw) {
   const button = h('button', { type: 'submit', class: 'button' }, ctx.t('nodes.discoverButton'));
   const out = h('div', { 'aria-live': 'polite' });
-  const form = h('form', { class: 'stack' }, h('p', { class: 'muted' }, ctx.t('nodes.discoverExplain')),
+  const form = h('form', { class: 'stack' }, h('p', {}, ctx.t('nodes.discoverAuto')),
+    h('p', { class: 'muted small' }, ctx.t('nodes.discoverExplain')),
     h('div', { class: 'row' }, button), out);
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -126,9 +130,9 @@ function addForm(ctx, svc, redraw) {
   const key = h('input', { type: 'text', autocomplete: 'off', spellcheck: 'false', class: 'mono' });
   const name = h('input', { type: 'text', autocomplete: 'off' });
   const out = h('p', { 'aria-live': 'polite' });
-  // A bare key does not say whether the node has MQTT. A lou-20 node with MQTT is found by itself,
-  // so a node added here is most often mesh only: that is the start, and the owner says otherwise.
-  const uplink = h('select', {}, ['mesh', 'mqtt'].map((v) => h('option', { value: v }, ctx.t(`nodes.uplink.${v}`))));
+  // A bare key does not say how the node is connected, so the owner says. Connected to the internet
+  // (Wi-Fi and MQTT, as an Observer is) comes first and is the start (operator 2026-11-27).
+  const uplink = h('select', {}, ['mqtt', 'mesh'].map((v) => h('option', { value: v }, ctx.t(`nodes.uplink.${v}`))));
   const form = h('form', { class: 'stack' },
     field(ctx.t('nodes.key'), key, ctx.t('nodes.keyHint')),
     field(ctx.t('nodes.name'), name),
@@ -222,7 +226,8 @@ export function render(ctx) {
       listSlot,
       tools,
       h('h2', {}, ctx.t('nodes.addTitle')),
-      h('details', { class: 'block' }, h('summary', {}, ctx.t('nodes.discoverTitle')), discoverForm(ctx, svc, draw)),
+      // Open from the start for someone with no nodes or one or two: finding them is why they came.
+      h('details', { class: 'block', open: (await svc.stores.devices.list()).length <= FEW_NODES }, h('summary', {}, ctx.t('nodes.discoverTitle')), discoverForm(ctx, svc, draw)),
       h('details', { class: 'block', id: 'add-by-key' }, h('summary', {}, ctx.t('nodes.addByKey')), addForm(ctx, svc, draw)));
     await draw();
     svc.releases().then((r) => { release = r; if (r && !ctx.signal.aborted) draw(); });
