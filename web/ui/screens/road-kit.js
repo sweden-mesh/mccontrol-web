@@ -59,6 +59,7 @@ export function relayPicker(ctx, svc, { onChange = () => {} } = {}) {
   let all = [];
   let list = [];
 
+  const demotedNote = h('p', { class: 'hint-line', hidden: true });
   const at = (d) => ({ lat: d?.fleet?.lat, lng: d?.fleet?.lng });
   const el = h('div', { class: 'stack relay-picker' }, fields, demotedNote, h('div', { class: 'row wrap' }, check, budget), note);
   const current = () => list.find((c) => c.device.node === relaySel.value) || null;
@@ -69,7 +70,6 @@ export function relayPicker(ctx, svc, { onChange = () => {} } = {}) {
       : c.hears === false ? t('road.hears.no') : c.km !== null ? t('road.hears.guess', { km: Math.round(c.km) }) : t('road.hears.unknown'));
   // A stranger's Observer is said as such, and a demoted relay says why it is last (lou-21).
   const known = (c) => [c.guest ? t('road.guest') : null, way(c), c.demoted ? t('road.demoted') : null].filter(Boolean).join(' · ');
-  const demotedNote = h('p', { class: 'hint-line', hidden: true });
 
   function drawRoutes(keep = null) {
     const c = current();
