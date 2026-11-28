@@ -157,13 +157,14 @@ export function createJobs({
     return deriveKeys(fromHex(secrets[key]), key);
   }
 
-  // K_gfwd for a guest forward through a stranger's relay, from the cached S.
-  async function guestKeysFor(handle, relayKey) {
-    const secrets = await loadSecrets();
-    const had = Boolean(secrets[relayKey]);
-    const keys = guestKeysWith(handle, secrets, relayKey);
-    if (!had) await saveSecrets(secrets);
-    return keys;
+  // The guest key and K_gfwd for a guest forward through a stranger's relay: the guest key is
+  // derived from this command key (handle.guest()), so the relay never sees the command key. One
+  // X25519, not cached: the cache holds this command key's secrets.
+  function guestFor(handle, relayKey) {
+    const guest = handle.guest();
+    try {
+      return { guestKeyHex: guest.publicKeyHex.toUpperCase(), keys: guestKeysWith(guest, {}, relayKey) };
+    } finally { guest.forget(); }
   }
 
   // The counter of the next guest forward through a stranger's relay: max(now in seconds, last + 1),
@@ -359,9 +360,10 @@ export function createJobs({
     // While the key is being replaced (rekey.js) the relay may be on the other key than the one
     // that signs for the target: the hop is sealed with the key the relay is on. That key's shared
     // secret is not this key's to cache.
-    // A guest forward is sealed with the key that signs for the target, whose public key it carries.
+    // The body of a guest forward is signed by the key that signs for the target; the forward carries the guest key.
     const hop = via.guest ? handle : (await hopHandle?.(via)) || handle;
-    const relayKeys = via.guest ? await guestKeysFor(handle, relayKey)
+    const guestSide = via.guest ? guestFor(handle, relayKey) : null;
+    const relayKeys = guestSide ? guestSide.keys
       : hop === handle ? await keysFor(handle, relayKey) : deriveKeys(hop.sharedSecret(relayKey), relayKey);
     const secs = Math.floor(now() / 1000);
     const counter = await stores.devices.nextCounter(device.node);
@@ -375,7 +377,7 @@ export function createJobs({
       config: config(''), keys: relayKeys, relayKeyHex: relayKey, targetKeyHex: key, counter: forwardCounter,
       route: WIRE_ROUTE[route], body, pathLen: stored ? stored.pathLen : 0, path: stored ? fromHex(stored.path) : new Uint8Array(0),
       waitSecs: waitSecs ?? RELAY_WAIT_SECS, ttl: FORWARD_TTL_SECS, now: secs, signal, connect,
-      ...(via.guest ? { guestKeyHex: handle.publicKeyHex.toUpperCase() } : {}),
+      ...(guestSide ? { guestKeyHex: guestSide.guestKeyHex } : {}),
       progress: (elapsed, total) => {
         onProgress?.({ phase: 'waiting', road: 'relay', node: device.node, name: label(device), index, count, elapsed, total, answered: 0 });
         return Boolean(signal?.aborted);

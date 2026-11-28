@@ -96,7 +96,7 @@ export async function sendMcc3({
 // the one awaited echoes `counter`. Resolves to { topic, payload, result } -- result (mcc3.js's
 // openForwardResult) null is a relay that said nothing: older firmware, offline, or not ours.
 //
-// With `guestKeyHex` (the owner's command public key) the relay is a stranger's (lou-21): the
+// With `guestKeyHex` (the guest key, handle.guest(), not the command key) the relay is a stranger's (lou-21): the
 // forward is a guest forward (kind 'G') and `keys` are guestKeys(S, relay key), K_gfwd.
 export async function forwardMcc3({
   config, keys, relayKeyHex, targetKeyHex, counter, route, body, pathLen = 0, path = new Uint8Array(0),
@@ -155,7 +155,7 @@ export function newer(fields, than) {
   return fields.boot > b || (fields.boot === b && fields.sequence > q);
 }
 
-// K_gfwd for a guest forward through the stranger's relay `relayKey`, from the cached S.
+// K_gfwd for a guest forward through the stranger's relay `relayKey`; `handle` is the guest key's.
 export function guestKeysWith(handle, secrets, relayKey) {
   if (!secrets[relayKey]) secrets[relayKey] = toHex(handle.sharedSecret(relayKey), true);
   return guestKeys(fromHex(secrets[relayKey]), relayKey);

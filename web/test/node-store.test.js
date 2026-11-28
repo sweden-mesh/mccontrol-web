@@ -50,8 +50,10 @@ const X = Object.freeze({
   signed: '4F4FD099CCD47D7893DFE9EC24414ECB0D9B5420232AAD30D91C465BE33CBE65C44D86B8A37F07000000010000000A8929E75030C7B61C72ED92FCFF1F24B473C950D0EA2478D42A8694CAF611F3F9C313EE64D67BACA1BD1D6715D3F7C52A87DDAC809D1BB633F252A657F66CD04673BB52C57EFD4A45468AA2F07553551EF5FA7AA1F202AD9CC579CFE313B6A8C03C42AD04EFBF883AE666CD16D6B2E2D4E35005760F0F',
   catchers: [{ key: CATCHER, arrival: 1795000050, snr: -22, hops: 2, via: 2, list: 0 }, { key: STRANGER, arrival: 1794990000, snr: 30, hops: 0, via: 0, list: 1 }],
   entry: 'Tk_QmczUfXiT3-nsJEFOyw2bVCAjKq0w2RxGW-M8vmXETYa4o38HAAAAAQAAAAqJKedQMMe2HHLtkvz_HyS0c8lQ0OokeNQqhpTK9hHz-cMT7mTWe6yhvR1nFdP3xSqH3ayAnRu2M_JSplf2bNBGc7tSxX79SkVGiqLwdVNVHvX6eqHyAq2cxXnP4xO2qMA8Qq0E77-IOuZmzRbWsuLU41AFdg8PAt3jvM7H86ZqERX0XXIPTcE1w658TiLco4_bHv1qSV_48ob9auoCAgBsKP0FjBjIjGzOKvmB0tEchRsSPtW2m3h2dz7Qmeo_g7Bf_WoeAAAB',
-  k_gfwd: 'C306F53A7AC15E4105877C80832976DF24E67091D441A12B3519D961A0D694AA',
-  guest: 'R-1UpZ-xrDpRI5NRNilBuGjoWmDj17JIXYKIIdx6acJ5YGFiY2RlZmdoaWpr6t0Bm7q0wLyu6JLJUgTQkPKP6iwCQVF33h3LdkobpZXPHp6RlMGdC_DaEYMimXedD_ScJrful4r0b8upyXm5o7efqwI6X2qLWeNW87YdKxW2_2jBCEmjXZuNvMtNUwYo32zivIqRYxNuAP5FxdXBFVKW62GDI6dbD32cu_K4xruKraVUKHzSudBLhDdk0A0R8_oLSmqMqCXh5Db-T9cVabd6knAEu_uxUM6U3dmsKVkE20jqWkYfull-MH4SHw6pUyaEdllqJRT_-RB5nAvSxtgrgi_9iAruGuaBnQRqzVzI7u2ca_4PL4EQ4qkx6n97YKXsm4EEydFusYUZ1DvkXiUiJ6d_oXqZ',
+  // the guest key of the owner's seed (HKDF "mcc3/guestkey/"), K_gfwd with the catcher, a guest forward
+  guestKey: 'CE91C3FE7050EC6881C9803989768080814ADA7FC90F4E9341F23E8797894852',
+  k_gfwd: '9F518025C8CFE00D01F3D63FB7C881C73348D08239B129A442E2D4D3AA05BD4A',
+  guest: 'R86Rw_5wUOxogcmAOYl2gICBStp_yQ9Ok0HyPoeXiUhSYGFiY2RlZmdoaWpreKaNfLf8hapfn50oWZf29yaQ7Pwb5yvB8rap3v2v3CVQoIiEW7L1IcGgAu-MifHnV7nKvE6kz4qVPqyyq2XD2aMhXkXJs7G46KJz3ztP_upMvzYlJdz-zM9KlqUqgHoHhjwE3nYwwkQ9q_VO_Ti6lRmDjSwcvPMLhYeQCgUn_lGxu5dtnWmD3TYUq5joe9NIdYMEPdJT2b4nfCE8I0Rt7JJN5It-A8-vOnlPGcuNorZU54vWzK8P9QSba79X9XtW548ZVieqo7OsGxy7dduRGzIz-7VcJxhhIR9FAjpeAI70MPhbkJrlvzIbCIP5AkFKOCKzlK6E9wnwQ-_OCVj7XHTj3k7GnxTW',
   guestNonce: '606162636465666768696A6B', rid: '00112233445566778899AABBCCDDEEFF',
 });
 const guestBody = () => { const b = new Uint8Array(132); b[0] = 0xc2; b.fill(7, 1); return b; };
@@ -140,19 +142,33 @@ test('the node entry: kind N, the announce from byte 1, the catchers of 40 bytes
   assert.deepEqual(mcc3.openNodeEntry(entryOf(fromHex(X.signed), [])).catchers, []);
 });
 
+test('the guest key: derived from the command key, the same each time, not the command key', () => {
+  const guest = owner.guest();
+  assert.equal(guest.publicKeyHex, X.guestKey);
+  assert.notEqual(guest.publicKeyHex, OWNER);
+  assert.equal(owner.guest().publicKeyHex, X.guestKey, 'the same command key, the same guest key');
+  assert.ok(![X.guestKey, STRANGER].includes(handleOf('other_owner').guest().publicKeyHex));
+  guest.forget();
+  assert.throws(() => guest.sign(new Uint8Array(1)));
+  assert.equal(owner.guest().publicKeyHex, X.guestKey, 'forgetting the guest handle leaves the command key');
+});
+
 test('the guest forward: K_gfwd the same from either side, kind G with the guest key in clear, pinned', () => {
   const relay = handleOf('catcher');
-  const keys = mcc3.guestKeys(owner.sharedSecret(CATCHER), CATCHER);
+  const guest = owner.guest();
+  const GUEST = X.guestKey;
+  const keys = mcc3.guestKeys(guest.sharedSecret(CATCHER), CATCHER);
   assert.equal(toHex(keys.fwd, true), X.k_gfwd);
-  assert.equal(toHex(mcc3.guestKeys(relay.sharedSecret(OWNER), CATCHER).fwd, true), X.k_gfwd);
+  assert.equal(toHex(mcc3.guestKeys(relay.sharedSecret(GUEST), CATCHER).fwd, true), X.k_gfwd);
   assert.notEqual(toHex(keys.fwd, true), toHex(mcc3.ownerKeys(owner, CATCHER).fwd, true), 'not the owner\'s K_fwd');
-  const g = mcc3.sealGuestForward(keys, OWNER, CATCHER, 1795000100, 1795000250, fromHex(X.rid), NODE, 0, guestBody(), { nonce: fromHex(X.guestNonce) });
+  assert.notEqual(toHex(keys.fwd, true), toHex(mcc3.guestKeys(owner.sharedSecret(CATCHER), CATCHER).fwd, true), 'not under the command key');
+  const g = mcc3.sealGuestForward(keys, GUEST, CATCHER, 1795000100, 1795000250, fromHex(X.rid), NODE, 0, guestBody(), { nonce: fromHex(X.guestNonce) });
   assert.equal(g, X.guest);
   const raw = unb64url(g);
   assert.equal(raw.length, mcc3.GUEST_FORWARD_SIZE);
-  assert.deepEqual([raw[0], toHex(raw.subarray(1, 33), true)], [0x47, OWNER]);
+  assert.deepEqual([raw[0], toHex(raw.subarray(1, 33), true)], [0x47, GUEST]);
   const o = mcc3.openGuestForward(relay, g);
-  assert.deepEqual([o.guest, o.counter, o.expiry, toHex(o.rid, true), o.target, o.route, o.body.length], [OWNER, 1795000100, 1795000250, X.rid, NODE, 0, 132]);
+  assert.deepEqual([o.guest, o.counter, o.expiry, toHex(o.rid, true), o.target, o.route, o.body.length], [GUEST, 1795000100, 1795000250, X.rid, NODE, 0, 132]);
   for (const at of [0, 1, 40, 50, raw.length - 1]) {
     const bent = Uint8Array.from(raw);
     bent[at] ^= 1;
@@ -164,6 +180,31 @@ test('the guest forward: K_gfwd the same from either side, kind G with the guest
   assert.equal(mcc3.openForwardResult(keys, res).name, 'guest-cap');
   assert.throws(() => mcc3.openForwardResult(mcc3.ownerKeys(owner, CATCHER), res), mcc3.Refused);
   assert.deepEqual(mcc3.FORWARD_STATUSES.slice(10), ['guest-cap', 'guests-full', 'target-cap']);
+});
+
+// The firmware's G1 (planning/firmware/malive-vectors-20261127.json, guest_forwards[0]): a guest
+// forward with the vector's own guest key, other_owner, made byte for byte. mccontrol-cli pins the same.
+const G1 = Object.freeze({
+  k_gfwd: '4D1A64FE086B0D48833C87D769EDDE0B79CE1A0F24D013CDB76EC1CC7382317A', counter: 3, expiry: 1795000300,
+  rid: '000102030405060708090A0B0C0D0E0F', route: 1, nonce: '707172737475767778797A7B',
+  body: () => Uint8Array.from({ length: 132 }, (_, i) => (i === 0 ? 0xc2 : i)),
+  payload: 'R2wo_QWMGMiMbM4q-YHS0RyFGxI-1babeHZ3PtCZ6j-DcHFyc3R1dnd4eXp7BMVj9UTz1LH0VVY3YAteLTN3I1EJ1way9D5wfyJ7QQVen7UA85jjByt54cI61yTwxFDbI7L-jB4C7XeAgPSXvz8JU16sC7CFgz7-wixuJyLCxO-4bhKATm7EFYPnstwA_JnMNzRCWW-GubYHaxkyD2R_YeDIQGnBZg7cpJBfoRTCygqR_-yGxFY8YVrpKMtdZTJfxQKP9XjYmVxOC41KeeT8sz9I1o_RtBGE_e3kVo2TTs0MAAcuvp1sdpbcnhQB1bqY41L1Fk51lnoQjso0e2E1QcsA2gvKQ58JiXWFLFWs75eXYOOiJ00uQNROyyoVcX9K3EkxA3B6UIxnT0VWRQ6xmcme_-2K',
+  result: 'ZoCBgoOEhYaHiImKiwRBZqM4JV_IkmtD4KKUBpSRyzFDwebUvncwCK2HoEXWdJ9eHrGtOxpw_8X7iNw7mExt-eadzsF2njt9Kddxg6EGSKaFZ1i7cApwrLi6cLS0QhS7tu1lQYITk5bAETdWBFsplhNe7dgnRCzf9Bq0kffy4VxZ7BgOwZEdnURvqZiBH0AAgKjj86h1HBpS-Ur0-Vbmu94OUSuKjmJWCAqsx2kT2IOYo3zHju0tRBTpvcNOtyj_hZdV5OVxVsc4CUdXVgbXI9vvwmeTi4TRe3DSyVyVnwAy--_UbIS3GNRywBItOJOEicFxe5_9G-BR0ryZFVi7Wu2dkWiP2UU1HMUISoHdy0Pc2TmO5LbrXg4aMkC9',
+});
+
+test('the firmware\'s guest forward is made byte for byte, K_gfwd over the relay\'s key in upper case, its result opens', async () => {
+  const { hkdf } = await import('../vendor/noble-hashes/hkdf.js');
+  const { sha256 } = await import('../vendor/noble-hashes/sha2.js');
+  const s = handleOf('other_owner').sharedSecret(CATCHER);
+  const keys = mcc3.guestKeys(s, CATCHER.toLowerCase());
+  assert.equal(toHex(keys.fwd, true), G1.k_gfwd);
+  const enc = (t) => new TextEncoder().encode(t);
+  assert.equal(toHex(hkdf(sha256, s, new Uint8Array(0), enc(`mcc3/gfwd/${CATCHER.toUpperCase()}`), 32), true), G1.k_gfwd);
+  assert.notEqual(toHex(hkdf(sha256, s, new Uint8Array(0), enc(`mcc3/gfwd/${CATCHER.toLowerCase()}`), 32), true), G1.k_gfwd);
+  const g = mcc3.sealGuestForward(keys, STRANGER, CATCHER, G1.counter, G1.expiry, fromHex(G1.rid), NODE, G1.route, G1.body(), { nonce: fromHex(G1.nonce) });
+  assert.equal(g, G1.payload);
+  const r = mcc3.openForwardResult(keys, G1.result);
+  assert.deepEqual([r.counter, r.status, r.name, r.clock, r.sent], [3, 10, 'guest-cap', 1795000010, 0]);
 });
 
 test('openNodeWith: another owner\'s entry costs no key agreement; a forged one or one under another topic is null', () => {
@@ -362,10 +403,10 @@ test('relay choice: your own Observer if it caught the node, else the fewest hop
   assert.deepEqual(relayCandidates(rules, [mine], { node: 'T', key: NODE }).map((c) => c.device.node), [mine.node]);
 });
 
-test('a guest forward through a stranger\'s Observer: sealed under K_gfwd with your key in clear, answered, kept; refusals in words', async () => {
+test('a guest forward through a stranger\'s Observer: sealed under K_gfwd with your guest key in clear, answered, kept; refusals in words', async () => {
   const stranger = handleOf('catcher');
   const fakeRelay = { handle: stranger, commandKey: STRANGER, guests: true, snr: 20,
-    targets: [{ handle: nodeHandle, answer: (c) => ({ code: 0, reply: `> ${c}` }) }] };
+    targets: [{ handle: nodeHandle, ownerKey: OWNER, answer: (c) => ({ code: 0, reply: `> ${c}` }) }] };
   const target = { node: NODE, key: NODE, region: '', name: 'cabin',
     set: { ver: 'nrf52-v1.18.0-lou-21-rc-0', meshOnly: true, catchers: [row(CATCHER, { name: 'DEMO-Grannen', hops: 0, via: 0, snr: 5 })] } };
   const s = await setup({}, [target], { relays: [fakeRelay] });
@@ -377,7 +418,8 @@ test('a guest forward through a stranger\'s Observer: sealed under K_gfwd with y
   assert.equal(sent.length, 1);
   assert.equal(sent[0].topic, mcc3.commandTopic(CATCHER));
   const raw = unb64url(new TextDecoder().decode(sent[0].payload));
-  assert.deepEqual([raw[0], toHex(raw.subarray(1, 33), true)], [0x47, OWNER]);
+  assert.deepEqual([raw[0], toHex(raw.subarray(1, 33), true)], [0x47, X.guestKey], 'the guest key, not the command key');
+  assert.ok(!toHex(raw, true).includes(OWNER), 'the command key stays home');
   const counter = (await s.stores.meta.get('relay.guest'))[CATCHER];
   assert.ok(counter >= Math.floor(Date.now() / 1000) - 5);
   const ev = (await s.stores.history.list({ node: NODE.slice(0, 8) }))[0];

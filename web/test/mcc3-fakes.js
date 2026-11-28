@@ -23,7 +23,7 @@ export const connectVia = (broker) => (opts) => createMqttClient({ ...opts, WebS
 // nodes: [{ handle, commandKey, answer(command) -> { code, reply } | null (silent), lastCounter }]
 // retained: { topic: payload } for mcc/alive/<KEY>.
 // relays: [{ handle, commandKey, on = true, clock() -> unix seconds (0: unset), busy, forwardsLeft = 10,
-//   floodsLeft = 2, sendFails, snr = 22, targets: [{ handle, region, lou20 = true, answer(command) ->
+//   floodsLeft = 2, sendFails, snr = 22, targets: [{ handle, ownerKey (else commandKey), region, lou20 = true, answer(command) ->
 //   { code, reply } | null, taught: { pathLen, path (hex) } }] }] -- a target not listed is out of reach.
 export function mcc3Broker({ nodes = [], retained = {}, extra = null, relays = [] } = {}) {
   const opened = [];
@@ -67,7 +67,7 @@ export function mcc3Broker({ nodes = [], retained = {}, extra = null, relays = [
     const sent = flood ? mcc3.SENT.flood : mcc3.SENT.direct;
     const t = (r.targets || []).find((x) => x.handle.publicKeyHex === f.target);
     seen.requests = [];
-    const node = t && meshNode({ ownerKey: guest || r.commandKey, region: t.region || 'mesh', answer: t.answer, clock,
+    const node = t && meshNode({ ownerKey: t.ownerKey || r.commandKey, region: t.region || 'mesh', answer: t.answer, clock,
       mcc3: t.lou20 === false ? null : { node: t.handle }, opened: seen.requests });
     const response = node ? node(f.target, f.body, new Uint8Array(4)) : null;
     const taught = t?.taught ? { pathLen: t.taught.pathLen, path: fromHex(t.taught.path) } : {};

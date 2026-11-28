@@ -5,6 +5,10 @@
 //   publicKeyHex           64 upper-case hex, what `set cmd.pubkey` takes
 //   sign(bytes)            Ed25519 (RFC 8032, deterministic) signature, 64 bytes
 //   sharedSecret(nodeHex)  MeshCore's ed25519_key_exchange with a node's public key, 32 bytes
+//   guest()                the guest key of a guest forward (lou-21, operator 2026-11-28): a handle
+//                          on the seed HKDF-SHA256(seed, salt empty, "mcc3/guestkey/"), so a stranger's
+//                          relay never sees this key; made again each call, never stored or shown.
+//                          The caller forgets it after use.
 //   sealLocal(bytes)       encrypt something this browser keeps beside the key (the mcc3 shared
 //   openLocal(sealed)      secrets): ChaCha20-Poly1305 under HKDF(seed, "mccontrol-web/local"),
 //                          so it opens only while this key is unlocked; openLocal throws on a forgery
@@ -21,6 +25,7 @@ import { chacha20poly1305 } from '../../vendor/noble-ciphers/chacha.js';
 import { concat, fromHex, toHex, utf8 } from '../bytes.js';
 
 const LOCAL_INFO = 'mccontrol-web/local';
+export const GUEST_KEY_INFO = 'mcc3/guestkey/';
 
 export function keyFromSeed(seedBytes) {
   if (!(seedBytes instanceof Uint8Array) || seedBytes.length !== 32) {
@@ -40,6 +45,7 @@ export function keyFromSeed(seedBytes) {
       ed25519.utils.toMontgomerySecret(live()),
       ed25519.utils.toMontgomery(fromHex(nodeKeyHex)),
     ),
+    guest: () => keyFromSeed(hkdf(sha256, live(), new Uint8Array(0), utf8(GUEST_KEY_INFO), 32)),
     sealLocal: (bytes) => {
       const nonce = globalThis.crypto.getRandomValues(new Uint8Array(12));
       return concat(nonce, chacha20poly1305(hkdf(sha256, live(), new Uint8Array(0), utf8(LOCAL_INFO), 32), nonce).encrypt(bytes));

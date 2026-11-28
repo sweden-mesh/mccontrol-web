@@ -664,7 +664,11 @@ export function openNodeEntry(payload) {
 
 // -- a guest forward: relaying through a stranger's Observer (lou-21, section 5) --------------
 //
-//   K_gfwd  HKDF-SHA256(X25519(guest command key, relay identity), salt empty, "mcc3/gfwd/" + relay KEY)
+//   guest   the guest key: an Ed25519 key pair on the seed HKDF-SHA256(command seed, salt empty,
+//           "mcc3/guestkey/") (handle.guest(), operator 2026-11-28, L21-G12), so a relay never sees
+//           the owner's command key; made again each time, never stored, never shown
+//   K_gfwd  HKDF-SHA256(X25519(guest key, relay identity), salt empty, "mcc3/gfwd/" + relay KEY, 64
+//           upper-case hex characters as for mcc3/fwd/)
 //   wire    'G' guest key (32) nonce (12) ChaCha20-Poly1305[K_gfwd](the body of a forward), AAD the 45 bytes before it
 //
 // The result comes back as a forward's does (openForwardResult), sealed under K_gfwd.
@@ -673,13 +677,13 @@ export const INFO_GFWD = 'mcc3/gfwd/';
 export const KIND_GUEST_FORWARD = 0x47;
 export const GUEST_FORWARD_SIZE = 1 + 32 + NONCE_LEN + (FORWARD_SIZE - 2 - NONCE_LEN);
 
-// { fwd: K_gfwd } from S (the guest's command key with the relay) and the relay's key: the shape
+// { fwd: K_gfwd } from S (the guest key with the relay) and the relay's key: the shape
 // openForwardResult takes.
 export const guestKeys = (secret, relayKeyHex) => Object.freeze({ fwd: labelled(secret, INFO_GFWD, relayKeyHex) });
 
-// The base64url payload for `mcc/cmd/<RELAY KEY>` by which a guest (any command key) has a
-// stranger's relay transmit `body` to the target. Arguments as sealForward's, with the guest's
-// own command public key in clear.
+// The base64url payload for `mcc/cmd/<RELAY KEY>` by which a guest (any guest key) has a
+// stranger's relay transmit `body` to the target. Arguments as sealForward's, with the guest key
+// (handle.guest(), never the command key) in clear.
 export function sealGuestForward(keys, guestKeyHex, relayKeyHex, counter, expiry, rid, targetKeyHex, route, body, opts = {}) {
   const n = asNonce(opts.nonce);
   const header = concat(Uint8Array.of(KIND_GUEST_FORWARD), fromHex(keyHex(guestKeyHex)), n);
