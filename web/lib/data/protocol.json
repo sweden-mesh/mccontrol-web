@@ -86,7 +86,10 @@
    "busy",
    "rate-limited",
    "clock-unset",
-   "send-failed"
+   "send-failed",
+   "guest-cap",
+   "guests-full",
+   "target-cap"
   ],
   "sent": {
    "nothing": 0,
@@ -97,36 +100,108 @@
   "path_none": 255,
   "max_ttl_secs": 300
  },
- "mcc3_heard": {
-  "topic": "mcc/heard/<KEY>/<SLOT>",
-  "filter": "mcc/heard/+/+",
-  "slots": 16,
-  "kind": 72,
-  "hkdf_info": "mcc3/heard/<KEY>",
-  "plaintext": 112,
-  "size": 141,
-  "base64url_chars": 188,
+ "mcc3_store": {
+  "from": 21,
   "announce": {
    "kind": 77,
+   "size": 165,
+   "signed_bytes": 100,
+   "signature": 64,
+   "signature_label": "mcc3/ann|",
    "hkdf_info": "mcc3/malive/<KEY>",
    "owner_tag_label": "mcc3/own|",
-   "size": 101,
    "sealed": 47,
    "tag": 8,
-   "kept": 68,
    "max_version": 14,
-   "max_name": 16
+   "max_name": 16,
+   "interval_secs": 82800,
+   "reliable_interval_secs": 43200,
+   "spread": "a tenth either way"
   },
-  "from": 21,
+  "seen": {
+   "topic": "mcc/seen/<KEY>",
+   "kind": 83,
+   "size": 168,
+   "base64url_chars": 224,
+   "via": {
+    "zero_hop": 0,
+    "direct": 1,
+    "flood": 2
+   },
+   "queue": 8,
+   "gap_secs": 2,
+   "again_after_secs": 600
+  },
+  "node": {
+   "topic": "mcc/node/<KEY>",
+   "filter": "mcc/node/+",
+   "kind": 78,
+   "head": 166,
+   "catcher": 40,
+   "catchers_a_list": 4,
+   "lists": {
+    "current": 0,
+    "previous": 1
+   },
+   "kept_days": 365
+  },
+  "zero_hop": {
+   "payload_type": 11,
+   "state": 160,
+   "state_size": 167,
+   "ack": 176,
+   "ack_size": 41,
+   "named_bytes": 2,
+   "report_id": 4
+  },
+  "direct_report": {
+   "named_bytes": 2,
+   "max_size": 184
+  },
+  "path_ack": {
+   "kind": 75,
+   "size": 55,
+   "path": 16,
+   "max_path": 8
+  },
+  "guest_forward": {
+   "kind": 71,
+   "size": 309,
+   "base64url_chars": 412,
+   "aad": 45,
+   "hkdf_info": "mcc3/gfwd/<KEY>",
+   "guest_key_info": "mcc3/guestkey/",
+   "result_kind": 102
+  },
+  "relay": {
+   "modes": {
+    "own": 0,
+    "off": 1,
+    "any": 2
+   },
+   "default": "any",
+   "guest_floods": 10,
+   "guest_floods_max": 100,
+   "guests_share": "half",
+   "target_floods": 10,
+   "rings": 16
+  },
   "vectors": "vectors/malive-vectors.json"
  },
- "_mcc3_heard_layout": {
-  "heard": "base64url without padding of: kind 0x48, nonce (12, random), then sealed with K_heard (ChaCha20-Poly1305, AAD the kind and the nonce, tag 16): the announced node's key (32), the announce from its kind byte to its tag (68), heard_at (u32 LE, the catching node's clock, 0 while unset), snr (i8, quarter dB), hops (u8), then the same three for the node's last advert (0: none)",
-  "K_heard": "HKDF-SHA256(X25519(owner, catching node), salt empty, info hkdf_info with <KEY> the catching node's key as 64 upper-case hex)",
-  "announce": "the announced key's first byte, then the heard entry's first 100 bytes: byte 0, node key (1..32), kind 0x4D (33), owner tag (34..37), boot (38..41, u32 LE), sequence (42..45), 47 bytes sealed with K_malive (ChaCha20-Poly1305, nonce 00 x 4 then boot then sequence, AAD bytes 1..45), then the first 8 bytes of the tag",
+ "_mcc3_store_layout": {
+  "announce": "the first byte of the node's key, the node's key (1..32), kind 0x4D (33), owner tag (34..37), boot (38..41, u32 LE), sequence (42..45), 47 bytes sealed with K_malive (ChaCha20-Poly1305, nonce 00 x 4 then boot then sequence, AAD bytes 1..45), the first 8 bytes of the tag (93..100), then the node's Ed25519 signature over signature_label and bytes 1..100 (101..164)",
   "K_malive": "HKDF-SHA256(X25519(owner, announced node), salt empty, info announce.hkdf_info with <KEY> the announced node's key as 64 upper-case hex)",
   "owner_tag": "SHA-256(owner_tag_label, command key, node key, boot, sequence), first 4 bytes",
   "sealed": "uptime (u32 LE), clock (u32, 0 while unset), last command counter (u32), flags (u8, the alive message's), battery in millivolts (u16, 0: unknown), version (length byte, at most max_version), name (length byte, at most max_name, cut), zeros to 47",
-  "reading": "open the heard entry of each of your own Observer nodes, then the announce inside; one that does not open is dropped silently; the newest (boot, sequence) per announced node is kept"
+  "seen": "base64url without padding of: kind 0x53, the announce's bytes 1..164, SNR (i8, quarter dB), hops (u8), via (u8); published once, not retained, by the Observer on its own key's topic",
+  "node": "base64url without padding of: kind 0x4E, the announce's bytes 1..164, count (u8), then count x (Observer key 32, arrival u32 LE by the server's clock, SNR i8, hops u8, via u8, list u8); retained; each list holds the first catchers_a_list Observers to report that announce",
+  "state": "zero_hop.state, the named Observer's key's first 2 bytes (00 00: none), the announce's bytes 1..164; a PAYLOAD_TYPE_CONTROL packet with no path, never forwarded",
+  "ack": "zero_hop.ack, the node's key's first 4 bytes, the report id (the signature's first 4 bytes), the Observer's whole key (32); unsigned",
+  "direct_report": "an ANON_REQ sent direct along a path: the 165-byte announce, the Observer it is for (its key's first 2 bytes), the path length (u8), the path from the node to that Observer; the trailer is outside the signature",
+  "path_ack": "an ANON_REQ sent direct along the reversed path: the node's key's first byte, the Observer's key (32), kind 0x4B, the report id (4), the path length (u8), the path from the node to the Observer in a 16-byte field, zero after it",
+  "guest_key": "an Ed25519 key pair whose seed is HKDF-SHA256(command seed, salt empty, info guest_key_info): derived again each time, never stored, never shown, not linkable to the command key",
+  "guest_forward": "base64url without padding of: kind 0x47 (G), the guest key (32), nonce (12), then the fields of a forward from its counter on, sealed with K_gfwd (ChaCha20-Poly1305, AAD the first 45 bytes); the result is a forward result (kind 0x66) sealed with K_gfwd",
+  "K_gfwd": "HKDF-SHA256(X25519(guest key, relay), salt empty, info guest_forward.hkdf_info with <KEY> the relay's key as 64 upper-case hex)",
+  "reading": "for each retained mcc/node/<KEY>: the owner tag with your own command key (one SHA-256), then the node's signature, then the seal; one that fails is skipped silently; remember each (node key, boot, sequence) tried"
  }
 }

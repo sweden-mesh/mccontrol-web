@@ -70,7 +70,10 @@
    "6": "busy",
    "7": "rate-limited",
    "8": "clock-unset",
-   "9": "send-failed"
+   "9": "send-failed",
+   "10": "guest-cap",
+   "11": "guests-full",
+   "12": "target-cap"
   },
   "help": {
    "0": "The relay sent the command and the node answered.",
@@ -82,7 +85,10 @@
    "6": "The relay is waiting for the answer to another command. Nothing was sent. Try again in two minutes.",
    "7": "The relay has used its airtime for now, or the flood came too soon after its last one. Nothing was sent. Try again in a few minutes: get relay on the relay shows what is left.",
    "8": "The relay has no time yet. Nothing was sent. Try again in a minute.",
-   "9": "The relay could not send right now. Nothing was sent. Try again."
+   "9": "The relay could not send right now. Nothing was sent. Try again.",
+   "10": "The relay belongs to someone else, and you have used the floods it gives one guest today. Nothing was sent. Choose another relay, or try again after midnight UTC.",
+   "11": "The relay belongs to someone else, and its share for guests is used up for today. Nothing was sent. Choose another relay, or try again after midnight UTC.",
+   "12": "This node has had all the floods from guests that the relay allows one node today. Nothing was sent. Try again after midnight UTC, or send by a direct route."
   },
   "help_sv": {
    "0": "Reläet skickade kommandot och noden svarade.",
@@ -94,7 +100,10 @@
    "6": "Reläet väntar på svaret på ett annat kommando. Inget skickades. Försök igen om två minuter.",
    "7": "Reläet har använt sin sändningstid för stunden, eller så kom flooden för tätt efter den förra. Inget skickades. Försök igen om några minuter: get relay på reläet visar vad som är kvar.",
    "8": "Reläet har ingen tid ännu. Inget skickades. Försök igen om en minut.",
-   "9": "Reläet kunde inte sända just nu. Inget skickades. Försök igen."
+   "9": "Reläet kunde inte sända just nu. Inget skickades. Försök igen.",
+   "10": "Reläet tillhör någon annan, och du har använt de floods det ger en gäst i dag. Inget skickades. Välj ett annat relä, eller försök igen efter midnatt UTC.",
+   "11": "Reläet tillhör någon annan, och dess andel för gäster är slut för i dag. Inget skickades. Välj ett annat relä, eller försök igen efter midnatt UTC.",
+   "12": "Noden har fått alla floods från gäster som reläet tillåter en nod i dag. Inget skickades. Försök igen efter midnatt UTC, eller skicka med en direkt väg."
   }
  }
 }

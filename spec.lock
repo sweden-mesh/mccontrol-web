@@ -1,16 +1,16 @@
 # mccontrol-spec as copied here by scripts/spec-sync.mjs: never edit by hand
-source sweden-mesh/mccontrol-spec v0.5.0
+source sweden-mesh/mccontrol-spec v0.6.0
 8ea07e3d44189fc4ac70c1aa04cb5cde62e8ef0b3ee973b640bb661a7a81b81c  data/areas.json  web/lib/data/areas.json
 350f43367da9ef7b3c581afa6c6bd56a3b954c022a6963ca8ab5bc75e517108d  data/brokers.json  web/lib/data/brokers.json
 c4c339979e2f37f9496600ed0998271539d11de690426c1cfe9783ace3032bed  data/cautions.json  web/lib/data/cautions.json
-75cd51552bfbcb34245e749cbdb2c873a4f36b5087216a34e0f47002bd493822  data/commands.json  web/lib/data/commands.json
+31251190bf2d59e0a19b22c20be7c67e58c196b3d6f38d36ccbd7917fa9dce25  data/commands.json  web/lib/data/commands.json
 c1d54b6711b0e8fa2a2c7f632429f7da0473bd8bcfc2de9ce88b4152946a4a20  data/denylist.json  web/lib/data/denylist.json
 c8d085f3b8fbaf43b5827b87ea8974d79be1851923e5777b83cf9a1289799162  data/facts.json  web/lib/data/facts.json
-b037829da71a2fb475069825a6055bfc8fb79953411ed40bf5cba4f2c7e4743b  data/firmware.json  web/lib/data/firmware.json
-5dc24d1d5b9070ddbf9066e710d9e4e065b322ebd6d191aa01137dfa260fb529  data/help.json  web/lib/data/help.json
-294898470b6faf63c03874b185fea136790bf5203e60d427b6749db8a8c3cbd2  data/protocol.json  web/lib/data/protocol.json
-2434445b3ae3733fdcb0f2de3f433c4ff19195df9956d5f72d45a8395f5ba155  data/results.json  web/lib/data/results.json
+6e3a7fad8596bce25890e22d44579be472a7c18a1284dbdb4b19e92d4c623b7e  data/firmware.json  web/lib/data/firmware.json
+3a81a51fa28ba79640e7a3a00913300c5d0d42fa9c485c0f23ada3d5a2020f2e  data/help.json  web/lib/data/help.json
+fcafa83c4735a5ee1bec18546215dd3e679c3f4f58dcdfdf78a53124f0050baf  data/protocol.json  web/lib/data/protocol.json
+0b45ac0b6f3caa8444fdc1a9ef763db3bc67d4d1e9497d98e7b3380f03081796  data/results.json  web/lib/data/results.json
 38bf3cfdf93a2fff43e6182501c18af66f8d64108bb15dbd659865556903d370  vectors/key-backup-vectors.json  web/test/key-backup-vectors.json
-44b35e144f48fb22c7b06a5260334841af1d8795620ae6e0000125e75dc5dbea  vectors/malive-vectors.json  web/test/malive-vectors.json
-95333a69f6effc2716359f745654e92e4f9837617735f5f2b000af098c088384  vectors/mcc3-vectors.json  web/test/mcc3-vectors.json
-800077a414dae694180a725cbf71be8b2c757083b971b313370faff391f13568  vectors/vectors.json  web/test/vectors.json
+8f572a48c0e939e4a63b6712a6c71195b60ea615232293e44a1af8138b17c99e  vectors/malive-vectors.json  web/test/malive-vectors.json
+1fc0544b0ffd34ac456e91b9fa18c3305cb8ea6d927212870d9581e0d7305738  vectors/mcc3-vectors.json  web/test/mcc3-vectors.json
+83fb219d9b7dbdb5b7a2edcfbbfcc8b4fa90b3a3d194d8af6e5bcbc80b92ae19  vectors/vectors.json  web/test/vectors.json

@@ -55,6 +55,11 @@
    "tag": "lou-20",
    "number": 20,
    "admitted": null
+  },
+  {
+   "tag": "lou-21",
+   "number": 21,
+   "admitted": null
   }
  ],
  "ar10_families": [
@@ -87,14 +92,16 @@
   "set relay off": 20,
   "set relay own": 20,
   "get cmd.mesh": 20,
-  "get alive.interval": 20
+  "get alive.interval": 20,
+  "set relay any": 21,
+  "get relay.guest": 21
  },
  "v2_from": 13,
  "utf8_from": 17,
  "mesh_from": 19,
  "relay_from": 20,
  "announce_from": 21,
- "announce_rule": "from announce_from a node without Wi-Fi announces itself over the mesh, with its battery, and an Observer node of the same owner publishes what it caught on mcc/heard/<KEY>/<slot>; an older node does neither and is added by its key",
+ "announce_rule": "from announce_from a node without Wi-Fi announces itself over the mesh, signed, with its battery, and any Observer node of that revision hands every valid announce it hears to the command server, which keeps it on mcc/node/<KEY>; an older node does neither and is added by its key",
  "relay_rule": "a node relays when it is not mesh only and its revision is relay_from or later, or its alive message opened with your key; alive flags bit 4 (0x10) says relaying is on",
  "mesh_only_rule": "a version containing -lou- whose features have rc and which does not contain -observer (lower case); a device's own mesh_only (true/false) wins when set",
  "private_subtype": {

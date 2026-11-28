@@ -141,8 +141,6 @@ function relayHelp(ctx, svc, status) {
   const f = svc.data.results.forward;
   if (status === null) return ctx.t('road.relaySilent');
   if (status === 'answered') return ctx.t('road.relayUnread');
-  // lou-21's refusals of a guest forward (TODO(L21-G2): results.json does not carry them yet).
-  if (['guest-cap', 'guests-full', 'target-cap'].includes(status)) return ctx.t(`road.guestRefused.${status}`);
   const code = Object.keys(f.statuses).find((k) => f.statuses[k] === status);
   return (ctx.lang === 'sv' && f.help_sv?.[code]) || f.help[code] || ctx.t('road.relayStatus', { status });
 }

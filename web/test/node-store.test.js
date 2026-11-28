@@ -1,7 +1,8 @@
 // The shared node store and relaying through anyone's Observer (lou-21, L21-G9). A node without
 // Wi-Fi signs its announce; any lou-21 Observer hands it to the command server, which keeps one
-// entry per node, retained on `mcc/node/<KEY>`. Here: the bytes (the first 101 still pinned by the
-// firmware's malive-vectors.json, the signature, the entry and the guest forward by vectors of
+// entry per node, retained on `mcc/node/<KEY>`. Here: the bytes (the firmware's malive-vectors.json
+// from the spec: the signed announces, the Observer's forwards, the packets' sizes and a guest
+// forward; the tools' guest forward with the derived guest key; the entry and the guest forward by vectors of
 // this file with fixed keys, which mccontrol-cli's test_node_store.py pins the same), the
 // discovery against the in-memory broker (tag, signature, seal, the tried cache, a node removed
 // stays out), the relay choice and a guest forward through a stranger's relay, what the screens
@@ -11,7 +12,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import * as mcc3 from '../lib/protocol/mcc3.js';
 import { newSession, openNodeWith } from '../lib/protocol/plane.js';
-import { keyFromSeed } from '../lib/key/handle.js';
+import { GUEST_KEY_INFO, keyFromSeed } from '../lib/key/handle.js';
 import { fromHex, toHex } from '../lib/bytes.js';
 import { b64url, unb64url } from '../lib/protocol/text.js';
 import { memoryDb } from '../lib/store/db.js';
@@ -68,36 +69,80 @@ const entryOf = (announce, catchers = X.catchers) => mcc3.sealNodeEntry(announce
 
 // -- the bytes -------------------------------------------------------------------------------
 
-test('the first 101 bytes are still the firmware vectors, and the constants hold', () => {
-  assert.deepEqual([mcc3.KIND_ANNOUNCE, mcc3.ANNOUNCE_BODY, mcc3.ANNOUNCE_SEALED, mcc3.ANNOUNCE_TAG, mcc3.ANNOUNCE_MAX.version, mcc3.ANNOUNCE_MAX.name],
-    [C.kind, C.payload_bytes, C.sealed_bytes, C.tag_bytes, C.max_version, C.max_name]);
-  assert.deepEqual([mcc3.INFO_MALIVE, mcc3.OWN_LABEL], [C.label_malive, C.label_owner_tag]);
-  assert.deepEqual([mcc3.ANNOUNCE_SIZE, mcc3.ANN_LABEL, mcc3.KIND_NODE, mcc3.NODE_CATCHER_SIZE, mcc3.NODE_FILTER], [165, 'mcc3/ann|', 0x4e, 40, 'mcc/node/+']);
+test('every firmware announce is made byte for byte, signed, and opens; the constants hold', () => {
+  assert.deepEqual([mcc3.KIND_ANNOUNCE, mcc3.ANNOUNCE_SIZE, mcc3.ANNOUNCE_BODY - 1, mcc3.ANNOUNCE_SEALED, mcc3.ANNOUNCE_TAG, mcc3.ANNOUNCE_MAX.version, mcc3.ANNOUNCE_MAX.name],
+    [C.kind, C.payload_bytes, C.signed_bytes, C.sealed_bytes, C.tag_bytes, C.max_version, C.max_name]);
+  assert.deepEqual([mcc3.INFO_MALIVE, mcc3.OWN_LABEL, mcc3.ANN_LABEL], [C.label_malive, C.label_owner_tag, C.label_signature]);
+  assert.deepEqual([mcc3.KIND_NODE, mcc3.NODE_CATCHER_SIZE, mcc3.NODE_FILTER, { ...mcc3.VIA }], [0x4e, 40, 'mcc/node/+', { zeroHop: C.via.zero_hop, direct: C.via.direct, flood: C.via.flood }]);
   assert.equal(toHex(K_MALIVE, true), V.keys.k_malive_node);
   for (const a of V.announces) {
-    const raw = mcc3.sealAnnounce(mcc3.maliveKey(owner.sharedSecret(PUB[a.node]), PUB[a.node]), OWNER, PUB[a.node], a.fields);
+    const k = mcc3.maliveKey(owner.sharedSecret(PUB[a.node]), PUB[a.node]);
+    const raw = mcc3.signAnnounce(handleOf(a.node), mcc3.sealAnnounce(k, OWNER, PUB[a.node], a.fields));
+    assert.equal(raw.length, a.bytes);
     assert.equal(toHex(raw, true), a.payload, a.name);
-    const { node_key: key, ...opened } = mcc3.openAnnounceBody(mcc3.maliveKey(owner.sharedSecret(PUB[a.node]), PUB[a.node]), OWNER, raw);
+    assert.equal(toHex(raw.subarray(mcc3.ANNOUNCE_BODY), true), a.signature, a.name);
+    const { node_key: key, ...opened } = mcc3.openAnnounce(k, OWNER, raw);
     assert.equal(key, PUB[a.node]);
     assert.deepEqual(opened, a.opened);
   }
+  // The vectors give the Observer's word, which checks the signature first; a tool checks the
+  // owner tag first (one SHA-256), so a changed boot counter or node key is other-owner here.
   for (const r of V.refusals) {
-    assert.throws(() => mcc3.openAnnounceBody(K_MALIVE, OWNER, fromHex(r.input)), (e) => e instanceof mcc3.Refused && e.outcome === r.outcome, r.name);
+    const raw = fromHex(r.input);
+    const tagFirst = r.outcome === 'bad-signature' && !mcc3.announceIsFor(OWNER, raw);
+    assert.throws(() => mcc3.openAnnounce(K_MALIVE, OWNER, raw), (e) => e instanceof mcc3.Refused && e.outcome === (tagFirst ? 'other-owner' : r.outcome), r.name);
+    if (r.outcome === 'bad-signature') assert.ok(!mcc3.announceSignatureOk(raw), r.name);
+  }
+});
+
+test('the Observer\'s mcc/seen forward carries the announce a tool finds in the store', () => {
+  for (const sn of V.seen) {
+    const raw = unb64url(sn.payload);
+    assert.deepEqual([raw.length, raw[0]], [C.seen_bytes, C.kind_seen], sn.name);
+    const announce = Uint8Array.of(raw[1], ...raw.subarray(1, mcc3.ANNOUNCE_SIZE));
+    assert.equal(toHex(announce, true), sn.opened.announce, sn.name);
+    assert.ok(mcc3.announceSignatureOk(announce), sn.name);
+    const [snr, hops, via] = [(raw[165] << 24) >> 24, raw[166], raw[167]];
+    assert.deepEqual([snr, hops, via], [sn.opened.snr, sn.opened.hops, sn.opened.via], sn.name);
+    const e = mcc3.openNodeEntry(mcc3.sealNodeEntry(announce, [{ key: CATCHER, arrival: 1, snr, hops, via, list: 0 }]));
+    assert.deepEqual([e.node_key, e.catchers[0].snr, e.catchers[0].via], [sn.opened.node_key, snr, via], sn.name);
+  }
+});
+
+test('the spec carries the store\'s numbers as the firmware has them, and the tools\' as these constants', () => {
+  const p = data('protocol').mcc3_store;
+  assert.deepEqual([p.announce.kind, p.announce.size, p.announce.signed_bytes, p.announce.signature, p.announce.signature_label,
+    p.announce.sealed, p.announce.tag, p.announce.owner_tag_label, p.announce.hkdf_info, p.announce.max_version, p.announce.max_name, p.announce.interval_secs],
+  [C.kind, C.payload_bytes, C.signed_bytes, C.signature_bytes, C.label_signature, C.sealed_bytes, C.tag_bytes, C.label_owner_tag,
+    `${C.label_malive}<KEY>`, C.max_version, C.max_name, C.interval_seconds]);
+  assert.deepEqual([p.seen.kind, p.seen.size, p.seen.base64url_chars, p.seen.via, p.seen.queue, p.seen.gap_secs, p.seen.again_after_secs],
+    [C.kind_seen, C.seen_bytes, C.seen_base64url_chars, C.via, C.seen_queue, C.seen_gap_seconds, C.seen_again_after_seconds]);
+  assert.deepEqual([p.zero_hop.state, p.zero_hop.state_size, p.zero_hop.ack, p.zero_hop.ack_size, p.path_ack.kind, p.path_ack.size],
+    [C.control_state, C.state_bytes, C.control_ack, C.ack_bytes, C.kind_path_ack, C.path_ack_bytes]);
+  assert.deepEqual([p.node.kind, p.node.head, p.node.catcher, p.node.filter, p.node.topic], [mcc3.KIND_NODE, mcc3.NODE_HEAD, mcc3.NODE_CATCHER_SIZE, mcc3.NODE_FILTER, 'mcc/node/<KEY>']);
+  assert.deepEqual([p.guest_forward.kind, p.guest_forward.size, p.guest_forward.hkdf_info, p.guest_forward.guest_key_info, p.guest_forward.result_kind],
+    [mcc3.KIND_GUEST_FORWARD, mcc3.GUEST_FORWARD_SIZE, `${mcc3.INFO_GFWD}<KEY>`, GUEST_KEY_INFO, mcc3.KIND.forward_result]);
+  assert.equal(p.guest_forward.size, V.guest_forwards[0].bytes);
+  for (const pk of V.packets) {
+    assert.equal(fromHex(pk.payload).length, pk.bytes, pk.name);
+    const size = { state: p.zero_hop.state_size, ack: p.zero_hop.ack_size, 'path-ack': p.path_ack.size }[pk.kind];
+    if (size) assert.equal(pk.bytes, size, pk.name);
   }
 });
 
 test('the signed announce: 165 bytes, the node\'s Ed25519 over "mcc3/ann|" and bytes 1..100, pinned', () => {
-  const signed = mcc3.signAnnounce(nodeHandle, fromHex(A1.payload));
+  const body = fromHex(A1.payload).subarray(0, mcc3.ANNOUNCE_BODY);
+  const signed = mcc3.signAnnounce(nodeHandle, body);
   assert.equal(signed.length, 165);
   assert.equal(toHex(signed, true), X.signed);
-  assert.equal(toHex(signed.subarray(0, 101), true), A1.payload, 'the first 101 bytes as built in X07');
+  assert.equal(toHex(signed, true), A1.payload, 'the firmware\'s A1');
   assert.ok(mcc3.announceSignatureOk(signed));
   assert.ok(mcc3.announceIsFor(OWNER, signed));
   assert.ok(!mcc3.announceIsFor(STRANGER, signed));
   const { node_key: key, ...opened } = mcc3.openAnnounce(K_MALIVE, OWNER, signed);
   assert.equal(key, NODE);
   assert.deepEqual(opened, A1.opened);
-  assert.throws(() => mcc3.signAnnounce(handleOf('catcher'), fromHex(A1.payload)), /signed by the node it names/);
+  assert.throws(() => mcc3.signAnnounce(handleOf('catcher'), body), /signed by the node it names/);
 });
 
 test('the checks run in the note\'s order: size and kind, owner tag, signature, seal', () => {
@@ -182,29 +227,42 @@ test('the guest forward: K_gfwd the same from either side, kind G with the guest
   assert.deepEqual(mcc3.FORWARD_STATUSES.slice(10), ['guest-cap', 'guests-full', 'target-cap']);
 });
 
-// The firmware's G1 (planning/firmware/malive-vectors-20261127.json, guest_forwards[0]): a guest
-// forward with the vector's own guest key, other_owner, made byte for byte. mccontrol-cli pins the same.
-const G1 = Object.freeze({
-  k_gfwd: '4D1A64FE086B0D48833C87D769EDDE0B79CE1A0F24D013CDB76EC1CC7382317A', counter: 3, expiry: 1795000300,
-  rid: '000102030405060708090A0B0C0D0E0F', route: 1, nonce: '707172737475767778797A7B',
-  body: () => Uint8Array.from({ length: 132 }, (_, i) => (i === 0 ? 0xc2 : i)),
-  payload: 'R2wo_QWMGMiMbM4q-YHS0RyFGxI-1babeHZ3PtCZ6j-DcHFyc3R1dnd4eXp7BMVj9UTz1LH0VVY3YAteLTN3I1EJ1way9D5wfyJ7QQVen7UA85jjByt54cI61yTwxFDbI7L-jB4C7XeAgPSXvz8JU16sC7CFgz7-wixuJyLCxO-4bhKATm7EFYPnstwA_JnMNzRCWW-GubYHaxkyD2R_YeDIQGnBZg7cpJBfoRTCygqR_-yGxFY8YVrpKMtdZTJfxQKP9XjYmVxOC41KeeT8sz9I1o_RtBGE_e3kVo2TTs0MAAcuvp1sdpbcnhQB1bqY41L1Fk51lnoQjso0e2E1QcsA2gvKQ58JiXWFLFWs75eXYOOiJ00uQNROyyoVcX9K3EkxA3B6UIxnT0VWRQ6xmcme_-2K',
-  result: 'ZoCBgoOEhYaHiImKiwRBZqM4JV_IkmtD4KKUBpSRyzFDwebUvncwCK2HoEXWdJ9eHrGtOxpw_8X7iNw7mExt-eadzsF2njt9Kddxg6EGSKaFZ1i7cApwrLi6cLS0QhS7tu1lQYITk5bAETdWBFsplhNe7dgnRCzf9Bq0kffy4VxZ7BgOwZEdnURvqZiBH0AAgKjj86h1HBpS-Ur0-Vbmu94OUSuKjmJWCAqsx2kT2IOYo3zHju0tRBTpvcNOtyj_hZdV5OVxVsc4CUdXVgbXI9vvwmeTi4TRe3DSyVyVnwAy--_UbIS3GNRywBItOJOEicFxe5_9G-BR0ryZFVi7Wu2dkWiP2UU1HMUISoHdy0Pc2TmO5LbrXg4aMkC9',
-});
+// The firmware's G1: a guest forward with the vector's own guest key, other_owner.
+const [G1] = V.guest_forwards;
+// The tools' G1 (mccontrol-spec's mcc3-vectors.json): the guest key derived from the command seed.
+const [TG1] = JSON.parse(readFileSync(new URL('./mcc3-vectors.json', import.meta.url), 'utf8')).guest_forwards;
 
 test('the firmware\'s guest forward is made byte for byte, K_gfwd over the relay\'s key in upper case, its result opens', async () => {
   const { hkdf } = await import('../vendor/noble-hashes/hkdf.js');
   const { sha256 } = await import('../vendor/noble-hashes/sha2.js');
+  assert.deepEqual([G1.relay, G1.guest], ['catcher', 'other_owner']);
+  const f = G1.fields;
   const s = handleOf('other_owner').sharedSecret(CATCHER);
   const keys = mcc3.guestKeys(s, CATCHER.toLowerCase());
   assert.equal(toHex(keys.fwd, true), G1.k_gfwd);
   const enc = (t) => new TextEncoder().encode(t);
   assert.equal(toHex(hkdf(sha256, s, new Uint8Array(0), enc(`mcc3/gfwd/${CATCHER.toUpperCase()}`), 32), true), G1.k_gfwd);
   assert.notEqual(toHex(hkdf(sha256, s, new Uint8Array(0), enc(`mcc3/gfwd/${CATCHER.toLowerCase()}`), 32), true), G1.k_gfwd);
-  const g = mcc3.sealGuestForward(keys, STRANGER, CATCHER, G1.counter, G1.expiry, fromHex(G1.rid), NODE, G1.route, G1.body(), { nonce: fromHex(G1.nonce) });
+  const g = mcc3.sealGuestForward(keys, STRANGER, CATCHER, f.counter, f.expiry, fromHex(f.rid), f.target, f.route, fromHex(f.body),
+    { pathLen: f.path_len, path: fromHex(f.path), nonce: fromHex(G1.nonce) });
   assert.equal(g, G1.payload);
-  const r = mcc3.openForwardResult(keys, G1.result);
-  assert.deepEqual([r.counter, r.status, r.name, r.clock, r.sent], [3, 10, 'guest-cap', 1795000010, 0]);
+  assert.equal(unb64url(g).length, G1.bytes);
+  const r = mcc3.openForwardResult(keys, G1.result.payload);
+  assert.deepEqual([r.counter, r.status, r.name, r.clock, r.sent], [f.counter, G1.result.status, G1.result.status_name, G1.result.clock, 0]);
+});
+
+test('the tools\' guest forward in the spec is made from the command seed', () => {
+  const command = keyFromSeed(fromHex(TG1.command_seed));
+  const guest = command.guest();
+  assert.deepEqual([guest.publicKeyHex, TG1.guest_key_info], [TG1.guest_key, GUEST_KEY_INFO]);
+  assert.equal(TG1.guest_key, X.guestKey);
+  const secret = guest.sharedSecret(TG1.relay);
+  const keys = mcc3.guestKeys(secret, TG1.relay);
+  assert.deepEqual([toHex(secret, true), toHex(keys.fwd, true)], [TG1.shared_secret, TG1.k_gfwd]);
+  const g = mcc3.sealGuestForward(keys, TG1.guest_key, TG1.relay, TG1.counter, TG1.expiry, fromHex(TG1.rid), TG1.target, TG1.route, fromHex(TG1.body), { nonce: fromHex(TG1.nonce) });
+  assert.equal(g, TG1.payload);
+  assert.ok(!toHex(unb64url(g), true).includes(command.publicKeyHex), 'the command key appears nowhere');
+  assert.equal(mcc3.openForwardResult(keys, TG1.result.payload).name, 'guest-cap');
 });
 
 test('openNodeWith: another owner\'s entry costs no key agreement; a forged one or one under another topic is null', () => {
@@ -439,7 +497,9 @@ test('a guest forward through a stranger\'s Observer: sealed under K_gfwd with y
       const ctx = { lang, t: (key, vars = {}) => String(strings[key] ?? key).replace(/\{(\w+)\}/g, (_, n) => vars[n] ?? '') };
       const svc = { data: { results: data('results') }, rules };
       const said = explainEvent(ctx, svc, e);
-      assert.equal(said.help, strings[`road.guestRefused.${name}`], `${lang} ${name}`);
+      const forward = data('results').forward;
+      assert.equal(forward.statuses[status], name);
+      assert.equal(said.help, (lang === 'sv' ? forward.help_sv : forward.help)[status], `${lang} ${name}: the spec's text`);
       assert.ok(said.help && !/—|–/.test(said.help));
     }
   }
@@ -473,7 +533,7 @@ test('silent after about two days without a newer announce; the battery is the n
   for (const lang of ['en', 'sv']) {
     const strings = JSON.parse(readFileSync(new URL(`../i18n/${lang}.json`, import.meta.url), 'utf8'));
     for (const key of ['dash.att.announceSilent', 'road.hears.caught', 'road.guest', 'road.demoted', 'road.demotedShort', 'road.demotedNote',
-      'road.guestRefused.guest-cap', 'road.guestRefused.guests-full', 'road.guestRefused.target-cap', 'node.forgetHidden']) {
+      'node.forgetHidden']) {
       assert.ok(strings[key] && !/—|–/.test(strings[key]), `${lang} ${key}`);
     }
   }

@@ -655,6 +655,18 @@
    {
     "command": "set cmd.relay own",
     "refusal": "denied: the control plane itself: it would take the node off it"
+   },
+   {
+    "command": "set relay any",
+    "refusal": null
+   },
+   {
+    "command": "get relay.guest",
+    "refusal": null
+   },
+   {
+    "command": "set relay.guest 10",
+    "refusal": null
    }
   ],
   "caution": [
@@ -936,6 +948,18 @@
    },
    {
     "command": "set cmd.relay own",
+    "caution": null
+   },
+   {
+    "command": "set relay any",
+    "caution": null
+   },
+   {
+    "command": "get relay.guest",
+    "caution": null
+   },
+   {
+    "command": "set relay.guest 10",
     "caution": null
    }
   ],
@@ -1219,6 +1243,18 @@
    {
     "command": "set cmd.relay own",
     "read": false
+   },
+   {
+    "command": "set relay any",
+    "read": false
+   },
+   {
+    "command": "get relay.guest",
+    "read": true
+   },
+   {
+    "command": "set relay.guest 10",
+    "read": false
    }
   ],
   "is_transmit": [
@@ -1500,6 +1536,18 @@
    },
    {
     "command": "set cmd.relay own",
+    "transmit": false
+   },
+   {
+    "command": "set relay any",
+    "transmit": false
+   },
+   {
+    "command": "get relay.guest",
+    "transmit": false
+   },
+   {
+    "command": "set relay.guest 10",
     "transmit": false
    }
   ],
@@ -1783,6 +1831,18 @@
    {
     "command": "set cmd.relay own",
     "refusal": null
+   },
+   {
+    "command": "set relay any",
+    "refusal": null
+   },
+   {
+    "command": "get relay.guest",
+    "refusal": null
+   },
+   {
+    "command": "set relay.guest 10",
+    "refusal": null
    }
   ],
   "needs": [
@@ -2065,6 +2125,18 @@
    {
     "command": "set cmd.relay own",
     "tag": null
+   },
+   {
+    "command": "set relay any",
+    "tag": "lou-21"
+   },
+   {
+    "command": "get relay.guest",
+    "tag": "lou-21"
+   },
+   {
+    "command": "set relay.guest 10",
+    "tag": "ar-11"
    }
   ],
   "firmware": [
@@ -2090,7 +2162,9 @@
      "set prv.key 00": false,
      "ota update": false,
      "set relay own": false,
-     "get relay": false
+     "get relay": false,
+     "set relay any": false,
+     "get relay.guest": false
     },
     "lacks": {
      "ver": null,
@@ -2105,7 +2179,9 @@
      "set prv.key 00": null,
      "ota update": null,
      "set relay own": null,
-     "get relay": null
+     "get relay": null,
+     "set relay any": null,
+     "get relay.guest": null
     }
    },
    {
@@ -2130,7 +2206,9 @@
      "set prv.key 00": false,
      "ota update": false,
      "set relay own": false,
-     "get relay": false
+     "get relay": false,
+     "set relay any": false,
+     "get relay.guest": false
     },
     "lacks": {
      "ver": null,
@@ -2145,7 +2223,9 @@
      "set prv.key 00": null,
      "ota update": null,
      "set relay own": null,
-     "get relay": null
+     "get relay": null,
+     "set relay any": null,
+     "get relay.guest": null
     }
    },
    {
@@ -2170,7 +2250,9 @@
      "set prv.key 00": false,
      "ota update": false,
      "set relay own": false,
-     "get relay": false
+     "get relay": false,
+     "set relay any": false,
+     "get relay.guest": false
     },
     "lacks": {
      "ver": null,
@@ -2185,7 +2267,9 @@
      "set prv.key 00": null,
      "ota update": null,
      "set relay own": null,
-     "get relay": null
+     "get relay": null,
+     "set relay any": null,
+     "get relay.guest": null
     }
    },
    {
@@ -2210,7 +2294,9 @@
      "set prv.key 00": false,
      "ota update": false,
      "set relay own": false,
-     "get relay": false
+     "get relay": false,
+     "set relay any": false,
+     "get relay.guest": false
     },
     "lacks": {
      "ver": null,
@@ -2225,7 +2311,9 @@
      "set prv.key 00": null,
      "ota update": null,
      "set relay own": null,
-     "get relay": null
+     "get relay": null,
+     "set relay any": null,
+     "get relay.guest": null
     }
    },
    {
@@ -2250,7 +2338,9 @@
      "set prv.key 00": false,
      "ota update": false,
      "set relay own": false,
-     "get relay": false
+     "get relay": false,
+     "set relay any": false,
+     "get relay.guest": false
     },
     "lacks": {
      "ver": null,
@@ -2265,7 +2355,9 @@
      "set prv.key 00": null,
      "ota update": null,
      "set relay own": null,
-     "get relay": null
+     "get relay": null,
+     "set relay any": null,
+     "get relay.guest": null
     }
    },
    {
@@ -2290,7 +2382,9 @@
      "set prv.key 00": false,
      "ota update": false,
      "set relay own": false,
-     "get relay": false
+     "get relay": false,
+     "set relay any": false,
+     "get relay.guest": false
     },
     "lacks": {
      "ver": null,
@@ -2305,7 +2399,9 @@
      "set prv.key 00": null,
      "ota update": null,
      "set relay own": null,
-     "get relay": null
+     "get relay": null,
+     "set relay any": null,
+     "get relay.guest": null
     }
    },
    {
@@ -2330,7 +2426,9 @@
      "set prv.key 00": false,
      "ota update": false,
      "set relay own": false,
-     "get relay": false
+     "get relay": false,
+     "set relay any": false,
+     "get relay.guest": false
     },
     "lacks": {
      "ver": null,
@@ -2345,7 +2443,9 @@
      "set prv.key 00": null,
      "ota update": null,
      "set relay own": null,
-     "get relay": null
+     "get relay": null,
+     "set relay any": null,
+     "get relay.guest": null
     }
    },
    {
@@ -2370,7 +2470,9 @@
      "set prv.key 00": false,
      "ota update": false,
      "set relay own": false,
-     "get relay": false
+     "get relay": false,
+     "set relay any": false,
+     "get relay.guest": false
     },
     "lacks": {
      "ver": null,
@@ -2385,7 +2487,9 @@
      "set prv.key 00": null,
      "ota update": null,
      "set relay own": null,
-     "get relay": null
+     "get relay": null,
+     "set relay any": null,
+     "get relay.guest": null
     }
    },
    {
@@ -2410,7 +2514,9 @@
      "set prv.key 00": false,
      "ota update": false,
      "set relay own": false,
-     "get relay": false
+     "get relay": false,
+     "set relay any": false,
+     "get relay.guest": false
     },
     "lacks": {
      "ver": "rc",
@@ -2425,7 +2531,9 @@
      "set prv.key 00": "rc",
      "ota update": "rc",
      "set relay own": "rc",
-     "get relay": "rc"
+     "get relay": "rc",
+     "set relay any": "rc",
+     "get relay.guest": "rc"
     }
    },
    {
@@ -2450,7 +2558,9 @@
      "set prv.key 00": false,
      "ota update": false,
      "set relay own": false,
-     "get relay": false
+     "get relay": false,
+     "set relay any": false,
+     "get relay.guest": false
     },
     "lacks": {
      "ver": null,
@@ -2465,7 +2575,9 @@
      "set prv.key 00": null,
      "ota update": null,
      "set relay own": null,
-     "get relay": null
+     "get relay": null,
+     "set relay any": null,
+     "get relay.guest": null
     }
    },
    {
@@ -2490,7 +2602,9 @@
      "set prv.key 00": false,
      "ota update": false,
      "set relay own": false,
-     "get relay": false
+     "get relay": false,
+     "set relay any": false,
+     "get relay.guest": false
     },
     "lacks": {
      "ver": null,
@@ -2505,7 +2619,9 @@
      "set prv.key 00": null,
      "ota update": null,
      "set relay own": null,
-     "get relay": null
+     "get relay": null,
+     "set relay any": null,
+     "get relay.guest": null
     }
    },
    {
@@ -2530,7 +2646,9 @@
      "set prv.key 00": false,
      "ota update": false,
      "set relay own": false,
-     "get relay": false
+     "get relay": false,
+     "set relay any": false,
+     "get relay.guest": false
     },
     "lacks": {
      "ver": null,
@@ -2545,7 +2663,9 @@
      "set prv.key 00": null,
      "ota update": null,
      "set relay own": null,
-     "get relay": null
+     "get relay": null,
+     "set relay any": null,
+     "get relay.guest": null
     }
    },
    {
@@ -2570,7 +2690,9 @@
      "set prv.key 00": false,
      "ota update": false,
      "set relay own": false,
-     "get relay": false
+     "get relay": false,
+     "set relay any": false,
+     "get relay.guest": false
     },
     "lacks": {
      "ver": null,
@@ -2585,7 +2707,9 @@
      "set prv.key 00": null,
      "ota update": null,
      "set relay own": null,
-     "get relay": null
+     "get relay": null,
+     "set relay any": null,
+     "get relay.guest": null
     }
    },
    {
@@ -2610,7 +2734,9 @@
      "set prv.key 00": false,
      "ota update": true,
      "set relay own": false,
-     "get relay": false
+     "get relay": false,
+     "set relay any": false,
+     "get relay.guest": false
     },
     "lacks": {
      "ver": null,
@@ -2625,7 +2751,9 @@
      "set prv.key 00": null,
      "ota update": null,
      "set relay own": null,
-     "get relay": null
+     "get relay": null,
+     "set relay any": null,
+     "get relay.guest": null
     }
    },
    {
@@ -2650,7 +2778,9 @@
      "set prv.key 00": false,
      "ota update": false,
      "set relay own": false,
-     "get relay": false
+     "get relay": false,
+     "set relay any": false,
+     "get relay.guest": false
     },
     "lacks": {
      "ver": "rc",
@@ -2665,7 +2795,9 @@
      "set prv.key 00": "rc",
      "ota update": "rc",
      "set relay own": "rc",
-     "get relay": "rc"
+     "get relay": "rc",
+     "set relay any": "rc",
+     "get relay.guest": "rc"
     }
    },
    {
@@ -2690,7 +2822,9 @@
      "set prv.key 00": false,
      "ota update": true,
      "set relay own": false,
-     "get relay": false
+     "get relay": false,
+     "set relay any": false,
+     "get relay.guest": false
     },
     "lacks": {
      "ver": null,
@@ -2705,7 +2839,9 @@
      "set prv.key 00": null,
      "ota update": null,
      "set relay own": null,
-     "get relay": null
+     "get relay": null,
+     "set relay any": null,
+     "get relay.guest": null
     }
    },
    {
@@ -2730,7 +2866,9 @@
      "set prv.key 00": false,
      "ota update": true,
      "set relay own": false,
-     "get relay": false
+     "get relay": false,
+     "set relay any": false,
+     "get relay.guest": false
     },
     "lacks": {
      "ver": null,
@@ -2745,7 +2883,9 @@
      "set prv.key 00": null,
      "ota update": null,
      "set relay own": null,
-     "get relay": null
+     "get relay": null,
+     "set relay any": null,
+     "get relay.guest": null
     }
    },
    {
@@ -2770,7 +2910,9 @@
      "set prv.key 00": false,
      "ota update": true,
      "set relay own": true,
-     "get relay": true
+     "get relay": true,
+     "set relay any": false,
+     "get relay.guest": false
     },
     "lacks": {
      "ver": null,
@@ -2785,7 +2927,9 @@
      "set prv.key 00": null,
      "ota update": null,
      "set relay own": null,
-     "get relay": null
+     "get relay": null,
+     "set relay any": null,
+     "get relay.guest": null
     }
    },
    {
@@ -2810,7 +2954,9 @@
      "set prv.key 00": false,
      "ota update": true,
      "set relay own": true,
-     "get relay": true
+     "get relay": true,
+     "set relay any": false,
+     "get relay.guest": false
     },
     "lacks": {
      "ver": null,
@@ -2825,14 +2971,16 @@
      "set prv.key 00": null,
      "ota update": null,
      "set relay own": null,
-     "get relay": null
+     "get relay": null,
+     "set relay any": null,
+     "get relay.guest": null
     }
    },
    {
     "version": "esp32s3-v1.18.0-lou-21-arrc-observer-1a2b3c4",
     "revision": 21,
     "features": "arrc",
-    "entry": "lou-20",
+    "entry": "lou-21",
     "speaks_v2": true,
     "admits_utf8": true,
     "relays": true,
@@ -2850,7 +2998,9 @@
      "set prv.key 00": false,
      "ota update": true,
      "set relay own": true,
-     "get relay": true
+     "get relay": true,
+     "set relay any": true,
+     "get relay.guest": true
     },
     "lacks": {
      "ver": null,
@@ -2865,14 +3015,16 @@
      "set prv.key 00": null,
      "ota update": null,
      "set relay own": null,
-     "get relay": null
+     "get relay": null,
+     "set relay any": null,
+     "get relay.guest": null
     }
    },
    {
     "version": "nrf52840-v1.18.0-lou-21-arrc-1a2b3c4",
     "revision": 21,
     "features": "arrc",
-    "entry": "lou-20",
+    "entry": "lou-21",
     "speaks_v2": true,
     "admits_utf8": true,
     "relays": false,
@@ -2890,7 +3042,9 @@
      "set prv.key 00": false,
      "ota update": true,
      "set relay own": true,
-     "get relay": true
+     "get relay": true,
+     "set relay any": true,
+     "get relay.guest": true
     },
     "lacks": {
      "ver": null,
@@ -2905,14 +3059,16 @@
      "set prv.key 00": null,
      "ota update": null,
      "set relay own": null,
-     "get relay": null
+     "get relay": null,
+     "set relay any": null,
+     "get relay.guest": null
     }
    },
    {
     "version": "nrf52840-v1.18.0-lou-21-ar-1a2b3c4",
     "revision": 21,
     "features": "ar",
-    "entry": "lou-20",
+    "entry": "lou-21",
     "speaks_v2": true,
     "admits_utf8": true,
     "relays": true,
@@ -2930,7 +3086,9 @@
      "set prv.key 00": false,
      "ota update": false,
      "set relay own": false,
-     "get relay": false
+     "get relay": false,
+     "set relay any": false,
+     "get relay.guest": false
     },
     "lacks": {
      "ver": "rc",
@@ -2945,14 +3103,16 @@
      "set prv.key 00": "rc",
      "ota update": "rc",
      "set relay own": "rc",
-     "get relay": "rc"
+     "get relay": "rc",
+     "set relay any": "rc",
+     "get relay.guest": "rc"
     }
    },
    {
     "version": "esp32s3-v1.18.0-lou-21-observer-1a2b3c4",
     "revision": 21,
     "features": "",
-    "entry": "lou-20",
+    "entry": "lou-21",
     "speaks_v2": true,
     "admits_utf8": true,
     "relays": true,
@@ -2970,7 +3130,9 @@
      "set prv.key 00": false,
      "ota update": false,
      "set relay own": false,
-     "get relay": false
+     "get relay": false,
+     "set relay any": false,
+     "get relay.guest": false
     },
     "lacks": {
      "ver": "rc",
@@ -2985,7 +3147,9 @@
      "set prv.key 00": "rc",
      "ota update": "rc",
      "set relay own": "rc",
-     "get relay": "rc"
+     "get relay": "rc",
+     "set relay any": "rc",
+     "get relay.guest": "rc"
     }
    },
    {
@@ -3010,7 +3174,9 @@
      "set prv.key 00": false,
      "ota update": false,
      "set relay own": false,
-     "get relay": false
+     "get relay": false,
+     "set relay any": false,
+     "get relay.guest": false
     },
     "lacks": {
      "ver": "rc",
@@ -3025,7 +3191,9 @@
      "set prv.key 00": "rc",
      "ota update": "rc",
      "set relay own": "rc",
-     "get relay": "rc"
+     "get relay": "rc",
+     "set relay any": "rc",
+     "get relay.guest": "rc"
     }
    },
    {
@@ -3050,7 +3218,9 @@
      "set prv.key 00": false,
      "ota update": false,
      "set relay own": false,
-     "get relay": false
+     "get relay": false,
+     "set relay any": false,
+     "get relay.guest": false
     },
     "lacks": {
      "ver": null,
@@ -3065,7 +3235,9 @@
      "set prv.key 00": null,
      "ota update": null,
      "set relay own": null,
-     "get relay": null
+     "get relay": null,
+     "set relay any": null,
+     "get relay.guest": null
     }
    },
    {
@@ -3090,7 +3262,9 @@
      "set prv.key 00": false,
      "ota update": true,
      "set relay own": true,
-     "get relay": true
+     "get relay": true,
+     "set relay any": false,
+     "get relay.guest": false
     },
     "lacks": {
      "ver": null,
@@ -3105,7 +3279,9 @@
      "set prv.key 00": null,
      "ota update": null,
      "set relay own": null,
-     "get relay": null
+     "get relay": null,
+     "set relay any": null,
+     "get relay.guest": null
     }
    },
    {
@@ -3130,7 +3306,9 @@
      "set prv.key 00": false,
      "ota update": true,
      "set relay own": true,
-     "get relay": true
+     "get relay": true,
+     "set relay any": false,
+     "get relay.guest": false
     },
     "lacks": {
      "ver": null,
@@ -3145,7 +3323,9 @@
      "set prv.key 00": null,
      "ota update": null,
      "set relay own": null,
-     "get relay": null
+     "get relay": null,
+     "set relay any": null,
+     "get relay.guest": null
     }
    }
   ],
@@ -3796,6 +3976,21 @@
     "command": "set cmd.relay own",
     "uplink": "denied: the control plane itself: it would take the node off it",
     "mesh_only": "denied: the control plane itself: it would take the node off it"
+   },
+   {
+    "command": "set relay any",
+    "uplink": null,
+    "mesh_only": null
+   },
+   {
+    "command": "get relay.guest",
+    "uplink": null,
+    "mesh_only": null
+   },
+   {
+    "command": "set relay.guest 10",
+    "uplink": null,
+    "mesh_only": null
    },
    {
     "command": "set wifi.ssid HomeNet",

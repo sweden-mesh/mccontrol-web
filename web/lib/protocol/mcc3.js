@@ -63,8 +63,7 @@ export const FORWARD_RESULT_PLAIN = 256;
 export const FORWARD_RESULT_PATH = 64;
 export const FORWARD_MAX_RESPONSE = 167;
 export const FORWARD_RESULT_SIZE = 1 + NONCE_LEN + FORWARD_RESULT_PLAIN + TAG_LEN;
-// 10..12 are lou-21's refusals of a guest forward. TODO(L21-G2): their numbers are taken from the
-// order the design note lists them in; the spec's results.json does not carry them yet.
+// 10..12 are lou-21's refusals of a guest forward, through a stranger's relay.
 export const FORWARD_STATUSES = Object.freeze(['answered', 'no-answer', 'off', 'expired', 'replay', 'bad-body', 'busy',
   'rate-limited', 'clock-unset', 'send-failed', 'guest-cap', 'guests-full', 'target-cap']);
 export const SENT = Object.freeze({ nothing: 0, direct: 1, flood: 2 });
@@ -510,9 +509,8 @@ export function openAlive(keys, payload) {
 //   owner tag SHA-256("mcc3/own|" command key, node key, boot, sequence)[0:4]
 //   signature Ed25519 by the node over "mcc3/ann|" + bytes 1..100
 //
-// test/malive-vectors.json (the firmware's own) pins the first 101 bytes byte for byte.
-// TODO(L21-G2): the 165-byte announce, the node entry and the guest forward are not in
-// mccontrol-spec yet; these constants stay here until the spec carries them.
+// test/malive-vectors.json (the firmware's own, in mccontrol-spec from v0.6.0) pins the signed
+// announces byte for byte; protocol.json's `mcc3_store` carries these constants.
 
 export const INFO_MALIVE = 'mcc3/malive/';
 export const OWN_LABEL = 'mcc3/own|';
@@ -525,7 +523,7 @@ export const ANNOUNCE_SEALED = 47;
 export const ANNOUNCE_TAG = 8; // the Poly1305 tag is cut to its first 8 bytes
 export const ANNOUNCE_MAX = Object.freeze({ version: 14, name: 16 });
 export const NODE_FILTER = `${TOPIC_ROOT}node/+`;
-// 40 bytes a catcher: the note's sum says 39, its field list (and mcbroker's state.c) 40.
+// 40 bytes a catcher.
 export const NODE_CATCHER_SIZE = 40;
 export const NODE_HEAD = 1 + ANNOUNCE_SIZE - 1 + 1; // kind, the announce from byte 1, the count
 // How the catching Observer heard the announce: a zero-hop state packet, direct along a path, a flood.

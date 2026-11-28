@@ -168,6 +168,14 @@
    "read": true
   },
   {
+   "text": "get relay.guest",
+   "group": "reads",
+   "kind": "none",
+   "choices": [],
+   "examples": [],
+   "read": true
+  },
+  {
    "text": "get mqtt.iata",
    "group": "reads",
    "kind": "none",
@@ -652,10 +660,22 @@
    "group": "MQTT",
    "kind": "choice",
    "choices": [
-    "off",
-    "own"
+    "any",
+    "own",
+    "off"
    ],
    "examples": [],
+   "read": false
+  },
+  {
+   "text": "set relay.guest",
+   "group": "MQTT",
+   "kind": "text",
+   "choices": [],
+   "examples": [
+    "10",
+    "0"
+   ],
    "read": false
   },
   {
