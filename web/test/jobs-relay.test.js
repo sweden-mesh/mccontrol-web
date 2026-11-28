@@ -404,6 +404,9 @@ test('set relay off|own: the node\'s OK is its word until the next alive', async
   await jobs.send({ command: 'set relay own', nodes: [R] });
   assert.equal((await stores.devices.get(R)).alive.relay, true);
   assert.equal(rules.refusal('set relay own'), null, 'not on the deny list');
+  await jobs.send({ command: 'set relay off', nodes: [R] });
+  await jobs.send({ command: 'set relay any', nodes: [R] });
+  assert.equal((await stores.devices.get(R)).alive.relay, true, 'any (lou-21) relays too');
 });
 
 test('importing history keeps a relay event and refuses a made-up one', async () => {

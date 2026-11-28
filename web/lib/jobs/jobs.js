@@ -245,8 +245,8 @@ export function createJobs({
       const value = valueOf(result.reply);
       if (command === 'ver' && value) await stores.devices.update(device.node, { ver: value.slice(0, 60) });
       // The node's own word on its relaying, until its next alive says it again.
-      const relaying = /^set relay (off|own)$/.exec(command);
-      if (relaying && device.alive) await stores.devices.update(device.node, { alive: { ...device.alive, relay: relaying[1] === 'own' } });
+      const relaying = /^set relay (off|own|any)$/.exec(command);
+      if (relaying && device.alive) await stores.devices.update(device.node, { alive: { ...device.alive, relay: relaying[1] !== 'off' } });
       if (command === 'get name' && value && !device.name) {
         try { await stores.devices.update(device.node, { name: value.slice(0, 40) }); } catch { /* the name is taken */ }
       }
